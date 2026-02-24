@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { Task, WorkCalendar } from '@/types'
-import { TaskStatus } from '@/types/enums/task-status.enum'
+import { useCreateProjectTask, useUpdateProjectTask } from '@/hooks/useProjectTasks'
 import {
+	formatDateForInput,
 	getCalendarRange,
 	getDaysInRange,
 	groupDaysByMonth,
@@ -27,6 +28,13 @@ export default function GanttChart({
 	workCalendar,
 }: GanttChartProps) {
 	const [tasks, setTasks] = useState<Task[]>(initialTasks)
+
+	useEffect(() => {
+		setTasks(initialTasks)
+	}, [initialTasks])
+
+	const createTaskMutation = useCreateProjectTask()
+	const updateTaskMutation = useUpdateProjectTask()
 	const leftRef = useRef<HTMLDivElement>(null)
 	const rightRef = useRef<HTMLDivElement>(null)
 	const isSyncing = useRef(false)
@@ -36,36 +44,39 @@ export default function GanttChart({
 	const monthGroups = groupDaysByMonth(days)
 
 	const handleAddTask = useCallback(() => {
-		const newId = String(tasks.length + 1).padStart(4, '0')
-		const newTask: Task = {
-			id: newId,
-			title: '',
-			description: '',
-			status: TaskStatus.EMPTY,
-			plannedCalendarDuration: undefined,
-			actualCalendarDuration: undefined,
-			plannedStartDate: undefined,
-			plannedEndDate: undefined,
-			actualStartDate: undefined,
-			actualEndDate: undefined,
-			dependsOn: [],
-			dependsOnLag: {},
-		}
-		setTasks((prev) => [...prev, newTask])
-	}, [tasks.length])
+		createTaskMutation.mutate(undefined, {
+			onSuccess: (newTask) => {
+				setTasks((prev) => [...prev, newTask])
+			},
+		})
+	}, [createTaskMutation])
 
 	const handleUpdateTask = useCallback(
 		(id: string, updates: Partial<Task>) => {
-			setTasks((prev) => {
-				const updated = prev.map((t) =>
-					t.id === id ? { ...t, ...updates } : t,
+			if ('plannedStartDate' in updates) {
+				updateTaskMutation.mutate(
+					{ id, updates: { plannedStartDate: formatDateForInput(updates.plannedStartDate!) } },
+					{
+						onSuccess: (updatedTask) => {
+							setTasks((prev) => {
+								const updated = prev.map((t) => t.id === id ? updatedTask : t)
+								return cascadeDependencies(updated, id)
+							})
+						},
+					},
 				)
-				return 'plannedEndDate' in updates
-					? cascadeDependencies(updated, id)
-					: updated
-			})
+			} else {
+				setTasks((prev) => {
+					const updated = prev.map((t) =>
+						t.id === id ? { ...t, ...updates } : t,
+					)
+					return 'plannedEndDate' in updates
+						? cascadeDependencies(updated, id)
+						: updated
+				})
+			}
 		},
-		[],
+		[updateTaskMutation],
 	)
 
 	const handleCreateDependency = useCallback((fromId: string, toId: string) => {

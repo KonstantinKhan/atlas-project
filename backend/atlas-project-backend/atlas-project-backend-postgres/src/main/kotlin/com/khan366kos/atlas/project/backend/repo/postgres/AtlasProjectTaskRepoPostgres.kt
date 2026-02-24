@@ -1,4 +1,4 @@
-package com.khan366kos.atlas.project.backend.repo.inmemory
+package com.khan366kos.atlas.project.backend.repo.postgres
 
 import com.khan366kos.atlas.project.backend.common.models.ProjectDate
 import com.khan366kos.atlas.project.backend.common.models.simple.CalendarDuration
@@ -16,7 +16,7 @@ import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
 import org.jetbrains.exposed.sql.update
 
-class AtlasProjectTaskRepoInMemory(private val database: Database) : IAtlasProjectTaskRepo {
+class AtlasProjectTaskRepoPostgres(private val database: Database) : IAtlasProjectTaskRepo {
     override suspend fun tasks(): List<ProjectTask> = newSuspendedTransaction(db = database) {
         ProjectTasksTable.selectAll().map { it.toProjectTask() }
     }

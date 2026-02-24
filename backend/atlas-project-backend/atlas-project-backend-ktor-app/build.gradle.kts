@@ -15,7 +15,6 @@ dependencies {
     implementation(libs.ktor.serialization.kotlinx.json)
     implementation(libs.ktor.server.content.negotiation)
     implementation(libs.postgresql)
-    implementation(libs.h2)
     implementation(libs.exposed.core)
     implementation(libs.exposed.jdbc)
     implementation(libs.ktor.server.cors)
@@ -23,10 +22,11 @@ dependencies {
     implementation(libs.logback.classic)
 
     implementation(libs.flyway.core)
+    implementation(libs.flyway.database.postgresql)
 
     implementation(projects.atlasProjectBackendTransport)
     implementation(projects.atlasProjectBackendCommon)
-    implementation(projects.atlasProjectBackendRepoInMemory)
+    implementation(projects.atlasProjectBackendPostgres)
 
     testImplementation(libs.ktor.server.test.host)
     testImplementation(libs.kotlin.test.junit)

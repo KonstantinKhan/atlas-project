@@ -1,19 +1,21 @@
 package com.khan366kos
 
 import com.khan366kos.atlas.project.backend.common.repo.IAtlasProjectTaskRepo
-import com.khan366kos.atlas.project.backend.repo.inmemory.AtlasProjectTaskRepoInMemory
+import com.khan366kos.atlas.project.backend.repo.postgres.AtlasProjectTaskRepoPostgres
 import io.ktor.server.application.*
 import org.flywaydb.core.Flyway
 import org.jetbrains.exposed.sql.Database
 
 fun Application.configureDatabases(): IAtlasProjectTaskRepo {
-    val url = "jdbc:h2:mem:atlas;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE"
+    val dbUrl = environment.config.property("postgres.url").getString()
+    val dbUser = environment.config.property("postgres.user").getString()
+    val dbPassword = environment.config.property("postgres.password").getString()
 
     Flyway.configure()
-        .dataSource(url, "sa", "")
+        .dataSource(dbUrl, dbUser, dbPassword)
         .load()
         .migrate()
 
-    val database = Database.connect(url = url, driver = "org.h2.Driver", user = "sa", password = "")
-    return AtlasProjectTaskRepoInMemory(database)
+    val database = Database.connect(url = dbUrl, driver = "org.postgresql.Driver", user = dbUser, password = dbPassword)
+    return AtlasProjectTaskRepoPostgres(database)
 }
