@@ -1,0 +1,13 @@
+# macOS system files
+.DS_Store
+._.DS_Store
+**/.DS_Store
+.AppleDouble
+.LSOverride
+
+# Иконки
+Icon
+Icon?
+
+# Thumbnails
+._*
