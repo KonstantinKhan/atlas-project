@@ -3,11 +3,11 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { useTimelineCalendar } from '@/hooks/useTimelineCalendar'
 import {
-	useProjectTasks,
+	useProjectPlan,
 	useCreateProjectTask,
 	useUpdateProjectTask,
 } from '@/hooks/useProjectTasks'
-import { Task } from '@/types'
+import { Task, GanttProjectPlan } from '@/types'
 import {
 	formatDateForInput,
 	getCalendarRange,
@@ -23,6 +23,26 @@ const DAY_COLUMN_WIDTH = 40
 const ROW_HEIGHT = 48
 const HEADER_HEIGHT = 60
 
+function planToTasks(plan: GanttProjectPlan): Task[] {
+	return plan.tasks.map((ganttTask) => {
+		const deps = plan.dependencies.filter((d) => d.toTaskId === ganttTask.id)
+		return {
+			id: ganttTask.id,
+			title: ganttTask.title,
+			description: '',
+			plannedCalendarDuration: undefined,
+			actualCalendarDuration: undefined,
+			plannedStartDate: ganttTask.start,
+			plannedEndDate: ganttTask.end,
+			actualStartDate: undefined,
+			actualEndDate: undefined,
+			status: ganttTask.status,
+			dependsOn: deps.map((d) => d.fromTaskId),
+			dependsOnLag: Object.fromEntries(deps.map((d) => [d.fromTaskId, d.lagDays])),
+		}
+	})
+}
+
 export const GanttChart = () => {
 	const {
 		calendar,
@@ -32,13 +52,13 @@ export const GanttChart = () => {
 	} = useTimelineCalendar()
 
 	const {
-		data: tasksData,
-		isLoading: tasksLoading,
-		error: tasksError,
-		refetch: refetchTasks,
-	} = useProjectTasks()
+		data: planData,
+		isLoading: planLoading,
+		error: planError,
+		refetch: refetchPlan,
+	} = useProjectPlan()
 
-	const [tasks, setTasks] = useState<Task[]>(tasksData ?? [])
+	const [tasks, setTasks] = useState<Task[]>([])
 	const createTaskMutation = useCreateProjectTask()
 	const updateTaskMutation = useUpdateProjectTask()
 	const leftRef = useRef<HTMLDivElement>(null)
@@ -46,10 +66,10 @@ export const GanttChart = () => {
 	const isSyncing = useRef(false)
 
 	useEffect(() => {
-		if (tasksData) {
-			setTasks(tasksData)
+		if (planData) {
+			setTasks(planToTasks(planData))
 		}
-	}, [tasksData])
+	}, [planData])
 
 	const handleAddTask = useCallback(() => {
 		createTaskMutation.mutate(undefined, {
@@ -151,7 +171,7 @@ export const GanttChart = () => {
 		[],
 	)
 
-	if (calendarLoading || tasksLoading) {
+	if (calendarLoading || planLoading) {
 		return (
 			<div className="flex h-screen items-center justify-center bg-white dark:bg-zinc-950">
 				<div className="text-center">
@@ -162,8 +182,8 @@ export const GanttChart = () => {
 		)
 	}
 
-	if (calendarError || tasksError) {
-		const message = ((calendarError || tasksError) as Error).message
+	if (calendarError || planError) {
+		const message = ((calendarError || planError) as Error).message
 		return (
 			<div className="flex h-screen items-center justify-center bg-white dark:bg-zinc-950">
 				<div className="text-center">
@@ -173,7 +193,7 @@ export const GanttChart = () => {
 					<button
 						onClick={() => {
 							refetchCalendar()
-							refetchTasks()
+							refetchPlan()
 						}}
 						className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600"
 					>
@@ -184,9 +204,9 @@ export const GanttChart = () => {
 		)
 	}
 
-	if (!calendar || !tasksData) return null
+	if (!calendar || !planData) return null
 
-	const { start: rangeStart, end: rangeEnd } = getCalendarRange(tasksData)
+	const { start: rangeStart, end: rangeEnd } = getCalendarRange(tasks)
 	const days = getDaysInRange(rangeStart, rangeEnd)
 	const monthGroups = groupDaysByMonth(days)
 

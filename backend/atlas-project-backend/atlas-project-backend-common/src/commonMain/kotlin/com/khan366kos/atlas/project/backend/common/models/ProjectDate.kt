@@ -4,5 +4,7 @@ import kotlinx.datetime.LocalDate
 
 sealed class ProjectDate {
     object NotSet: ProjectDate()
-    data class Set(val date: LocalDate) : ProjectDate()
+    data class Set(val date: LocalDate) : ProjectDate() {
+        fun asLocalDate() = date
+    }
 }

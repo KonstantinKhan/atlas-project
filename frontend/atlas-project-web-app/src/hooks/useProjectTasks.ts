@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getProjectTasks, createProjectTask, updateProjectTask } from '@/services/projectTasksApi'
-import { Task } from '@/types'
+import { getProjectTasks, createProjectTask, updateProjectTask, getProjectPlan } from '@/services/projectTasksApi'
+import { Task, GanttProjectPlan } from '@/types'
 
 const QUERY_KEY = ['projectTasks']
 
@@ -18,6 +18,13 @@ export function useUpdateProjectTask() {
 			updateProjectTask(id, updates),
 		onSuccess: () =>
 			queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
+	})
+}
+
+export function useProjectPlan() {
+	return useQuery<GanttProjectPlan>({
+		queryKey: ['projectPlan'],
+		queryFn: getProjectPlan,
 	})
 }
 

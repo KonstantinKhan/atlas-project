@@ -1,6 +1,5 @@
 package com.khan366kos.atlas.project.backend.repo.postgres.table
 
-import com.khan366kos.atlas.project.backend.repo.postgres.table.TimelineCalendarTable
 import org.jetbrains.exposed.dao.id.IntIdTable
 import org.jetbrains.exposed.sql.ReferenceOption
 import org.jetbrains.exposed.sql.kotlin.datetime.date

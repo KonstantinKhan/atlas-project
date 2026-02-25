@@ -6,7 +6,7 @@ import io.ktor.server.application.*
 import org.flywaydb.core.Flyway
 import org.jetbrains.exposed.sql.Database
 
-fun Application.configureDatabases(): IAtlasProjectTaskRepo {
+fun configureDatabases(environment: ApplicationEnvironment): IAtlasProjectTaskRepo {
     val dbUrl = environment.config.property("postgres.url").getString()
     val dbUser = environment.config.property("postgres.user").getString()
     val dbPassword = environment.config.property("postgres.password").getString()
