@@ -7,16 +7,39 @@ import com.khan366kos.atlas.project.backend.common.models.task.enums.ProjectTask
 import com.khan366kos.atlas.project.backend.common.models.task.simple.ProjectTaskDescription
 import com.khan366kos.atlas.project.backend.common.models.task.simple.ProjectTaskId
 import com.khan366kos.atlas.project.backend.common.models.task.simple.ProjectTaskTitle
+import com.khan366kos.atlas.project.backend.common.models.timelineCalendar.TimelineCalendar
 import com.khan366kos.atlas.project.backend.common.repo.IAtlasProjectTaskRepo
+import com.khan366kos.atlas.project.backend.repo.postgres.mapper.toHoliday
+import com.khan366kos.atlas.project.backend.repo.postgres.mapper.toTimelineCalendar
+import com.khan366kos.atlas.project.backend.repo.postgres.mapper.toWorkingWeekend
+import com.khan366kos.atlas.project.backend.repo.postgres.table.TimelineCalendarHolidaysTable
+import com.khan366kos.atlas.project.backend.repo.postgres.table.TimelineCalendarTable
+import com.khan366kos.atlas.project.backend.repo.postgres.table.TimelineCalendarWorkingWeekendsTable
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.ResultRow
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
 import org.jetbrains.exposed.sql.update
 
 class AtlasProjectTaskRepoPostgres(private val database: Database) : IAtlasProjectTaskRepo {
+    override suspend fun timelineCalendar(): TimelineCalendar = newSuspendedTransaction(db = database) {
+        val calendarRow = TimelineCalendarTable.selectAll().single()
+        val calendar = calendarRow.toTimelineCalendar()
+        val holidays = TimelineCalendarHolidaysTable
+            .selectAll()
+            .where { TimelineCalendarHolidaysTable.calendarId eq calendarRow[TimelineCalendarTable.id].value }
+            .map { it.toHoliday() }
+        val workingWeekends = TimelineCalendarWorkingWeekendsTable
+            .selectAll()
+            .where { TimelineCalendarWorkingWeekendsTable.calendarId eq calendarRow[TimelineCalendarTable.id].value }
+            .map { it.toWorkingWeekend() }
+        calendar.copy(
+            holidays = holidays.toSet(),
+            workingWeekends = workingWeekends.toSet()
+        )
+    }
+
     override suspend fun tasks(): List<ProjectTask> = newSuspendedTransaction(db = database) {
         ProjectTasksTable.selectAll().map { it.toProjectTask() }
     }

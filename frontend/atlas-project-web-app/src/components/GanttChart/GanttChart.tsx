@@ -1,8 +1,13 @@
 'use client'
 
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { Task, WorkCalendar } from '@/types'
-import { useCreateProjectTask, useUpdateProjectTask } from '@/hooks/useProjectTasks'
+import { useTimelineCalendar } from '@/hooks/useTimelineCalendar'
+import {
+	useProjectTasks,
+	useCreateProjectTask,
+	useUpdateProjectTask,
+} from '@/hooks/useProjectTasks'
+import { Task } from '@/types'
 import {
 	formatDateForInput,
 	getCalendarRange,
@@ -18,30 +23,33 @@ const DAY_COLUMN_WIDTH = 40
 const ROW_HEIGHT = 48
 const HEADER_HEIGHT = 60
 
-interface GanttChartProps {
-	initialTasks: Task[]
-	workCalendar: WorkCalendar
-}
+export const GanttChart = () => {
+	const {
+		calendar,
+		isLoading: calendarLoading,
+		error: calendarError,
+		refetch: refetchCalendar,
+	} = useTimelineCalendar()
 
-export default function GanttChart({
-	initialTasks,
-	workCalendar,
-}: GanttChartProps) {
-	const [tasks, setTasks] = useState<Task[]>(initialTasks)
+	const {
+		data: tasksData,
+		isLoading: tasksLoading,
+		error: tasksError,
+		refetch: refetchTasks,
+	} = useProjectTasks()
 
-	useEffect(() => {
-		setTasks(initialTasks)
-	}, [initialTasks])
-
+	const [tasks, setTasks] = useState<Task[]>(tasksData ?? [])
 	const createTaskMutation = useCreateProjectTask()
 	const updateTaskMutation = useUpdateProjectTask()
 	const leftRef = useRef<HTMLDivElement>(null)
 	const rightRef = useRef<HTMLDivElement>(null)
 	const isSyncing = useRef(false)
 
-	const { start: rangeStart, end: rangeEnd } = getCalendarRange(tasks)
-	const days = getDaysInRange(rangeStart, rangeEnd)
-	const monthGroups = groupDaysByMonth(days)
+	useEffect(() => {
+		if (tasksData) {
+			setTasks(tasksData)
+		}
+	}, [tasksData])
 
 	const handleAddTask = useCallback(() => {
 		createTaskMutation.mutate(undefined, {
@@ -55,11 +63,16 @@ export default function GanttChart({
 		(id: string, updates: Partial<Task>) => {
 			if ('plannedStartDate' in updates) {
 				updateTaskMutation.mutate(
-					{ id, updates: { plannedStartDate: formatDateForInput(updates.plannedStartDate!) } },
+					{
+						id,
+						updates: {
+							plannedStartDate: formatDateForInput(updates.plannedStartDate!),
+						},
+					},
 					{
 						onSuccess: (updatedTask) => {
 							setTasks((prev) => {
-								const updated = prev.map((t) => t.id === id ? updatedTask : t)
+								const updated = prev.map((t) => (t.id === id ? updatedTask : t))
 								return cascadeDependencies(updated, id)
 							})
 						},
@@ -138,6 +151,45 @@ export default function GanttChart({
 		[],
 	)
 
+	if (calendarLoading || tasksLoading) {
+		return (
+			<div className="flex h-screen items-center justify-center bg-white dark:bg-zinc-950">
+				<div className="text-center">
+					<div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></div>
+					<p className="text-gray-600 dark:text-zinc-400">Загрузка...</p>
+				</div>
+			</div>
+		)
+	}
+
+	if (calendarError || tasksError) {
+		const message = ((calendarError || tasksError) as Error).message
+		return (
+			<div className="flex h-screen items-center justify-center bg-white dark:bg-zinc-950">
+				<div className="text-center">
+					<p className="mb-4 text-red-600 dark:text-red-400">
+						Ошибка загрузки данных: {message}
+					</p>
+					<button
+						onClick={() => {
+							refetchCalendar()
+							refetchTasks()
+						}}
+						className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600"
+					>
+						Повторить
+					</button>
+				</div>
+			</div>
+		)
+	}
+
+	if (!calendar || !tasksData) return null
+
+	const { start: rangeStart, end: rangeEnd } = getCalendarRange(tasksData)
+	const days = getDaysInRange(rangeStart, rangeEnd)
+	const monthGroups = groupDaysByMonth(days)
+
 	return (
 		<div className="flex h-screen bg-white dark:bg-zinc-950 overflow-hidden">
 			<div
@@ -165,7 +217,7 @@ export default function GanttChart({
 						monthGroups={monthGroups}
 						dayWidth={DAY_COLUMN_WIDTH}
 						headerHeight={HEADER_HEIGHT}
-						workCalendar={workCalendar}
+						workCalendar={calendar}
 					/>
 				</div>
 				<GanttCalendarGrid
@@ -174,7 +226,7 @@ export default function GanttChart({
 					rangeStart={rangeStart}
 					dayWidth={DAY_COLUMN_WIDTH}
 					rowHeight={ROW_HEIGHT}
-					workCalendar={workCalendar}
+					timelineCalendar={calendar}
 					onCreateDependency={handleCreateDependency}
 					onRemoveDependency={handleRemoveDependency}
 				/>

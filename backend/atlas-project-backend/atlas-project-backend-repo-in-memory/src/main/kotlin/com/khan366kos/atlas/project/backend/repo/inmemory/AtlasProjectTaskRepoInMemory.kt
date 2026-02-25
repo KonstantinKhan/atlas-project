@@ -7,6 +7,7 @@ import com.khan366kos.atlas.project.backend.common.models.task.enums.ProjectTask
 import com.khan366kos.atlas.project.backend.common.models.task.simple.ProjectTaskDescription
 import com.khan366kos.atlas.project.backend.common.models.task.simple.ProjectTaskId
 import com.khan366kos.atlas.project.backend.common.models.task.simple.ProjectTaskTitle
+import com.khan366kos.atlas.project.backend.common.models.timelineCalendar.TimelineCalendar
 import com.khan366kos.atlas.project.backend.common.repo.IAtlasProjectTaskRepo
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.ResultRow
@@ -17,6 +18,10 @@ import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransacti
 import org.jetbrains.exposed.sql.update
 
 class AtlasProjectTaskRepoInMemory(private val database: Database) : IAtlasProjectTaskRepo {
+    override suspend fun timelineCalendar(): TimelineCalendar {
+        TODO("Not yet implemented")
+    }
+
     override suspend fun tasks(): List<ProjectTask> = newSuspendedTransaction(db = database) {
         ProjectTasksTable.selectAll().map { it.toProjectTask() }
     }

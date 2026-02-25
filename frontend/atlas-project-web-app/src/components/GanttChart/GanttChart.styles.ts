@@ -21,12 +21,19 @@ export const ganttDayCell = tv({
 	base: 'border-r border-b border-gray-200 dark:border-zinc-800',
 	variants: {
 		isNonWorking: {
-			true: 'bg-gray-100 dark:bg-zinc-900/50',
+			true: 'bg-red-50 dark:bg-red-900/20',
 		},
 		isToday: {
-			true: 'bg-blue-50 dark:bg-blue-900/20',
+			true: 'bg-cyan-50 dark:bg-cyan-900/30',
 		},
 	},
+	compoundVariants: [
+		{
+			isNonWorking: true,
+			isToday: true,
+			className: 'bg-gradient-to-r from-red-50 from-[35%] via-cyan-50 via-[50%] to-red-50 to-[65%] dark:from-red-900/20 dark:from-[35%] dark:via-cyan-900/30 dark:via-[50%] dark:to-red-900/20 dark:to-[65%]',
+		},
+	],
 })
 
 export const ganttHeaderDay = tv({

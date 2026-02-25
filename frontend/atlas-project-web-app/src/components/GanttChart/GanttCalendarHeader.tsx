@@ -1,7 +1,7 @@
 'use client'
 
-import { isNonWorkingDay, isSameDay } from '@/utils/ganttDateUtils'
-import { WorkCalendar } from '@/types'
+import { isNonWorkingDay, isToday } from '@/utils/ganttDateUtils'
+import { TimelineCalendar } from '@/types'
 import { ganttHeaderDay } from './GanttChart.styles'
 
 interface GanttCalendarHeaderProps {
@@ -9,7 +9,7 @@ interface GanttCalendarHeaderProps {
 	monthGroups: { month: string; year: number; count: number }[]
 	dayWidth: number
 	headerHeight: number
-	workCalendar: WorkCalendar
+	workCalendar: TimelineCalendar
 }
 
 export default function GanttCalendarHeader({
@@ -19,8 +19,6 @@ export default function GanttCalendarHeader({
 	headerHeight,
 	workCalendar,
 }: GanttCalendarHeaderProps) {
-	const today = new Date()
-
 	return (
 		<div style={{ width: days.length * dayWidth, height: headerHeight }} className="flex flex-col">
 			{/* Month row */}
@@ -39,7 +37,7 @@ export default function GanttCalendarHeader({
 			{/* Day number row */}
 			<div className="flex flex-1 border-b border-gray-300 dark:border-zinc-700">
 				{days.map((day) => {
-					const isT = isSameDay(day, today)
+					const isT = isToday(day)
 					const isNW = isNonWorkingDay(day, workCalendar)
 					return (
 						<div

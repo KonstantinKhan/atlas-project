@@ -26,6 +26,7 @@ dependencies {
 
     implementation(projects.atlasProjectBackendTransport)
     implementation(projects.atlasProjectBackendCommon)
+    implementation(projects.atlasProjectBackendMappers)
     implementation(projects.atlasProjectBackendPostgres)
 
     testImplementation(libs.ktor.server.test.host)

@@ -1,7 +1,20 @@
-import { Task } from '@/types'
-import { WorkCalendar } from '@/types'
+import { Task, TimelineCalendar, DayOfWeek } from '@/types'
 
 const DATE_PADDING_DAYS = 3
+
+const DAY_NAMES: DayOfWeek[] = [
+	'SUNDAY',
+	'MONDAY',
+	'TUESDAY',
+	'WEDNESDAY',
+	'THURSDAY',
+	'FRIDAY',
+	'SATURDAY',
+]
+
+function getDayName(date: Date): DayOfWeek {
+	return DAY_NAMES[date.getDay()]
+}
 
 export function getCalendarRange(tasks: Task[]): { start: Date; end: Date } {
 	const tasksWithDates = tasks.filter(
@@ -91,11 +104,11 @@ export function groupDaysByMonth(
 	return groups
 }
 
-export function isNonWorkingDay(date: Date, calendar: WorkCalendar): boolean {
+export function isNonWorkingDay(date: Date, calendar: TimelineCalendar): boolean {
 	const dateStr = formatDateForInput(date)
-	const dayOfWeek = date.getDay()
+	const dayName = getDayName(date)
 
-	if (calendar.workingWeekends?.includes(dateStr)) {
+	if (calendar.workingWeekends.includes(dateStr)) {
 		return false
 	}
 
@@ -103,7 +116,16 @@ export function isNonWorkingDay(date: Date, calendar: WorkCalendar): boolean {
 		return true
 	}
 
-	return calendar.weekendDays.includes(dayOfWeek)
+	return calendar.weekendWeekDays.includes(dayName)
+}
+
+export function isToday(date: Date): boolean {
+	const now = new Date()
+	return (
+		date.getFullYear() === now.getFullYear() &&
+		date.getMonth() === now.getMonth() &&
+		date.getDate() === now.getDate()
+	)
 }
 
 export function isSameDay(a: Date, b: Date): boolean {

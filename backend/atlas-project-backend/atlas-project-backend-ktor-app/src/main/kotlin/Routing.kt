@@ -2,6 +2,7 @@ package com.khan366kos
 
 import com.khan366kos.atlas.project.backend.common.models.ProjectDate
 import com.khan366kos.atlas.project.backend.common.repo.IAtlasProjectTaskRepo
+import com.khan366kos.atlas.project.backend.mappers.toTransport
 import com.khan366kos.atlas.project.backend.transport.CreateProjectTaskRequest
 import com.khan366kos.atlas.project.backend.transport.UpdateProjectTaskRequest
 import com.khan366kos.atlas.project.backend.transport.WorkCalendar
@@ -17,7 +18,8 @@ import io.ktor.server.routing.routing
 fun Application.configureRouting(repo: IAtlasProjectTaskRepo) {
     routing {
         get("/work-calendar") {
-            call.respond(WorkCalendar())
+            val timelineCalendar = repo.timelineCalendar().toTransport()
+            call.respond(timelineCalendar)
         }
         get("/project-tasks") {
             call.respond(repo.tasks().map { it.toTransport() })

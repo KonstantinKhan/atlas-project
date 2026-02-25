@@ -37,3 +37,35 @@ VALUES ('0001', 'Обследование процессов КТПП', '', 3, 3
         '2026-04-01', 'IN_PROGRESS', '0003,0004', ''),
        ('0006', 'Разработка концепции миграции и синхронизации НСИ', '', 17, 17, '2026-02-24', '2026-03-12',
         '2026-02-24', '2026-03-12', 'BACKLOG', '', '');
+
+CREATE TABLE timeline_calendar
+(
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    working_week_days INT[] NOT NULL,
+    weekend_week_days INT[] NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+INSERT INTO timeline_calendar(name, working_week_days, weekend_week_days)
+VALUES ('Default calendar', ARRAY[1,2,3,4,5], ARRAY[6,7]);
+
+CREATE TABLE timeline_calendar_holidays
+(
+    id SERIAL PRIMARY KEY,
+    calendar_id INT NOT NULL REFERENCES timeline_calendar(id) ON DELETE CASCADE,
+    holiday_date DATE NOT NULL,
+    UNIQUE (calendar_id, holiday_date)
+);
+
+INSERT INTO timeline_calendar_holidays(calendar_id, holiday_date)
+VALUES (1, '2026-02-23'), (1, '2026-03-09');
+
+CREATE TABLE timeline_calendar_working_weekends
+(
+    id SERIAL PRIMARY KEY,
+    calendar_id INT NOT NULL REFERENCES timeline_calendar(id) ON DELETE CASCADE,
+    working_date DATE NOT NULL,
+    UNIQUE (calendar_id, working_date)
+);
