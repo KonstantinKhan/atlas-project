@@ -1,6 +1,4 @@
 import { create } from 'zustand'
-import { TimelineCalendar } from '@/types'
-import { createDefaultTimelineCalendar } from '@/types/schemas/timeline-calendar.schema'
 
 interface CalendarUIState {
 	showHolidays: boolean
@@ -9,24 +7,19 @@ interface CalendarUIState {
 }
 
 interface TimelineCalendarStore {
-	calendar: TimelineCalendar
 	ui: CalendarUIState
 
-	setCalendar: (calendar: TimelineCalendar) => void
 	toggleHolidays: () => void
 	toggleWeekends: () => void
 	setSettingsPanelOpen: (open: boolean) => void
 }
 
 export const useTimelineCalendarStore = create<TimelineCalendarStore>((set) => ({
-	calendar: createDefaultTimelineCalendar(),
 	ui: {
 		showHolidays: true,
 		showWeekends: true,
 		isSettingsPanelOpen: false,
 	},
-
-	setCalendar: (calendar) => set({ calendar }),
 
 	toggleHolidays: () =>
 		set((state) => ({

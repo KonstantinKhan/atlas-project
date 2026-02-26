@@ -1,8 +1,11 @@
 package com.khan366kos
 
+import com.khan366kos.atlas.project.backend.common.models.task.simple.TaskId
 import com.khan366kos.atlas.project.backend.common.repo.IAtlasProjectTaskRepo
+import com.khan366kos.atlas.project.backend.mappers.toDto
 import com.khan366kos.atlas.project.backend.mappers.toGanttDto
 import com.khan366kos.atlas.project.backend.mappers.toTransport
+import com.khan366kos.atlas.project.backend.transport.ChangeTaskStartDateCommandDto
 import com.khan366kos.atlas.project.backend.transport.CreateProjectTaskRequest
 import com.khan366kos.atlas.project.backend.transport.UpdateProjectTaskRequest
 import com.khan366kos.config.AppConfig
@@ -25,6 +28,22 @@ fun Application.configureRouting(config: AppConfig) {
             val plan = config.repo.projectPlan()
             call.respond(plan.toGanttDto())
         }
+
+        post("/change-start") {
+            val request = call.receive<ChangeTaskStartDateCommandDto>()
+            val plan = config.repo.projectPlan()
+            val delta = plan.changeTaskStartDate(
+                taskId = TaskId(request.taskId),
+                newStart = request.newPlannedStart,
+                calendar = config.calendarService.current()
+            )
+            delta.updatedSchedule.forEach {
+                plan.schedules()[it.id] = it
+                config.repo.updateSchedule(it)
+            }
+            call.respond(delta.toDto())
+        }
+
         post("/project-tasks") {
             val request = call.receive<CreateProjectTaskRequest>()
             val created = config.repo.createTask(request.toModel())

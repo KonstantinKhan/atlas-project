@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getProjectTasks, createProjectTask, updateProjectTask, getProjectPlan } from '@/services/projectTasksApi'
-import { Task, GanttProjectPlan } from '@/types'
+import { getProjectTasks, createProjectTask, updateProjectTask, getProjectPlan, changeTaskStartDate } from '@/services/projectTasksApi'
+import { Task, GanttProjectPlan, ScheduleDelta } from '@/types'
 
 const QUERY_KEY = ['projectTasks']
 
@@ -25,6 +25,26 @@ export function useProjectPlan() {
 	return useQuery<GanttProjectPlan>({
 		queryKey: ['projectPlan'],
 		queryFn: getProjectPlan,
+	})
+}
+
+export function useChangeTaskStartDate() {
+	const queryClient = useQueryClient()
+	return useMutation({
+		mutationFn: ({ planId, taskId, newPlannedStart }: { planId: string; taskId: string; newPlannedStart: string }) =>
+			changeTaskStartDate(planId, taskId, newPlannedStart),
+		onSuccess: (delta: ScheduleDelta) => {
+			queryClient.setQueryData<GanttProjectPlan>(['projectPlan'], (old) => {
+				if (!old) return old
+				return {
+					...old,
+					tasks: old.tasks.map((t) => {
+						const update = delta.updatedSchedules.find((u) => u.taskId === t.id)
+						return update ? { ...t, start: update.start, end: update.end } : t
+					}),
+				}
+			})
+		},
 	})
 }
 

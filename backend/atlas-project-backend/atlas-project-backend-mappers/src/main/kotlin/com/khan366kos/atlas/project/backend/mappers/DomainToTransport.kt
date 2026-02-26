@@ -2,14 +2,27 @@ package com.khan366kos.atlas.project.backend.mappers
 
 import com.khan366kos.atlas.project.backend.common.models.ProjectDate
 import com.khan366kos.atlas.project.backend.common.models.projectPlan.ProjectPlan
+import com.khan366kos.atlas.project.backend.common.models.taskSchedule.ScheduleDelta
 import com.khan366kos.atlas.project.backend.common.models.taskSchedule.TaskScheduleId
 import com.khan366kos.atlas.project.backend.common.models.timelineCalendar.TimelineCalendar
 import com.khan366kos.atlas.project.backend.transport.GanttDependencyDto
 import com.khan366kos.atlas.project.backend.transport.GanttTaskDto
+import com.khan366kos.atlas.project.backend.transport.ScheduleDeltaDto
+import com.khan366kos.atlas.project.backend.transport.ScheduleUpdateDto
 import com.khan366kos.atlas.project.backend.transport.enums.DependencyTypeDto
 import com.khan366kos.atlas.project.backend.transport.enums.ProjectTaskStatus
 import com.khan366kos.atlas.project.backend.transport.ganttProjectPlan.GanttProjectPlanDto
 import com.khan366kos.atlas.project.backend.transport.timelineCalendar.TimelineCalendarDto
+
+fun ScheduleDelta.toDto() = ScheduleDeltaDto(
+    updatedSchedules = updatedSchedule.map { schedule ->
+        ScheduleUpdateDto(
+            taskId = schedule.id.value,
+            start = (schedule.start as ProjectDate.Set).date,
+            end = (schedule.end as ProjectDate.Set).date,
+        )
+    }
+)
 
 fun TimelineCalendar.toTransport() = TimelineCalendarDto(
     workingWeekDays = workingWeekDays,

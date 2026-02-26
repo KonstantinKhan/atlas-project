@@ -28,6 +28,7 @@ import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
+import org.jetbrains.exposed.sql.update
 import java.util.UUID
 
 class AtlasProjectTaskRepoPostgres(private val database: Database) : IAtlasProjectTaskRepo {
@@ -87,6 +88,13 @@ class AtlasProjectTaskRepoPostgres(private val database: Database) : IAtlasProje
             schedules = schedules,
             dependencies = dependencies
         )
+    }
+
+    override suspend fun updateSchedule(schedule: TaskSchedule) = newSuspendedTransaction(db = database) {
+        TaskSchedulesTable.update({ TaskSchedulesTable.taskId eq UUID.fromString(schedule.id.value) }) { row ->
+            row[TaskSchedulesTable.plannedStart] = (schedule.start as ProjectDate.Set).date
+            row[TaskSchedulesTable.plannedEnd] = (schedule.end as ProjectDate.Set).date
+        }
     }
 
     override suspend fun tasks(): List<ProjectTask> = newSuspendedTransaction(db = database) {

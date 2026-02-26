@@ -6,6 +6,7 @@ import {
 	useProjectPlan,
 	useCreateProjectTask,
 	useUpdateProjectTask,
+	useChangeTaskStartDate,
 } from '@/hooks/useProjectTasks'
 import { Task, GanttProjectPlan } from '@/types'
 import {
@@ -61,6 +62,7 @@ export const GanttChart = () => {
 	const [tasks, setTasks] = useState<Task[]>([])
 	const createTaskMutation = useCreateProjectTask()
 	const updateTaskMutation = useUpdateProjectTask()
+	const changeStartMutation = useChangeTaskStartDate()
 	const leftRef = useRef<HTMLDivElement>(null)
 	const rightRef = useRef<HTMLDivElement>(null)
 	const isSyncing = useRef(false)
@@ -82,22 +84,11 @@ export const GanttChart = () => {
 	const handleUpdateTask = useCallback(
 		(id: string, updates: Partial<Task>) => {
 			if ('plannedStartDate' in updates) {
-				updateTaskMutation.mutate(
-					{
-						id,
-						updates: {
-							plannedStartDate: formatDateForInput(updates.plannedStartDate!),
-						},
-					},
-					{
-						onSuccess: (updatedTask) => {
-							setTasks((prev) => {
-								const updated = prev.map((t) => (t.id === id ? updatedTask : t))
-								return cascadeDependencies(updated, id)
-							})
-						},
-					},
-				)
+				changeStartMutation.mutate({
+					planId: planData.projectId,
+					taskId: id,
+					newPlannedStart: formatDateForInput(updates.plannedStartDate!),
+				})
 			} else {
 				setTasks((prev) => {
 					const updated = prev.map((t) =>
@@ -109,7 +100,7 @@ export const GanttChart = () => {
 				})
 			}
 		},
-		[updateTaskMutation],
+		[changeStartMutation, planData],
 	)
 
 	const handleCreateDependency = useCallback((fromId: string, toId: string) => {

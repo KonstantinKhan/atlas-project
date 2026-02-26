@@ -10,3 +10,6 @@ export {
 
 export type { GanttProjectPlan, GanttTaskDto, GanttDependencyDto } from './schemas/gantt-project-plan.schema'
 export { GanttProjectPlanSchema } from './schemas/gantt-project-plan.schema'
+
+export type { ScheduleDelta } from './schemas/schedule-delta.schema'
+export { ScheduleDeltaSchema } from './schemas/schedule-delta.schema'
