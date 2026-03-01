@@ -1,7 +1,11 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { Task } from '@/types'
+import { Task, TaskCommand } from '@/types'
+import { TaskCommandType } from '@/types/types/TaskCommandType'
+import { TaskId } from '@/utils/types/TaskId'
+import { LocalDate } from '@/utils/types/LocalDate'
+import { formatDateForInput } from '@/utils/ganttDateUtils'
 import { Calendar } from 'primereact/calendar'
 import { addLocale } from 'primereact/api'
 
@@ -19,7 +23,7 @@ addLocale('ru', {
 interface GanttTaskRowProps {
 	task: Task
 	rowHeight: number
-	onUpdateTask: (id: string, updates: Partial<Task>) => void
+	onUpdateTask: (cmd: TaskCommand) => void
 }
 
 const statusColors: Record<string, string> = {
@@ -48,17 +52,22 @@ export default function GanttTaskRow({
 	const handleTitleSubmit = () => {
 		setIsEditing(false)
 		if (editTitle.trim() && editTitle !== task.title) {
-			onUpdateTask(task.id, { title: editTitle.trim() })
+			onUpdateTask({ type: TaskCommandType.UpdateTitle, taskId: TaskId(task.id), newTitle: editTitle.trim() })
 		} else {
 			setEditTitle(task.title)
 		}
 	}
 
-	const handleDateChange = (
-		field: 'plannedStartDate' | 'plannedEndDate',
-		value: Date | null | undefined
-	) => {
-		onUpdateTask(task.id, { [field]: value ?? undefined })
+	const handleStartDateChange = (value: Date | null | undefined) => {
+		if (value !== null && value !== undefined) {
+			onUpdateTask({ type: TaskCommandType.ChangeStartDate, taskId: TaskId(task.id), newStartDate: LocalDate(formatDateForInput(value)) })
+		}
+	}
+
+	const handleEndDateChange = (value: Date | null | undefined) => {
+		if (value !== null && value !== undefined) {
+			onUpdateTask({ type: TaskCommandType.ChangeEndDate, taskId: TaskId(task.id), newEndDate: LocalDate(formatDateForInput(value)) })
+		}
 	}
 
 	return (
@@ -66,12 +75,10 @@ export default function GanttTaskRow({
 			className="flex items-center gap-2 px-3 border-b border-gray-200 dark:border-zinc-800"
 			style={{ height: rowHeight }}
 		>
-			{/* Status dot */}
 			<div
 				className={`w-2.5 h-2.5 rounded-full shrink-0 ${statusColors[task.status] || statusColors.empty}`}
 			/>
 
-			{/* Title */}
 			<div className="flex-1 min-w-0">
 				{isEditing ? (
 					<input
@@ -100,18 +107,17 @@ export default function GanttTaskRow({
 				)}
 			</div>
 
-			{/* Start date */}
 			<div className="relative shrink-0">
 				<span
 					onClick={() => startCalRef.current?.show()}
-					className="text-xs text-gray-500 dark:text-zinc-400 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 tabular-nums w-[72px] text-center inline-block"
+					className="text-xs text-gray-500 dark:text-zinc-400 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 tabular-nums w-18 text-center inline-block"
 				>
 					{formatDate(task.plannedStartDate)}
 				</span>
 				<Calendar
 					ref={startCalRef}
 					value={task.plannedStartDate ?? null}
-					onChange={(e) => handleDateChange('plannedStartDate', e.value as Date | null)}
+					onChange={(e) => handleStartDateChange(e.value as Date | null)}
 					dateFormat="dd.mm.yy"
 					locale="ru"
 					inputClassName="!w-0 !h-0 !p-0 !border-0 !opacity-0 !absolute"
@@ -119,18 +125,17 @@ export default function GanttTaskRow({
 				/>
 			</div>
 
-			{/* End date */}
 			<div className="relative shrink-0">
 				<span
 					onClick={() => endCalRef.current?.show()}
-					className="text-xs text-gray-500 dark:text-zinc-400 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 tabular-nums w-[72px] text-center inline-block"
+					className="text-xs text-gray-500 dark:text-zinc-400 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 tabular-nums w-18 text-center inline-block"
 				>
 					{formatDate(task.plannedEndDate)}
 				</span>
 				<Calendar
 					ref={endCalRef}
 					value={task.plannedEndDate ?? null}
-					onChange={(e) => handleDateChange('plannedEndDate', e.value as Date | null)}
+					onChange={(e) => handleEndDateChange(e.value)}
 					dateFormat="dd.mm.yy"
 					locale="ru"
 					inputClassName="!w-0 !h-0 !p-0 !border-0 !opacity-0 !absolute"

@@ -18,6 +18,9 @@ data class TimelineCalendar(
         (date.dayOfWeek in workingWeekDays ||
                 date in workingWeekends) && date !in holidays
 
+    fun currentOrNextWorkingDay(date: LocalDate): LocalDate =
+        if (isWorkingDay(date)) date else nextWorkingDay(date)
+
     private fun nextWorkingDay(date: LocalDate): LocalDate {
         var d = date.plus(1, DateTimeUnit.DAY)
         while (!isWorkingDay(d)) {
@@ -49,5 +52,16 @@ data class TimelineCalendar(
             if (isWorkingDay(result)) remaining--
         }
         return result
+    }
+
+    fun workingDaysBetween(start: LocalDate, end: LocalDate): Duration {
+        if (end < start) return Duration.ZERO
+        var count = 0
+        var current = start
+        while (current <= end) {
+            if (isWorkingDay(current)) count++
+            current = current.plus(1, DateTimeUnit.DAY)
+        }
+        return Duration(count)
     }
 }

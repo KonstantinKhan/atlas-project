@@ -13,5 +13,6 @@ fun Application.module(
 ) {
     configureSerialization()
     configureHTTP()
+    configureStatusPages()
     configureRouting(config)
 }

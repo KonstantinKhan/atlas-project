@@ -5,26 +5,29 @@ import { useTimelineCalendar } from '@/hooks/useTimelineCalendar'
 import {
 	useProjectPlan,
 	useCreateProjectTask,
-	useUpdateProjectTask,
 	useChangeTaskStartDate,
+	useChangeTaskEndDate,
+	useCreateDependency,
 } from '@/hooks/useProjectTasks'
-import { Task, GanttProjectPlan } from '@/types'
+import { Task, GanttProjectPlan, TaskCommand } from '@/types'
 import {
-	formatDateForInput,
 	getCalendarRange,
 	getDaysInRange,
 	groupDaysByMonth,
 } from '@/utils/ganttDateUtils'
-import { cascadeDependencies, daysBetween } from '@/utils/ganttDependencyUtils'
 import GanttTaskList from './GanttTaskList'
 import GanttCalendarHeader from './GanttCalendarHeader'
 import GanttCalendarGrid from './GanttCalendarGrid'
+import { TaskCommandType } from '@/types/types/TaskCommandType'
 
 const DAY_COLUMN_WIDTH = 40
 const ROW_HEIGHT = 48
 const HEADER_HEIGHT = 60
 
 function planToTasks(plan: GanttProjectPlan): Task[] {
+	console.log('[GanttChart] Plan tasks:', plan.tasks.map(t => ({ id: t.id, title: t.title, start: t.start, end: t.end })))
+	console.log('[GanttChart] Dependencies:', plan.dependencies)
+	
 	return plan.tasks.map((ganttTask) => {
 		const deps = plan.dependencies.filter((d) => d.toTaskId === ganttTask.id)
 		return {
@@ -61,8 +64,9 @@ export const GanttChart = () => {
 
 	const [tasks, setTasks] = useState<Task[]>([])
 	const createTaskMutation = useCreateProjectTask()
-	const updateTaskMutation = useUpdateProjectTask()
 	const changeStartMutation = useChangeTaskStartDate()
+	const changeEndMutation = useChangeTaskEndDate()
+	const createDependencyMutation = useCreateDependency()
 	const leftRef = useRef<HTMLDivElement>(null)
 	const rightRef = useRef<HTMLDivElement>(null)
 	const isSyncing = useRef(false)
@@ -75,61 +79,69 @@ export const GanttChart = () => {
 
 	const handleAddTask = useCallback(() => {
 		createTaskMutation.mutate(undefined, {
-			onSuccess: (newTask) => {
-				setTasks((prev) => [...prev, newTask])
+			onError: (error) => {
+				console.error('[GanttChart] Failed to create task:', error)
 			},
 		})
 	}, [createTaskMutation])
 
 	const handleUpdateTask = useCallback(
-		(id: string, updates: Partial<Task>) => {
-			if ('plannedStartDate' in updates) {
-				changeStartMutation.mutate({
-					planId: planData.projectId,
-					taskId: id,
-					newPlannedStart: formatDateForInput(updates.plannedStartDate!),
-				})
-			} else {
-				setTasks((prev) => {
-					const updated = prev.map((t) =>
-						t.id === id ? { ...t, ...updates } : t,
+		(cmd: TaskCommand) => {
+			if (!planData) {
+				throw new Error('handleUpdateTask called without planData')
+			}
+
+			switch (cmd.type) {
+				case TaskCommandType.ChangeStartDate:
+					changeStartMutation.mutate({
+						planId: planData.projectId,
+						taskId: cmd.taskId,
+						newPlannedStart: cmd.newStartDate,
+					})
+					break
+				case TaskCommandType.ChangeEndDate:
+					changeEndMutation.mutate({
+						planId: planData.projectId,
+						taskId: cmd.taskId,
+						newPlannedEnd: cmd.newEndDate,
+					})
+					break
+				case TaskCommandType.UpdateTitle:
+					setTasks((prev) =>
+						prev.map((t) => (t.id === cmd.taskId ? { ...t, title: cmd.newTitle } : t)),
 					)
-					return 'plannedEndDate' in updates
-						? cascadeDependencies(updated, id)
-						: updated
-				})
+					break
+				default: {
+					const _exhaustive: never = cmd
+					throw new Error(`Unhandled command: ${JSON.stringify(_exhaustive)}`)
+				}
 			}
 		},
-		[changeStartMutation, planData],
+		[changeStartMutation, changeEndMutation, planData],
 	)
 
 	const handleCreateDependency = useCallback((fromId: string, toId: string) => {
 		if (fromId === toId) return
-		setTasks((prev) => {
-			const fromTask = prev.find((t) => t.id === fromId)
-			const toTask = prev.find((t) => t.id === toId)
-			if (!toTask || toTask.dependsOn?.includes(fromId)) return prev
-
-			let lag = 0
-			if (fromTask?.plannedEndDate && toTask.plannedStartDate) {
-				lag = Math.max(
-					0,
-					daysBetween(fromTask.plannedEndDate, toTask.plannedStartDate) - 1,
-				)
+		if (!planData) return
+		
+		console.log('[GanttChart] Creating dependency:', { fromId, toId, planId: planData.projectId })
+		
+		// Backend рассчитает lag на основе текущих дат задач
+		createDependencyMutation.mutate({
+			planId: planData.projectId,
+			fromTaskId: fromId,
+			toTaskId: toId,
+			type: 'FS',
+		}, {
+			onSuccess: (newPlan) => {
+				console.log('[GanttChart] Dependency created, new plan:', newPlan.tasks.map(t => ({ id: t.id, start: t.start, end: t.end })))
+				setTasks(planToTasks(newPlan))
+			},
+			onError: (error) => {
+				console.error('[GanttChart] Error creating dependency:', error)
 			}
-
-			const updated = prev.map((t) =>
-				t.id === toId
-					? {
-							...t,
-							dependsOn: [...(t.dependsOn ?? []), fromId],
-							dependsOnLag: { ...(t.dependsOnLag ?? {}), [fromId]: lag },
-						}
-					: t,
-			)
-			return cascadeDependencies(updated, fromId)
 		})
-	}, [])
+	}, [planData, createDependencyMutation])
 
 	const handleRemoveDependency = useCallback((fromId: string, toId: string) => {
 		setTasks((prev) =>

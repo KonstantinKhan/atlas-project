@@ -17,8 +17,8 @@ CREATE TABLE task_dependencies
 (
     id                  SERIAL PRIMARY KEY,
     project_plan_id     UUID NOT NULL REFERENCES project_plans (id) ON DELETE CASCADE,
-    predecessor_task_id UUID NOT NULL REFERENCES project_tasks (id),
-    successor_task_id   UUID NOT NULL REFERENCES project_tasks (id),
+    predecessor_task_id UUID NOT NULL REFERENCES project_tasks (id) ON DELETE CASCADE,
+    successor_task_id   UUID NOT NULL REFERENCES project_tasks (id) ON DELETE CASCADE,
     type                TEXT NOT NULL,
     lag_days            INT  NOT NULL DEFAULT 0,
 

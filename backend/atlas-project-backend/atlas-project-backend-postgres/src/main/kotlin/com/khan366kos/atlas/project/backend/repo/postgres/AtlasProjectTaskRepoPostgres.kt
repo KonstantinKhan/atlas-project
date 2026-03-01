@@ -24,9 +24,13 @@ import com.khan366kos.atlas.project.backend.repo.postgres.table.TaskSchedulesTab
 import com.khan366kos.atlas.project.backend.repo.postgres.table.TimelineCalendarHolidaysTable
 import com.khan366kos.atlas.project.backend.repo.postgres.table.TimelineCalendarTable
 import com.khan366kos.atlas.project.backend.repo.postgres.table.TimelineCalendarWorkingWeekendsTable
+import kotlinx.datetime.Clock
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.todayIn
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.selectAll
+import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
 import org.jetbrains.exposed.sql.update
 import java.util.UUID
@@ -107,9 +111,48 @@ class AtlasProjectTaskRepoPostgres(private val database: Database) : IAtlasProje
             .singleOrNull()?.toProjectTask()
     }
 
-    override suspend fun createTask(task: ProjectTask): ProjectTask = TODO()
+    override suspend fun createTask(task: ProjectTask): ProjectTask = newSuspendedTransaction(db = database) {
+        val planUuid = ProjectPlansTable.selectAll().single()[ProjectPlansTable.id]
+        val taskUuid = java.util.UUID.randomUUID()
+        val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
+        ProjectTasksTable.insert {
+            it[id] = taskUuid
+            it[projectPlanId] = planUuid
+            it[title] = task.title.value
+            it[description] = task.description.value
+            it[durationDays] = task.duration.value.toIntOrNull() ?: 0
+            it[status] = task.status.name
+        }
+        TaskSchedulesTable.insert {
+            it[taskId] = taskUuid
+            it[plannedStart] = today
+            it[plannedEnd] = today
+        }
+        task.copy(id = TaskId(taskUuid.toString()))
+    }
 
-    override suspend fun updateTask(task: ProjectTask): ProjectTask = TODO()
+    override suspend fun updateTask(task: ProjectTask): ProjectTask = newSuspendedTransaction(db = database) {
+        ProjectTasksTable.update({ ProjectTasksTable.id eq UUID.fromString(task.id.value) }) {
+            it[title] = task.title.value
+            it[description] = task.description.value
+            it[durationDays] = task.duration.value.toIntOrNull() ?: 0
+            it[status] = task.status.name
+        }
+        task
+    }
+
+    override suspend fun addDependency(predecessorId: String, successorId: String, type: String, lagDays: Int): Int =
+        newSuspendedTransaction(db = database) {
+            val planUuid = ProjectPlansTable.selectAll().single()[ProjectPlansTable.id]
+            TaskDependenciesTable.insert {
+                it[TaskDependenciesTable.predecessorTaskId] = UUID.fromString(predecessorId)
+                it[TaskDependenciesTable.successorTaskId] = UUID.fromString(successorId)
+                it[TaskDependenciesTable.type] = type
+                it[TaskDependenciesTable.lagDays] = lagDays
+                it[TaskDependenciesTable.projectPlanId] = planUuid
+            }
+            1
+        }
 }
 
 private fun ResultRow.toProjectTask() = ProjectTask(

@@ -1,0 +1,1 @@
+export type TaskId = string & { readonly __brand: 'TaskId' }
