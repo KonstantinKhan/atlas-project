@@ -1,11 +1,11 @@
 'use client'
 
-import { Task } from '@/types'
+import { GanttTask } from '@/types'
 import { getDayOffset } from '@/utils/ganttDateUtils'
 import { ganttBar } from './GanttChart.styles'
 
 interface GanttBarProps {
-	task: Task
+	task: GanttTask
 	rangeStart: Date
 	dayWidth: number
 	onLinkStart?: (taskId: string, e: React.MouseEvent) => void
@@ -19,10 +19,10 @@ export default function GanttBar({
 	onLinkStart,
 	isLinkTarget,
 }: GanttBarProps) {
-	if (!task.plannedStartDate || !task.plannedEndDate) return null
+	if (!task.start || !task.end) return null
 
-	const startOffset = getDayOffset(task.plannedStartDate, rangeStart)
-	const endOffset = getDayOffset(task.plannedEndDate, rangeStart)
+	const startOffset = getDayOffset(task.start, rangeStart)
+	const endOffset = getDayOffset(task.end, rangeStart)
 	const left = startOffset * dayWidth
 	const width = (endOffset - startOffset + 1) * dayWidth
 

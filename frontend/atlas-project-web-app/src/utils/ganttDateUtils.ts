@@ -1,4 +1,4 @@
-import { Task, TimelineCalendar, DayOfWeek } from '@/types'
+import { GanttTask, TimelineCalendar, DayOfWeek } from '@/types'
 
 const DATE_PADDING_DAYS = 3
 
@@ -16,9 +16,9 @@ function getDayName(date: Date): DayOfWeek {
 	return DAY_NAMES[date.getDay()]
 }
 
-export function getCalendarRange(tasks: Task[]): { start: Date; end: Date } {
+export function getCalendarRange(tasks: GanttTask[]): { start: Date; end: Date } {
 	const tasksWithDates = tasks.filter(
-		(t) => t.plannedStartDate && t.plannedEndDate
+		(t) => t.start && t.end
 	)
 
 	if (tasksWithDates.length === 0) {
@@ -28,12 +28,12 @@ export function getCalendarRange(tasks: Task[]): { start: Date; end: Date } {
 		return { start, end }
 	}
 
-	let minDate = new Date(tasksWithDates[0].plannedStartDate!)
-	let maxDate = new Date(tasksWithDates[0].plannedEndDate!)
+	let minDate = new Date(tasksWithDates[0].start!)
+	let maxDate = new Date(tasksWithDates[0].end!)
 
 	for (const task of tasksWithDates) {
-		const s = new Date(task.plannedStartDate!)
-		const e = new Date(task.plannedEndDate!)
+		const s = new Date(task.start!)
+		const e = new Date(task.end!)
 		if (s < minDate) minDate = s
 		if (e > maxDate) maxDate = e
 	}

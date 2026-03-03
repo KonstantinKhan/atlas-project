@@ -1,19 +1,19 @@
 import { tv } from 'tailwind-variants'
-import { TaskStatus } from '@/types/enums/task-status.enum'
+import { ProjectTaskStatus } from '@/types/generated/enums/project-task-status.enum'
 
 export const ganttBar = tv({
 	base: 'absolute top-1.5 bottom-1.5 rounded-md flex items-center cursor-default group',
 	variants: {
 		status: {
-			[TaskStatus.EMPTY]: 'bg-gray-300 dark:bg-zinc-600',
-			[TaskStatus.BACKLOG]: 'bg-slate-400 dark:bg-slate-600',
-			[TaskStatus.IN_PROGRESS]: 'bg-blue-500 dark:bg-blue-600',
-			[TaskStatus.DONE]: 'bg-emerald-500 dark:bg-emerald-600',
-			[TaskStatus.BLOCKED]: 'bg-red-400 dark:bg-red-600',
+			[ProjectTaskStatus.EMPTY]: 'bg-gray-300 dark:bg-zinc-600',
+			[ProjectTaskStatus.BACKLOG]: 'bg-slate-400 dark:bg-slate-600',
+			[ProjectTaskStatus.IN_PROGRESS]: 'bg-blue-500 dark:bg-blue-600',
+			[ProjectTaskStatus.DONE]: 'bg-emerald-500 dark:bg-emerald-600',
+			[ProjectTaskStatus.BLOCKED]: 'bg-red-400 dark:bg-red-600',
 		},
 	},
 	defaultVariants: {
-		status: TaskStatus.BACKLOG,
+		status: ProjectTaskStatus.BACKLOG,
 	},
 })
 

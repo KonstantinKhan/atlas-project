@@ -71,14 +71,14 @@ export async function changeTaskEndDate(
 	return ScheduleDeltaSchema.parse(await res.json())
 }
 
-export async function createProjectTask(): Promise<Task> {
-	const response = await fetch(`${API_BASE_URL}/project-tasks`, {
+export async function createProjectTask(title: string): Promise<Task> {
+	const response = await fetch(`${API_BASE_URL}/project-tasks/create-in-pool`, {
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/json',
 			Accept: 'application/json',
 		},
-		body: JSON.stringify({ title: '' }),
+		body: JSON.stringify({ title }),
 	})
 	if (!response.ok) throw new Error('Failed to create project task')
 	return TaskSchema.parse(await response.json())

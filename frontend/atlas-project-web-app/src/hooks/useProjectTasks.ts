@@ -93,8 +93,8 @@ export function useChangeTaskEndDate() {
 
 export function useCreateProjectTask() {
 	const queryClient = useQueryClient()
-	return useMutation<Task>({
-		mutationFn: createProjectTask,
+	return useMutation({
+		mutationFn: ({ title }: { title: string }) => createProjectTask(title),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: QUERY_KEY })
 			queryClient.invalidateQueries({ queryKey: ['projectPlan'] })

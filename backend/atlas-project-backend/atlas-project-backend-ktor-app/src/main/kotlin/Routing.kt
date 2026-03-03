@@ -12,6 +12,7 @@ import com.khan366kos.atlas.project.backend.mappers.toTransport
 import com.khan366kos.atlas.project.backend.mappers.toDomain
 import com.khan366kos.atlas.project.backend.transport.commands.ChangeTaskStartDateCommandDto
 import com.khan366kos.atlas.project.backend.transport.commands.CreateDependencyCommandDto
+import com.khan366kos.atlas.project.backend.transport.commands.CreateTaskInPoolCommandDto
 import com.khan366kos.atlas.project.backend.transport.CreateProjectTaskRequest
 import com.khan366kos.atlas.project.backend.transport.UpdateProjectTaskRequest
 import com.khan366kos.atlas.project.backend.transport.commands.ChangeTaskEndDateCommandDto
@@ -201,7 +202,17 @@ fun Application.configureRouting(config: AppConfig) {
                         end = ProjectDate.Set(endDate),
                     )
                 )
-                call.respond(HttpStatusCode.Created, created.toTransport())
+                call.respond(HttpStatusCode.Created, created.toScheduledTaskDto(startDate, endDate))
+            } catch (e: IllegalArgumentException) {
+                call.respond(HttpStatusCode.BadRequest, mapOf("error" to e.message))
+            }
+        }
+
+        post("/project-tasks/create-in-pool") {
+            try {
+                val request = call.receive<CreateTaskInPoolCommandDto>()
+                val created = config.repo.createTaskWithoutSchedule(request.toModel())
+                call.respond(HttpStatusCode.Created, created.toTaskDto())
             } catch (e: IllegalArgumentException) {
                 call.respond(HttpStatusCode.BadRequest, mapOf("error" to e.message))
             }
@@ -221,7 +232,7 @@ fun Application.configureRouting(config: AppConfig) {
                     ?: return@patch call.respond(HttpStatusCode.NotFound)
 
                 val updated = existing.applyUpdate(request)
-                call.respond(config.repo.updateTask(updated).toTransport())
+                call.respond(config.repo.updateTask(updated).toTaskDto())
             } catch (e: IllegalArgumentException) {
                 call.respond(HttpStatusCode.BadRequest, mapOf("error" to e.message))
             }

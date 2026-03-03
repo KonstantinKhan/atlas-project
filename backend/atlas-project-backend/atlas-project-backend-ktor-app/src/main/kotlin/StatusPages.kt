@@ -7,7 +7,7 @@ import io.ktor.server.response.respond
 import kotlinx.serialization.SerializationException
 
 fun Application.configureStatusPages() {
-    install(/StatusPages) {
+    install(StatusPages) {
         exception<SerializationException> { call, cause ->
             call.respond(HttpStatusCode.BadRequest, mapOf(
                 "error" to "Invalid request format",

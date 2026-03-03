@@ -1,4 +1,4 @@
-import { Task } from '@/types'
+import { ScheduledTask } from '@/types'
 
 export function daysBetween(earlier: Date, later: Date): number {
 	const e = new Date(earlier.getFullYear(), earlier.getMonth(), earlier.getDate())
@@ -6,7 +6,7 @@ export function daysBetween(earlier: Date, later: Date): number {
 	return Math.round((l.getTime() - e.getTime()) / 86400000)
 }
 
-export function cascadeDependencies(tasks: Task[], changedId: string): Task[] {
+export function cascadeDependencies(tasks: ScheduledTask[], changedId: string): ScheduledTask[] {
 	let result = [...tasks]
 	const queue = [changedId]
 	const visited = new Set<string>()

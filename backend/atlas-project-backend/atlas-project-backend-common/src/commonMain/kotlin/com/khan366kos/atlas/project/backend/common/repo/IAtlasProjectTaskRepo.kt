@@ -15,6 +15,7 @@ interface IAtlasProjectTaskRepo {
     suspend fun tasks(): List<ProjectTask>
     suspend fun getTask(id: String): ProjectTask?
     suspend fun createTask(task: ProjectTask): ProjectTask
+    suspend fun createTaskWithoutSchedule(task: ProjectTask): ProjectTask
     suspend fun updateTask(task: ProjectTask): ProjectTask
 
     suspend fun addDependency(predecessorId: String, successorId: String, type: String, lagDays: Int): Int

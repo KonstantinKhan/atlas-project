@@ -51,6 +51,16 @@ class AtlasProjectTaskRepoInMemory(private val database: Database) : IAtlasProje
         task
     }
 
+    override suspend fun createTaskWithoutSchedule(task: ProjectTask): ProjectTask = newSuspendedTransaction(db = database) {
+        ProjectTasksTable.insert {
+            it[ProjectTasksTable.id] = task.id.value
+            it[ProjectTasksTable.title] = task.title.value
+            it[ProjectTasksTable.description] = task.description.value
+            it[ProjectTasksTable.status] = task.status.name
+        }
+        task
+    }
+
     override suspend fun updateTask(task: ProjectTask): ProjectTask = newSuspendedTransaction(db = database) {
         ProjectTasksTable.update({ ProjectTasksTable.id eq task.id.value }) {
             it[ProjectTasksTable.title] = task.title.value

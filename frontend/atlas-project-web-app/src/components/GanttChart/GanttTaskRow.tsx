@@ -1,13 +1,14 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { Task, TaskCommand } from '@/types'
+import { GanttTask, TaskCommand } from '@/types'
 import { TaskCommandType } from '@/types/types/TaskCommandType'
 import { TaskId } from '@/utils/types/TaskId'
 import { LocalDate } from '@/utils/types/LocalDate'
 import { formatDateForInput } from '@/utils/ganttDateUtils'
 import { Calendar } from 'primereact/calendar'
 import { addLocale } from 'primereact/api'
+import { ProjectTaskStatus } from '@/types/generated/enums/project-task-status.enum'
 
 addLocale('ru', {
 	firstDayOfWeek: 1,
@@ -21,17 +22,17 @@ addLocale('ru', {
 })
 
 interface GanttTaskRowProps {
-	task: Task
+	task: GanttTask
 	rowHeight: number
 	onUpdateTask: (cmd: TaskCommand) => void
 }
 
-const statusColors: Record<string, string> = {
-	empty: 'bg-gray-300 dark:bg-zinc-600',
-	backlog: 'bg-slate-400 dark:bg-slate-600',
-	'in progress': 'bg-blue-500 dark:bg-blue-600',
-	done: 'bg-emerald-500 dark:bg-emerald-600',
-	blocked: 'bg-red-400 dark:bg-red-600',
+const statusColors: Record<ProjectTaskStatus, string> = {
+	[ProjectTaskStatus.EMPTY]: 'bg-gray-300 dark:bg-zinc-600',
+	[ProjectTaskStatus.BACKLOG]: 'bg-slate-400 dark:bg-slate-600',
+	[ProjectTaskStatus.IN_PROGRESS]: 'bg-blue-500 dark:bg-blue-600',
+	[ProjectTaskStatus.DONE]: 'bg-emerald-500 dark:bg-emerald-600',
+	[ProjectTaskStatus.BLOCKED]: 'bg-red-400 dark:bg-red-600',
 }
 
 export default function GanttTaskRow({
@@ -76,7 +77,7 @@ export default function GanttTaskRow({
 			style={{ height: rowHeight }}
 		>
 			<div
-				className={`w-2.5 h-2.5 rounded-full shrink-0 ${statusColors[task.status] || statusColors.empty}`}
+				className={`w-2.5 h-2.5 rounded-full shrink-0 ${statusColors[task.status]}`}
 			/>
 
 			<div className="flex-1 min-w-0">
@@ -112,11 +113,11 @@ export default function GanttTaskRow({
 					onClick={() => startCalRef.current?.show()}
 					className="text-xs text-gray-500 dark:text-zinc-400 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 tabular-nums w-18 text-center inline-block"
 				>
-					{formatDate(task.plannedStartDate)}
+					{formatDate(task.start ?? undefined)}
 				</span>
 				<Calendar
 					ref={startCalRef}
-					value={task.plannedStartDate ?? null}
+					value={task.start ?? null}
 					onChange={(e) => handleStartDateChange(e.value as Date | null)}
 					dateFormat="dd.mm.yy"
 					locale="ru"
@@ -130,11 +131,11 @@ export default function GanttTaskRow({
 					onClick={() => endCalRef.current?.show()}
 					className="text-xs text-gray-500 dark:text-zinc-400 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 tabular-nums w-18 text-center inline-block"
 				>
-					{formatDate(task.plannedEndDate)}
+					{formatDate(task.end ?? undefined)}
 				</span>
 				<Calendar
 					ref={endCalRef}
-					value={task.plannedEndDate ?? null}
+					value={task.end ?? null}
 					onChange={(e) => handleEndDateChange(e.value)}
 					dateFormat="dd.mm.yy"
 					locale="ru"

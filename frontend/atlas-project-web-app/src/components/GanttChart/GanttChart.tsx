@@ -9,7 +9,7 @@ import {
 	useChangeTaskEndDate,
 	useCreateDependency,
 } from '@/hooks/useProjectTasks'
-import { Task, GanttProjectPlan, TaskCommand } from '@/types'
+import { GanttTask, GanttDependencyDto, TaskCommand, GanttProjectPlan } from '@/types'
 import {
 	getCalendarRange,
 	getDaysInRange,
@@ -23,29 +23,6 @@ import { TaskCommandType } from '@/types/types/TaskCommandType'
 const DAY_COLUMN_WIDTH = 40
 const ROW_HEIGHT = 48
 const HEADER_HEIGHT = 60
-
-function planToTasks(plan: GanttProjectPlan): Task[] {
-	console.log('[GanttChart] Plan tasks:', plan.tasks.map(t => ({ id: t.id, title: t.title, start: t.start, end: t.end })))
-	console.log('[GanttChart] Dependencies:', plan.dependencies)
-	
-	return plan.tasks.map((ganttTask) => {
-		const deps = plan.dependencies.filter((d) => d.toTaskId === ganttTask.id)
-		return {
-			id: ganttTask.id,
-			title: ganttTask.title,
-			description: '',
-			plannedCalendarDuration: undefined,
-			actualCalendarDuration: undefined,
-			plannedStartDate: ganttTask.start,
-			plannedEndDate: ganttTask.end,
-			actualStartDate: undefined,
-			actualEndDate: undefined,
-			status: ganttTask.status,
-			dependsOn: deps.map((d) => d.fromTaskId),
-			dependsOnLag: Object.fromEntries(deps.map((d) => [d.fromTaskId, d.lagDays])),
-		}
-	})
-}
 
 export const GanttChart = () => {
 	const {
@@ -62,7 +39,8 @@ export const GanttChart = () => {
 		refetch: refetchPlan,
 	} = useProjectPlan()
 
-	const [tasks, setTasks] = useState<Task[]>([])
+	const [allTasks, setAllTasks] = useState<GanttTask[]>([])
+	const [dependencies, setDependencies] = useState<GanttDependencyDto[]>([])
 	const createTaskMutation = useCreateProjectTask()
 	const changeStartMutation = useChangeTaskStartDate()
 	const changeEndMutation = useChangeTaskEndDate()
@@ -73,17 +51,10 @@ export const GanttChart = () => {
 
 	useEffect(() => {
 		if (planData) {
-			setTasks(planToTasks(planData))
+			setAllTasks(planData.tasks)
+			setDependencies(planData.dependencies)
 		}
 	}, [planData])
-
-	const handleAddTask = useCallback(() => {
-		createTaskMutation.mutate(undefined, {
-			onError: (error) => {
-				console.error('[GanttChart] Failed to create task:', error)
-			},
-		})
-	}, [createTaskMutation])
 
 	const handleUpdateTask = useCallback(
 		(cmd: TaskCommand) => {
@@ -92,6 +63,13 @@ export const GanttChart = () => {
 			}
 
 			switch (cmd.type) {
+				case TaskCommandType.CreateTaskInPool:
+					createTaskMutation.mutate({ title: cmd.title }, {
+						onError: (error) => {
+							console.error('[GanttChart] Failed to create task:', error)
+						},
+					})
+					break
 				case TaskCommandType.ChangeStartDate:
 					changeStartMutation.mutate({
 						planId: planData.projectId,
@@ -107,7 +85,7 @@ export const GanttChart = () => {
 					})
 					break
 				case TaskCommandType.UpdateTitle:
-					setTasks((prev) =>
+					setAllTasks((prev) =>
 						prev.map((t) => (t.id === cmd.taskId ? { ...t, title: cmd.newTitle } : t)),
 					)
 					break
@@ -117,16 +95,15 @@ export const GanttChart = () => {
 				}
 			}
 		},
-		[changeStartMutation, changeEndMutation, planData],
+		[changeStartMutation, changeEndMutation, createTaskMutation, planData],
 	)
 
 	const handleCreateDependency = useCallback((fromId: string, toId: string) => {
 		if (fromId === toId) return
 		if (!planData) return
-		
+
 		console.log('[GanttChart] Creating dependency:', { fromId, toId, planId: planData.projectId })
-		
-		// Backend рассчитает lag на основе текущих дат задач
+
 		createDependencyMutation.mutate({
 			planId: planData.projectId,
 			fromTaskId: fromId,
@@ -135,7 +112,8 @@ export const GanttChart = () => {
 		}, {
 			onSuccess: (newPlan) => {
 				console.log('[GanttChart] Dependency created, new plan:', newPlan.tasks.map(t => ({ id: t.id, start: t.start, end: t.end })))
-				setTasks(planToTasks(newPlan))
+				setAllTasks(newPlan.tasks)
+				setDependencies(newPlan.dependencies)
 			},
 			onError: (error) => {
 				console.error('[GanttChart] Error creating dependency:', error)
@@ -144,17 +122,8 @@ export const GanttChart = () => {
 	}, [planData, createDependencyMutation])
 
 	const handleRemoveDependency = useCallback((fromId: string, toId: string) => {
-		setTasks((prev) =>
-			prev.map((t) => {
-				if (t.id !== toId) return t
-				const newLag = { ...(t.dependsOnLag ?? {}) }
-				delete newLag[fromId]
-				return {
-					...t,
-					dependsOn: t.dependsOn?.filter((id) => id !== fromId),
-					dependsOnLag: newLag,
-				}
-			}),
+		setDependencies((prev) =>
+			prev.filter((d) => !(d.fromTaskId === fromId && d.toTaskId === toId)),
 		)
 	}, [])
 
@@ -209,7 +178,8 @@ export const GanttChart = () => {
 
 	if (!calendar || !planData) return null
 
-	const { start: rangeStart, end: rangeEnd } = getCalendarRange(tasks)
+	const tasksWithDates = allTasks.filter((t) => t.start && t.end)
+	const { start: rangeStart, end: rangeEnd } = getCalendarRange(tasksWithDates)
 	const days = getDaysInRange(rangeStart, rangeEnd)
 	const monthGroups = groupDaysByMonth(days)
 
@@ -221,10 +191,9 @@ export const GanttChart = () => {
 				className="w-105 shrink-0 border-r border-gray-300 dark:border-zinc-700 overflow-y-auto"
 			>
 				<GanttTaskList
-					tasks={tasks}
+					tasks={allTasks}
 					headerHeight={HEADER_HEIGHT}
 					rowHeight={ROW_HEIGHT}
-					onAddTask={handleAddTask}
 					onUpdateTask={handleUpdateTask}
 				/>
 			</div>
@@ -244,7 +213,8 @@ export const GanttChart = () => {
 					/>
 				</div>
 				<GanttCalendarGrid
-					tasks={tasks}
+					tasks={allTasks}
+					dependencies={dependencies}
 					days={days}
 					rangeStart={rangeStart}
 					dayWidth={DAY_COLUMN_WIDTH}

@@ -1,5 +1,5 @@
-import { Task } from '@/types'
-import { TaskStatusLabels } from '@/types/enums/task-status.enum'
+import { ScheduledTask } from '@/types'
+import { ProjectTaskStatusLabels } from '@/types/enums/task-status.enum'
 import { FC } from 'react'
 import {
 	taskCard,
@@ -15,7 +15,7 @@ import { formatDate } from '@/utils/formatDate'
 import { Clock, Calendar, CalendarCheck2 } from 'lucide-react'
 
 interface TaskProps {
-	task: Task
+	task: ScheduledTask
 }
 
 const TaskCard: FC<TaskProps> = ({ task }) => {
@@ -29,7 +29,7 @@ const TaskCard: FC<TaskProps> = ({ task }) => {
 						<h3 className={taskTitle()}>{task.title}</h3>
 					</div>
 					<span className={statusBadge({ status: task.status })}>
-						{TaskStatusLabels[task.status]}
+						{ProjectTaskStatusLabels[task.status]}
 					</span>
 				</div>
 				<p className={taskDescription()}>{task.description}</p>

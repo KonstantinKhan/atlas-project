@@ -3,6 +3,7 @@ package com.khan366kos.atlas.project.backend.mappers
 import com.khan366kos.atlas.project.backend.common.models.ProjectDate
 import com.khan366kos.atlas.project.backend.common.models.projectPlan.ProjectPlan
 import com.khan366kos.atlas.project.backend.common.models.taskSchedule.ScheduleDelta
+import com.khan366kos.atlas.project.backend.common.models.taskSchedule.TaskSchedule
 import com.khan366kos.atlas.project.backend.common.models.taskSchedule.TaskScheduleId
 import com.khan366kos.atlas.project.backend.common.models.timelineCalendar.TimelineCalendar
 import com.khan366kos.atlas.project.backend.transport.GanttDependencyDto
@@ -35,11 +36,9 @@ fun ProjectPlan.toGanttDto() = GanttProjectPlanDto(
     projectId = id.asString(),
     tasks = tasks().map { task ->
         val schedule = schedules()[TaskScheduleId(task.id.value)]
-            ?: error("No schedule for task ${task.id.value}")
+            ?: TaskSchedule()
         val startDate = (schedule.start as? ProjectDate.Set)?.date
-            ?: error("Schedule start is not ProjectDate.Set for task ${task.id.value}")
         val endDate = (schedule.end as? ProjectDate.Set)?.date
-            ?: error("Schedule end is not ProjectDate.Set for task ${task.id.value}")
         GanttTaskDto(
             id = task.id.asString(),
             title = task.title.value,

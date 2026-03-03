@@ -1,7 +1,8 @@
-export type { Task } from './schemas/task.schema'
-export { TaskSchema, TaskListSchema } from './schemas/task.schema'
+export type { Task, ScheduledTask, GanttTask } from './schemas/task.schema'
+export { TaskSchema, ScheduledTaskSchema, GanttTaskSchema, TaskListSchema, ScheduledTaskListSchema, GanttTaskListSchema } from './schemas/task.schema'
 
 export type { TaskCommand } from './types/TaskCommand.type'
+export type { CreateTaskCommand } from './types/CreateTaskCommand.type'
 export type { TaskId } from './types/TaskId.type'
 export type { LocalDate } from './types/LocalDate.type'
 
@@ -12,7 +13,7 @@ export {
 	createDefaultTimelineCalendar,
 } from './schemas/timeline-calendar.schema'
 
-export type { GanttProjectPlan, GanttTaskDto, GanttDependencyDto } from './schemas/gantt-project-plan.schema'
+export type { GanttProjectPlan, GanttDependencyDto } from './schemas/gantt-project-plan.schema'
 export { GanttProjectPlanSchema } from './schemas/gantt-project-plan.schema'
 
 export type { ScheduleDelta } from './schemas/schedule-delta.schema'

@@ -1,11 +1,12 @@
 'use client'
 
-import { Task } from '@/types'
+import { GanttTask, GanttDependencyDto } from '@/types'
 import { getDayOffset } from '@/utils/ganttDateUtils'
 import GanttBar from './GanttBar'
 
 interface GanttTaskLayerProps {
-	tasks: Task[]
+	tasks: GanttTask[]
+	dependencies: GanttDependencyDto[]
 	days: Date[]
 	rangeStart: Date
 	dayWidth: number
@@ -20,6 +21,7 @@ interface GanttTaskLayerProps {
 
 export default function GanttTaskLayer({
 	tasks,
+	dependencies,
 	days,
 	rangeStart,
 	dayWidth,
@@ -99,53 +101,49 @@ export default function GanttTaskLayer({
 				</defs>
 
 				{/* Permanent dependency arrows */}
-				{tasks.flatMap((dep) =>
-					(dep.dependsOn ?? []).map((predId) => {
-						const pred = tasks.find((t) => t.id === predId)
-						if (!pred?.plannedEndDate || !dep.plannedStartDate) return null
-						const predIdx = tasks.indexOf(pred)
-						const depIdx = tasks.indexOf(dep)
-						const x1 =
-							(getDayOffset(pred.plannedEndDate, rangeStart) + 1) * dayWidth
-						const y1 = predIdx * rowHeight + rowHeight / 2
-						const x2 = getDayOffset(dep.plannedStartDate, rangeStart) * dayWidth
-						const y2 = depIdx * rowHeight + rowHeight / 2
-						const ARM = 12
-						const cornerX = x2 - ARM
-						let d: string
-						if (cornerX >= x1 + ARM) {
-							d = `M${x1},${y1} L${cornerX},${y1} L${cornerX},${y2} L${x2},${y2}`
-						} else {
-							const wrapRight = x1 + ARM
-							const wrapLeft = x2 - ARM
-							const boundaryY =
-								Math.min(predIdx, depIdx) * rowHeight + rowHeight
-							d = `M${x1},${y1} L${wrapRight},${y1} L${wrapRight},${boundaryY} L${wrapLeft},${boundaryY} L${wrapLeft},${y2} L${x2},${y2}`
-						}
-						return (
-							<path
-								key={`${predId}-${dep.id}`}
-								d={d}
-								fill="none"
-								stroke="#6366f1"
-								strokeWidth={1.5}
-								strokeDasharray="4 2"
-								markerEnd="url(#dep-arrow)"
-								style={{ pointerEvents: 'stroke', cursor: 'pointer' }}
-								onClick={() => onRemoveDependency(predId, dep.id)}
-							/>
-						)
-					}),
-				)}
+				{dependencies.flatMap((depRelation) => {
+					const dep = tasks.find((t) => t.id === depRelation.toTaskId)
+					const pred = tasks.find((t) => t.id === depRelation.fromTaskId)
+					if (!pred?.end || !dep?.start) return []
+					const predIdx = tasks.indexOf(pred)
+					const depIdx = tasks.indexOf(dep)
+					const x1 = (getDayOffset(pred.end, rangeStart) + 1) * dayWidth
+					const y1 = predIdx * rowHeight + rowHeight / 2
+					const x2 = getDayOffset(dep.start, rangeStart) * dayWidth
+					const y2 = depIdx * rowHeight + rowHeight / 2
+					const ARM = 12
+					const cornerX = x2 - ARM
+					let d: string
+					if (cornerX >= x1 + ARM) {
+						d = `M${x1},${y1} L${cornerX},${y1} L${cornerX},${y2} L${x2},${y2}`
+					} else {
+						const wrapRight = x1 + ARM
+						const wrapLeft = x2 - ARM
+						const boundaryY = Math.min(predIdx, depIdx) * rowHeight + rowHeight
+						d = `M${x1},${y1} L${wrapRight},${y1} L${wrapRight},${boundaryY} L${wrapLeft},${boundaryY} L${wrapLeft},${y2} L${x2},${y2}`
+					}
+					return [
+						<path
+							key={`${depRelation.fromTaskId}-${depRelation.toTaskId}`}
+							d={d}
+							fill="none"
+							stroke="#6366f1"
+							strokeWidth={1.5}
+							strokeDasharray="4 2"
+							markerEnd="url(#dep-arrow)"
+							style={{ pointerEvents: 'stroke', cursor: 'pointer' }}
+							onClick={() => onRemoveDependency(depRelation.fromTaskId, depRelation.toTaskId)}
+						/>
+					]
+				})}
 
 				{/* Temporary arrow while dragging */}
 				{linkingFrom &&
 					(() => {
 						const pred = tasks.find((t) => t.id === linkingFrom)
-						if (!pred?.plannedEndDate) return null
+						if (!pred?.end) return null
 						const predIdx = tasks.indexOf(pred)
-						const x1 =
-							(getDayOffset(pred.plannedEndDate, rangeStart) + 1) * dayWidth
+						const x1 = (getDayOffset(pred.end, rangeStart) + 1) * dayWidth
 						const y1 = predIdx * rowHeight + rowHeight / 2
 						return (
 							<line

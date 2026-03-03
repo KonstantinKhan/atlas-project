@@ -34,6 +34,9 @@ import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
 import org.jetbrains.exposed.sql.update
 import java.util.UUID
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
+import kotlin.uuid.toJavaUuid
 
 class AtlasProjectTaskRepoPostgres(private val database: Database) : IAtlasProjectTaskRepo {
     override suspend fun timelineCalendar(): TimelineCalendar = newSuspendedTransaction(db = database) {
@@ -130,6 +133,22 @@ class AtlasProjectTaskRepoPostgres(private val database: Database) : IAtlasProje
         }
         task.copy(id = TaskId(taskUuid.toString()))
     }
+
+    @OptIn(ExperimentalUuidApi::class)
+    override suspend fun createTaskWithoutSchedule(task: ProjectTask): ProjectTask =
+        newSuspendedTransaction(db = database) {
+            val planUuid = ProjectPlansTable.selectAll().single()[ProjectPlansTable.id]
+            val taskUuid = Uuid.random()
+            ProjectTasksTable.insert {
+                it[id] = taskUuid.toJavaUuid()
+                it[projectPlanId] = planUuid
+                it[title] = task.title.value
+                it[description] = task.description.value
+                it[durationDays] = task.duration.asInt()
+                it[status] = task.status.name
+            }
+            task.copy(id = TaskId(taskUuid.toString()))
+        }
 
     override suspend fun updateTask(task: ProjectTask): ProjectTask = newSuspendedTransaction(db = database) {
         ProjectTasksTable.update({ ProjectTasksTable.id eq UUID.fromString(task.id.value) }) {

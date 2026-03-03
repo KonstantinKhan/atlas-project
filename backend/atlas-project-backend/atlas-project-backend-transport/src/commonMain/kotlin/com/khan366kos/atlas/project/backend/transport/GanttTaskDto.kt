@@ -8,7 +8,7 @@ import kotlinx.serialization.Serializable
 data class GanttTaskDto(
     val id: String,
     val title: String,
-    val start: LocalDate,
-    val end: LocalDate,
+    val start: LocalDate? = null,
+    val end: LocalDate? = null,
     val status: ProjectTaskStatus
 )

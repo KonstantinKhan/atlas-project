@@ -9,7 +9,7 @@ CREATE TABLE project_tasks
     project_plan_id UUID         NOT NULL REFERENCES project_plans (id) ON DELETE CASCADE,
     title           VARCHAR(255) NOT NULL,
     description     TEXT         NOT NULL DEFAULT '',
-    duration_days   INT          NOT NULL,
+    duration_days   INT          NOT NULL DEFAULT 0,
     status          VARCHAR(50)  NOT NULL DEFAULT 'EMPTY'
 );
 

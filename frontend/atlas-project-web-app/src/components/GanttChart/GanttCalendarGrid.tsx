@@ -1,12 +1,13 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { Task, TimelineCalendar } from '@/types'
+import { GanttTask, GanttDependencyDto, TimelineCalendar } from '@/types'
 import GanttCalendarBackground from './GanttCalendarBackground'
 import GanttTaskLayer from './GanttTaskLayer'
 
 interface GanttCalendarGridProps {
-	tasks: Task[]
+	tasks: GanttTask[]
+	dependencies: GanttDependencyDto[]
 	days: Date[]
 	rangeStart: Date
 	dayWidth: number
@@ -18,6 +19,7 @@ interface GanttCalendarGridProps {
 
 export default function GanttCalendarGrid({
 	tasks,
+	dependencies,
 	days,
 	rangeStart,
 	dayWidth,
@@ -49,6 +51,7 @@ export default function GanttCalendarGrid({
 
 			<GanttTaskLayer
 				tasks={tasks}
+				dependencies={dependencies}
 				days={days}
 				rangeStart={rangeStart}
 				dayWidth={dayWidth}
