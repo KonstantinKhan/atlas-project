@@ -1,44 +1,79 @@
-# CLAUDE.md
+# CLAUDE.md — Atlas Project
 
-## Role: Orchestrator
+## Primary Rule: docs/ Is the Project Map
 
-This file defines how to coordinate tasks and delegate work to specialized agents
+Read documentation before reading code.
+Documentation is authoritative. If it contradicts code — that is a docs bug; flag it.
 
-## Rules: Before ANY Task
+---
 
-Before starting **any** task (including research questions):
+## Documentation Structure (3 Levels)
 
-1. **Read relevant `.md` files from `/docs/` directory FIRST** — based on task name/type/domain
-2. **Explore project structure via documentation** — understand architecture from docs before code
-3. **Only then proceed to code exploration** — verify implementation against documented conventions
+Every domain follows the same layout:
 
-### Domain Matching Guide
+```
+docs/<domain>/
+├── OVERVIEW.md      # Level 1: what the module does, boundaries, tech stack
+├── INDEX.md         # Level 2: what files exist and what each one does
+└── details/         # Level 3: details of specific files / components
+    └── *.md
+```
 
-| Task Domain | Documentation Path | Example |
-|-------------|-------------------|---------|
-| UI / Frontend | `docs/frontend/` | Gantt chart, components, task UI |
-| Backend / API | `docs/rules/` | DTOs, commands, patterns |
-| Project Overview | `docs/project/` | Architecture, goals |
-| Unknown / General | Read **all** `.md` files in `docs/` | — |
+Domains: `frontend/`, `backend/`, `project/`, `rules/`
+Root: `docs/ROAD_MAP.md` — product strategy and stages
 
-### Pre-flight Checklist
+---
 
-- [ ] Read `CLAUDE.md` (this file)
-- [ ] Identify task domain (UI, Backend, Project, etc.)
-- [ ] Read matching `.md` files from `docs/`
-- [ ] Only then explore code files
+## Navigation Protocol
 
-### Research Questions
+### Step 1: Identify the task domain
+- UI / component / hook / store → `frontend/`
+- API / endpoint / DTO / domain model → `backend/`
+- Planning / status / architecture decision → `project/`
+- Coding conventions → `rules/`
 
-For "how does it work" or "explain X" questions:
+### Step 2: Read the domain OVERVIEW.md
+Learn: what is in scope, what is out of scope, technologies used.
+One read. Stop if the task is already clear.
 
-1. **First** check `docs/` for architectural documentation
-2. **Then** verify against actual code
-3. **Note** any discrepancies between docs and code
+### Step 3: Read the domain INDEX.md
+Use it as a table of contents: find the file / component / module you need.
+Stop when you have the path to the relevant element.
 
-### Examples
+### Step 4: Read only the matching details/*.md
+Open only the file that INDEX pointed to.
+Do not read other details/ files in the same domain.
 
-- **Task creation UI** → `docs/frontend/task/` + `docs/frontend/COMPONENTS.md`
-- **DTO changes** → `docs/rules/DTO.md`
-- **Command pattern** → `docs/rules/command-type-pattern.md`
-- **Direct actions** → `docs/rules/direct-action.md`
+### Step 5: Open a source file only to make an edit
+By this point you know what to change and how.
+Open exactly the one file that needs to be modified.
+
+---
+
+## Coding Rules (read before editing)
+
+Before changes in specific areas:
+- Adding a command type (frontend) → `docs/rules/command-type-pattern.md`
+- Writing a Kotlin DTO → `docs/rules/DTO.md`
+- Simple targeted fix → `docs/rules/direct-action.md`
+
+---
+
+## Forbidden
+
+- DO NOT run `find`, `ls -R`, `grep -r` to discover structure — use INDEX.md instead
+- DO NOT open multiple source files to "understand a pattern" — read the details/*.md instead
+- DO NOT read files from another domain (no backend files for a frontend task)
+- DO NOT open any source file before completing steps 1–4
+
+---
+
+## When Documentation Is Insufficient
+
+Direct code search is allowed only in these cases:
+
+| Situation | Action |
+|-----------|--------|
+| Feature is absent from docs (undocumented) | Read the relevant module source file |
+| INDEX points to a file that does not exist | Report the docs error, search by intent |
+| Docs contradict each other | Open code to resolve, then update docs |

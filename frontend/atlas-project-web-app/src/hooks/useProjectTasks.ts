@@ -26,7 +26,18 @@ export function useUpdateProjectTask() {
 	return useMutation({
 		mutationFn: ({ id, updates }: { id: string; updates: object }) =>
 			updateProjectTask(id, updates),
-		onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
+		onSuccess: (updatedTask: Task) => {
+			queryClient.invalidateQueries({ queryKey: QUERY_KEY })
+			queryClient.setQueryData<GanttProjectPlan>(['projectPlan'], (old) => {
+				if (!old) return old
+				return {
+					...old,
+					tasks: old.tasks.map((t) =>
+						t.id === updatedTask.id ? { ...t, title: updatedTask.title } : t,
+					),
+				}
+			})
+		},
 	})
 }
 

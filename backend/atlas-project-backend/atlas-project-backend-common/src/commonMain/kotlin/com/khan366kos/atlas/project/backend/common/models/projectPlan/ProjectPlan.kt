@@ -69,44 +69,50 @@ data class ProjectPlan(
         schedules[updatedSched.id] = updatedSched
         updatedSchedules.add(updatedSched)
 
-        // BFS cascade through dependency graph
+        updatedSchedules.addAll(cascadeBfs(successorId, calendar))
+
+        return ScheduleDelta(updatedSchedules)
+    }
+
+    private fun cascadeBfs(
+        seedTaskId: TaskId,
+        calendar: TimelineCalendar
+    ): List<TaskSchedule> {
+        val updatedSchedules = mutableListOf<TaskSchedule>()
         val queue = ArrayDeque<TaskId>()
-        val visited = mutableSetOf(successorId)
-        queue.add(successorId)
+        val visited = mutableSetOf(seedTaskId)
+        queue.add(seedTaskId)
 
         while (queue.isNotEmpty()) {
             val currentId = queue.removeFirst()
-
             val outgoing = dependencies.filter { it.predecessor == currentId }
             for (dep in outgoing) {
-                val nextSuccessorId = dep.successor
-                val nextSuccessorTask = tasks[nextSuccessorId] ?: continue
-
-                val allPredsOfSuccessor = dependencies.filter { it.successor == nextSuccessorId }
-                val nextConstrainedStart = allPredsOfSuccessor.mapNotNull { pd ->
+                val successorId = dep.successor
+                val successorTask = tasks[successorId] ?: continue
+                val allPreds = dependencies.filter { it.successor == successorId }
+                val constrainedStart = allPreds.mapNotNull { pd ->
                     val predSched = schedules[TaskScheduleId(pd.predecessor.value)]
                         ?.takeIf { it.start is ProjectDate.Set && it.end is ProjectDate.Set }
                         ?: return@mapNotNull null
-                    calculateConstrainedStart(pd, predSched, nextSuccessorTask.duration, calendar)
+                    calculateConstrainedStart(pd, predSched, successorTask.duration, calendar)
                 }.maxOrNull() ?: continue
 
-                val nextConstrainedEnd = calendar.addWorkingDays(nextConstrainedStart, nextSuccessorTask.duration)
-                val nextUpdatedSched = TaskSchedule(
-                    id = TaskScheduleId(nextSuccessorId.value),
-                    start = ProjectDate.Set(nextConstrainedStart),
-                    end = ProjectDate.Set(nextConstrainedEnd),
+                val constrainedEnd = calendar.addWorkingDays(constrainedStart, successorTask.duration)
+                val updatedSched = TaskSchedule(
+                    id = TaskScheduleId(successorId.value),
+                    start = ProjectDate.Set(constrainedStart),
+                    end = ProjectDate.Set(constrainedEnd),
                 )
-                schedules[nextUpdatedSched.id] = nextUpdatedSched
-                updatedSchedules.add(nextUpdatedSched)
+                schedules[updatedSched.id] = updatedSched
+                updatedSchedules.add(updatedSched)
 
-                if (nextSuccessorId !in visited) {
-                    visited.add(nextSuccessorId)
-                    queue.add(nextSuccessorId)
+                if (successorId !in visited) {
+                    visited.add(successorId)
+                    queue.add(successorId)
                 }
             }
         }
-
-        return ScheduleDelta(updatedSchedules)
+        return updatedSchedules
     }
 
     private fun wouldCreateCycle(predecessorId: TaskId, successorId: TaskId): Boolean {
@@ -193,41 +199,7 @@ data class ProjectPlan(
         updatedSchedules.add(newSchedule)
 
         // Step 2 — BFS cascade through dependency graph
-        val queue = ArrayDeque<TaskId>()
-        val visited = mutableSetOf(taskId)
-        queue.add(taskId)
-
-        while (queue.isNotEmpty()) {
-            val currentId = queue.removeFirst()
-
-            val outgoing = dependencies.filter { it.predecessor == currentId }
-            for (dep in outgoing) {
-                val successorId = dep.successor
-                val successorTask = tasks[successorId] ?: continue
-
-                val allPredsOfSuccessor = dependencies.filter { it.successor == successorId }
-                val constrainedStart = allPredsOfSuccessor.mapNotNull { pd ->
-                    val predSched = schedules[TaskScheduleId(pd.predecessor.value)]
-                        ?.takeIf { it.start is ProjectDate.Set && it.end is ProjectDate.Set }
-                        ?: return@mapNotNull null
-                    calculateConstrainedStart(pd, predSched, successorTask.duration, calendar)
-                }.maxOrNull() ?: continue
-
-                val constrainedEnd = calendar.addWorkingDays(constrainedStart, successorTask.duration)
-                val updatedSched = TaskSchedule(
-                    id = TaskScheduleId(successorId.value),
-                    start = ProjectDate.Set(constrainedStart),
-                    end = ProjectDate.Set(constrainedEnd),
-                )
-                schedules[updatedSched.id] = updatedSched
-                updatedSchedules.add(updatedSched)
-
-                if (successorId !in visited) {
-                    visited.add(successorId)
-                    queue.add(successorId)
-                }
-            }
-        }
+        updatedSchedules.addAll(cascadeBfs(taskId, calendar))
 
         return ScheduleDelta(updatedSchedules)
     }
@@ -260,41 +232,7 @@ data class ProjectPlan(
         updatedSchedules.add(newSchedule)
 
         // Step 2 — BFS cascade through dependency graph
-        val queue = ArrayDeque<TaskId>()
-        val visited = mutableSetOf(taskId)
-        queue.add(taskId)
-
-        while (queue.isNotEmpty()) {
-            val currentId = queue.removeFirst()
-
-            val outgoing = dependencies.filter { it.predecessor == currentId }
-            for (dep in outgoing) {
-                val successorId = dep.successor
-                val successorTask = tasks[successorId] ?: continue
-
-                val allPredsOfSuccessor = dependencies.filter { it.successor == successorId }
-                val constrainedStart = allPredsOfSuccessor.mapNotNull { pd ->
-                    val predSched = schedules[TaskScheduleId(pd.predecessor.value)]
-                        ?.takeIf { it.start is ProjectDate.Set && it.end is ProjectDate.Set }
-                        ?: return@mapNotNull null
-                    calculateConstrainedStart(pd, predSched, successorTask.duration, calendar)
-                }.maxOrNull() ?: continue
-
-                val constrainedEnd = calendar.addWorkingDays(constrainedStart, successorTask.duration)
-                val updatedSched = TaskSchedule(
-                    id = TaskScheduleId(successorId.value),
-                    start = ProjectDate.Set(constrainedStart),
-                    end = ProjectDate.Set(constrainedEnd),
-                )
-                schedules[updatedSched.id] = updatedSched
-                updatedSchedules.add(updatedSched)
-
-                if (successorId !in visited) {
-                    visited.add(successorId)
-                    queue.add(successorId)
-                }
-            }
-        }
+        updatedSchedules.addAll(cascadeBfs(taskId, calendar))
 
         return ScheduleDelta(updatedSchedules)
     }

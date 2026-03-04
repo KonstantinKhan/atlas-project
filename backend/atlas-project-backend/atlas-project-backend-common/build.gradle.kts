@@ -9,5 +9,8 @@ kotlin {
         commonMain.dependencies {
             implementation(libs.kotlinx.datetime)
         }
+        commonTest.dependencies {
+            implementation(kotlin("test"))
+        }
     }
 }

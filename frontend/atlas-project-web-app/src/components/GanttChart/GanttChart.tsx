@@ -8,6 +8,7 @@ import {
 	useChangeTaskStartDate,
 	useChangeTaskEndDate,
 	useCreateDependency,
+	useUpdateProjectTask,
 } from '@/hooks/useProjectTasks'
 import { GanttTask, GanttDependencyDto, TaskCommand, GanttProjectPlan } from '@/types'
 import {
@@ -45,6 +46,7 @@ export const GanttChart = () => {
 	const changeStartMutation = useChangeTaskStartDate()
 	const changeEndMutation = useChangeTaskEndDate()
 	const createDependencyMutation = useCreateDependency()
+	const updateTitleMutation = useUpdateProjectTask()
 	const leftRef = useRef<HTMLDivElement>(null)
 	const rightRef = useRef<HTMLDivElement>(null)
 	const isSyncing = useRef(false)
@@ -88,6 +90,14 @@ export const GanttChart = () => {
 					setAllTasks((prev) =>
 						prev.map((t) => (t.id === cmd.taskId ? { ...t, title: cmd.newTitle } : t)),
 					)
+					updateTitleMutation.mutate(
+						{ id: cmd.taskId, updates: { title: cmd.newTitle } },
+						{
+							onError: (error) => {
+								console.error('[GanttChart] Failed to update task title:', error)
+							},
+						},
+					)
 					break
 				default: {
 					const _exhaustive: never = cmd
@@ -95,7 +105,7 @@ export const GanttChart = () => {
 				}
 			}
 		},
-		[changeStartMutation, changeEndMutation, createTaskMutation, planData],
+		[changeStartMutation, changeEndMutation, createTaskMutation, updateTitleMutation, planData],
 	)
 
 	const handleCreateDependency = useCallback((fromId: string, toId: string) => {

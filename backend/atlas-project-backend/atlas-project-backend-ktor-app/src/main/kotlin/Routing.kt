@@ -75,8 +75,6 @@ fun Application.configureRouting(config: AppConfig) {
             val plan = config.repo.projectPlan()
             val calendar = config.calendarService.current()
             
-            println("[Routing] Creating dependency: from=${request.fromTaskId}, to=${request.toTaskId}, lag=${request.lagDays}")
-            
             val delta = plan.addDependency(
                 predecessorId = TaskId(request.fromTaskId),
                 successorId = TaskId(request.toTaskId),
@@ -84,11 +82,6 @@ fun Application.configureRouting(config: AppConfig) {
                 lagDays = request.lagDays,
                 calendar = calendar
             )
-            
-            println("[Routing] Dependency created, delta schedules: ${delta.updatedSchedule.size}")
-            delta.updatedSchedule.forEach {
-                println("[Routing]   Task ${it.id.value}: start=${it.start}, end=${it.end}")
-            }
             
             // Persist the dependency and updated schedules
             config.repo.addDependency(
@@ -110,15 +103,11 @@ fun Application.configureRouting(config: AppConfig) {
             val plan = config.repo.projectPlan()
             val calendar = config.calendarService.current()
             
-            println("[Routing] Recalculating all dependencies...")
-            
             // Get all tasks without dependencies as starting points
             val allTasks = plan.tasks()
             val allDeps = plan.dependencies()
             val tasksWithPredecessors = allDeps.map { it.successor }.toSet()
             val rootTasks = allTasks.filter { it.id !in tasksWithPredecessors }
-            
-            println("[Routing] Found ${rootTasks.size} root tasks")
             
             // BFS through dependency graph
             val visited = mutableSetOf<TaskId>()
@@ -171,9 +160,7 @@ fun Application.configureRouting(config: AppConfig) {
                 }
             }
             
-            println("[Routing] Recalculated ${updatedSchedules.size} schedules")
             updatedSchedules.forEach {
-                println("[Routing]   Task ${it.id.value}: start=${it.start}, end=${it.end}")
                 config.repo.updateSchedule(it)
             }
             
