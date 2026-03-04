@@ -93,6 +93,7 @@ atlas-project-backend-common
 | `/project-tasks` | POST | ktor-app | `configureRouting` |
 | `/project-tasks/create-in-pool` | POST | ktor-app | `configureRouting` |
 | `/project-tasks/:id` | PATCH | ktor-app | `configureRouting` |
+| `/project-tasks/:id` | DELETE | ktor-app | `configureRouting` |
 
 ## Domain Models
 

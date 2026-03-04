@@ -1,8 +1,8 @@
 # Ktor App Module - Detail
 
-**Path:** `/backend/atlas-project-backend/atlas-project-backend-ktor-app/`  
-**Module:** [Backend Index](../INDEX.md)  
-**Last Updated:** 2026-03-03
+**Path:** `/backend/atlas-project-backend/atlas-project-backend-ktor-app/`
+**Module:** [Backend Index](../INDEX.md)
+**Last Updated:** 2026-03-04
 
 ## Purpose
 
@@ -240,6 +240,42 @@ patch("/project-tasks/{id}") {
     call.respond(config.repo.updateTask(updated).toTaskDto())
 }
 ```
+
+---
+
+#### DELETE /project-tasks/:id
+
+**Purpose:** Delete an existing task and all associated schedules and dependencies.
+
+**Response:** `204 No Content` on success
+
+**Error Responses:**
+- `400 Bad Request` - Task ID is missing or empty
+- `404 Not Found` - Task with specified ID does not exist
+
+**Handler:**
+```kotlin
+delete("/project-tasks/{id}") {
+    val id = call.parameters["id"]
+        ?: return@delete call.respond(HttpStatusCode.BadRequest, "Task ID parameter is missing")
+
+    if (id.isBlank()) {
+        return@delete call.respond(HttpStatusCode.BadRequest, "Task ID cannot be empty")
+    }
+
+    config.repo.getTask(id)
+        ?: return@delete call.respond(HttpStatusCode.NotFound)
+
+    config.repo.deleteTask(id)
+    call.respond(HttpStatusCode.NoContent)
+}
+```
+
+**Implementation Details:**
+- Validates that the task ID is provided and not empty
+- Checks if the task exists before attempting deletion (returns 404 if not found)
+- Calls `repo.deleteTask(id)` which cascade deletes schedules and dependencies
+- Returns 204 No Content on successful deletion (no response body)
 
 ---
 

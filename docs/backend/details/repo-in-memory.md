@@ -1,8 +1,8 @@
 # Repo In-Memory Module - Detail
 
-**Path:** `/backend/atlas-project-backend/atlas-project-backend-repo-in-memory/`  
-**Module:** [Backend Index](../INDEX.md)  
-**Last Updated:** 2026-03-03
+**Path:** `/backend/atlas-project-backend/atlas-project-backend-repo-in-memory/`
+**Module:** [Backend Index](../INDEX.md)
+**Last Updated:** 2026-03-04
 
 ## Purpose
 
@@ -129,6 +129,23 @@ override fun updateTask(task: ProjectTask): ProjectTask {
     return task
 }
 ```
+
+---
+
+#### deleteTask(id: String): Int
+
+**Purpose:** Delete a task by ID.
+
+**Implementation:**
+```kotlin
+override suspend fun deleteTask(id: String): Int = newSuspendedTransaction(db = database) {
+    ProjectTasksTable.deleteWhere { ProjectTasksTable.id eq id }
+}
+```
+
+**Note:** The in-memory implementation uses Exposed's `deleteWhere` for consistency with the PostgreSQL implementation, but operates on an in-memory H2 database.
+
+**Returns:** Number of tasks deleted (1 if successful, 0 if not found)
 
 ---
 

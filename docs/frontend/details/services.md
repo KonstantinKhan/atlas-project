@@ -1,8 +1,8 @@
 # Services - Detail
 
-**Path:** `/frontend/atlas-project-web-app/src/services/`  
-**Module:** [Frontend Index](../INDEX.md)  
-**Last Updated:** 2026-03-03
+**Path:** `/frontend/atlas-project-web-app/src/services/`
+**Module:** [Frontend Index](../INDEX.md)
+**Last Updated:** 2026-03-04
 
 ## Purpose
 
@@ -138,6 +138,32 @@ export async function createProjectTask(title: string): Promise<Task>
 **API:** `POST /project-tasks/create-in-pool`
 
 **Returns:** Created `Task` object
+
+---
+
+#### deleteProjectTask(id)
+
+**Purpose:** Delete an existing project task.
+
+**Signature:**
+```typescript
+export async function deleteProjectTask(id: string): Promise<void>
+```
+
+**Parameters:**
+- `id` - Task ID to delete
+
+**API:** `DELETE /project-tasks/:id`
+
+**Returns:** `void` (204 No Content on success)
+
+**Throws:** Error if response is not OK
+
+**Usage Example:**
+```typescript
+await deleteProjectTask('task-123')
+// Task deleted, no content returned
+```
 
 ---
 

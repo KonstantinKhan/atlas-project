@@ -1,8 +1,8 @@
 # Types - Detail
 
-**Path:** `/frontend/atlas-project-web-app/src/types/`  
-**Module:** [Frontend Index](../INDEX.md)  
-**Last Updated:** 2026-03-03
+**Path:** `/frontend/atlas-project-web-app/src/types/`
+**Module:** [Frontend Index](../INDEX.md)
+**Last Updated:** 2026-03-04
 
 ## Purpose
 
@@ -164,42 +164,49 @@ Defines the command pattern for task operations:
 
 ```typescript
 // TaskCommandType.ts
-export enum TaskCommandType {
-    CreateTaskInPool = 'CREATE_TASK_IN_POOL',
-    ChangeStartDate = 'CHANGE_START_DATE',
-    ChangeEndDate = 'CHANGE_END_DATE',
-    UpdateTitle = 'UPDATE_TITLE',
-}
+export const TaskCommandType = {
+    CreateTaskInPool = 'createTaskInPool',
+    ChangeStartDate = 'changeStartDate',
+    ChangeEndDate = 'changeEndDate',
+    UpdateTitle = 'updateTitle',
+    DeleteTask = 'deleteTask',
+} as const
 
 // TaskCommand.type.ts - Union type
 export type TaskCommand =
-    | CreateTaskCommand
+    | CreateTaskInPoolCommand
     | ChangeStartDateCommand
     | ChangeEndDateCommand
     | UpdateTitleCommand
+    | DeleteTaskCommand
 
 // Individual command types
-export type CreateTaskCommand = {
-    type: TaskCommandType.CreateTaskInPool
+export type CreateTaskInPoolCommand = {
+    type: typeof TaskCommandType.CreateTaskInPool
     title: string
 }
 
 export type ChangeStartDateCommand = {
-    type: TaskCommandType.ChangeStartDate
+    type: typeof TaskCommandType.ChangeStartDate
     taskId: string
     newStartDate: string
 }
 
 export type ChangeEndDateCommand = {
-    type: TaskCommandType.ChangeEndDate
+    type: typeof TaskCommandType.ChangeEndDate
     taskId: string
     newEndDate: string
 }
 
 export type UpdateTitleCommand = {
-    type: TaskCommandType.UpdateTitle
+    type: typeof TaskCommandType.UpdateTitle
     taskId: string
     newTitle: string
+}
+
+export type DeleteTaskCommand = {
+    type: typeof TaskCommandType.DeleteTask
+    taskId: string
 }
 ```
 

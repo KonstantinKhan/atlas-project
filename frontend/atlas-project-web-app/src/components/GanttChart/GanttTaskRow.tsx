@@ -8,6 +8,7 @@ import { LocalDate } from '@/utils/types/LocalDate'
 import { formatDateForInput } from '@/utils/ganttDateUtils'
 import { Calendar } from 'primereact/calendar'
 import { addLocale } from 'primereact/api'
+import { Trash2 } from 'lucide-react'
 import { ProjectTaskStatus } from '@/types/generated/enums/project-task-status.enum'
 
 addLocale('ru', {
@@ -73,7 +74,7 @@ export default function GanttTaskRow({
 
 	return (
 		<div
-			className="flex items-center gap-2 px-3 border-b border-gray-200 dark:border-zinc-800"
+			className="group flex items-center gap-2 px-3 border-b border-gray-200 dark:border-zinc-800"
 			style={{ height: rowHeight }}
 		>
 			<div
@@ -143,6 +144,13 @@ export default function GanttTaskRow({
 					panelClassName="gantt-date-panel"
 				/>
 			</div>
+
+			<button
+				onClick={() => onUpdateTask({ type: TaskCommandType.DeleteTask, taskId: TaskId(task.id) })}
+				className="opacity-0 group-hover:opacity-100 shrink-0 text-gray-400 hover:text-red-500 transition-opacity"
+			>
+				<Trash2 size={14} />
+			</button>
 		</div>
 	)
 }

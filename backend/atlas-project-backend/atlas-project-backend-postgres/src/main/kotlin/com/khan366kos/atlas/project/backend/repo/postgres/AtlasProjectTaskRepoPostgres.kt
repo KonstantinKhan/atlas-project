@@ -29,9 +29,12 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.ResultRow
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
+import org.jetbrains.exposed.sql.deleteWhere
+import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.update
 import java.util.UUID
 import kotlin.uuid.ExperimentalUuidApi
@@ -158,6 +161,13 @@ class AtlasProjectTaskRepoPostgres(private val database: Database) : IAtlasProje
             it[status] = task.status.name
         }
         task
+    }
+
+    override suspend fun deleteTask(id: String): Int = newSuspendedTransaction(db = database) {
+        val uuid = UUID.fromString(id)
+        TaskSchedulesTable.deleteWhere { taskId eq uuid }
+        TaskDependenciesTable.deleteWhere { (predecessorTaskId eq uuid) or (successorTaskId eq uuid) }
+        ProjectTasksTable.deleteWhere { ProjectTasksTable.id eq uuid }
     }
 
     override suspend fun addDependency(predecessorId: String, successorId: String, type: String, lagDays: Int): Int =

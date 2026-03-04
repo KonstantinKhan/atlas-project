@@ -1,6 +1,6 @@
 # Статус реализации
 
-> _Последнее обновление: 2026-03-03 (Фаза A завершена)_
+> _Последнее обновление: 2026-03-04 (Фаза B завершена)_
 
 Документ сопоставляет дорожную карту ([ROAD_MAP.md](../ROAD_MAP.md)) с фактическим состоянием кода.
 
@@ -43,14 +43,14 @@ UI → UX Command → API → Domain → DB → DTO → UI
 
 ---
 
-## Этап 1.1. Task Pool (~75%)
+## Этап 1.1. Task Pool (~100%)
 
 | Функция | Статус | Комментарий |
 |---------|--------|-------------|
 | Создание задач | ✅ | `CreateTaskInPoolCommand` → API → DB |
 | Переименование | ✅ | `UpdateTitleCommand` → PATCH API |
 | Задачи без дат | ✅ | Задачи в пуле существуют без расписания |
-| Удаление | ❌ | Нет DELETE-эндпоинта, нет метода в репозитории, нет UI |
+| Удаление | ✅ | `DeleteTaskCommand` → `DELETE /project-tasks/{id}` → каскад в БД, modal подтверждения |
 
 ---
 
@@ -80,8 +80,30 @@ UI → UX Command → API → Domain → DB → DTO → UI
 | Детекция циклов | ✅ | Реализовано в `ProjectPlan.addDependency` |
 | Создание зависимости | ✅ | POST `/dependencies` |
 | Удаление зависимости (UI) | 🔧 | Клик по стрелке убирает из React-стейта, **но не вызывает API** |
-| Удаление зависимости (API) | ❌ | Нет DELETE-эндпоинта для зависимостей |
-| Пересчёт при удалении | ❌ | Без API удаления — пересчёт невозможен |
+| Удаление зависимости (API) | ❌ | Нет DELETE-эндпоинта для зависимостей (каскадное удаление при удалении задачи — ✅) |
+| Пересчёт при удалении | ❌ | Без API удаления зависимости — пересчёт невозможен |
+
+---
+
+## Фаза B: Task Pool ✅ (завершена 2026-03-04)
+
+| Задача | Статус | Комментарий |
+|--------|--------|-------------|
+| B1: DELETE-эндпоинт | ✅ | `IAtlasProjectTaskRepo.deleteTask()` + Postgres (каскад) + InMemory + `DELETE /project-tasks/{id}` |
+| B2: UI кнопка удаления | ✅ | `DeleteTaskCommand`, `Trash2`-кнопка в `GanttTaskRow`, `useDeleteProjectTask` hook |
+| B3: Диалог подтверждения | ✅ | `ConfirmDeleteModal` — название задачи + счётчик зависимостей + подтверждение |
+
+### Изменения в коде (Фаза B)
+- `IAtlasProjectTaskRepo.kt` — добавлен `deleteTask(id: String): Int`
+- `AtlasProjectTaskRepoPostgres.kt` — каскадное удаление: schedules → dependencies → task
+- `AtlasProjectTaskRepoInMemory.kt` — `deleteWhere` по id
+- `Routing.kt` — `DELETE /project-tasks/{id}` с 400/404 проверками → 204 NoContent
+- `TaskCommandType.ts` / `TaskCommand.type.ts` — добавлен `DeleteTask`
+- Новые файлы: `DeleteTaskCommand.type.ts`, `ConfirmDeleteModal.tsx`
+- `projectTasksApi.ts` — `deleteProjectTask(id)`
+- `useProjectTasks.ts` — `useDeleteProjectTask` с оптимистичным обновлением кеша
+- `GanttTaskRow.tsx` — `group`-hover + кнопка удаления
+- `GanttChart.tsx` — `pendingDeleteTaskId` стейт, `handleConfirmDelete`, рендер модала
 
 ---
 

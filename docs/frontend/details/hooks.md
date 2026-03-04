@@ -1,8 +1,8 @@
 # Hooks - Detail
 
-**Path:** `/frontend/atlas-project-web-app/src/hooks/`  
-**Module:** [Frontend Index](../INDEX.md)  
-**Last Updated:** 2026-03-03
+**Path:** `/frontend/atlas-project-web-app/src/hooks/`
+**Module:** [Frontend Index](../INDEX.md)
+**Last Updated:** 2026-03-04
 
 ## Purpose
 
@@ -33,6 +33,7 @@ export function useProjectTasks()
 // Mutation Hooks
 export function useCreateProjectTask()
 export function useUpdateProjectTask()
+export function useDeleteProjectTask()
 export function useChangeTaskStartDate()
 export function useChangeTaskEndDate()
 export function useCreateDependency()
@@ -123,6 +124,64 @@ updateMutation.mutate({
     id: 'task-123',
     updates: { title: 'Updated Title' }
 })
+```
+
+---
+
+### useDeleteProjectTask
+
+**Purpose:** Delete a project task and its associated schedules and dependencies.
+
+**Returns:**
+```typescript
+UseMutationResult<void, Error, { id: string }>
+```
+
+**API Call:** `DELETE /project-tasks/:id`
+
+**Features:**
+- **Optimistic Update:** Immediately removes task from cache before server response
+- **Cascade Cleanup:** Automatically removes task from dependencies list
+
+**Usage Example:**
+```typescript
+const deleteMutation = useDeleteProjectTask()
+
+deleteMutation.mutate(
+    { id: 'task-123' },
+    {
+        onSuccess: () => {
+            // Task already removed from cache via optimistic update
+            console.log('Task deleted successfully')
+        },
+        onError: (error) => {
+            // Cache will be reverted automatically by React Query
+            console.error('Failed to delete:', error)
+        }
+    }
+)
+```
+
+**Optimistic Update Implementation:**
+```typescript
+export function useDeleteProjectTask() {
+    const queryClient = useQueryClient()
+    return useMutation({
+        mutationFn: ({ id }: { id: string }) => deleteProjectTask(id),
+        onSuccess: (_, { id }) => {
+            queryClient.setQueryData<GanttProjectPlan>(['projectPlan'], (old) => {
+                if (!old) return old
+                return {
+                    ...old,
+                    tasks: old.tasks.filter((t) => t.id !== id),
+                    dependencies: old.dependencies.filter(
+                        (d) => d.fromTaskId !== id && d.toTaskId !== id
+                    ),
+                }
+            })
+        },
+    })
+}
 ```
 
 ---

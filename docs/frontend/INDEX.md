@@ -121,6 +121,7 @@ Utils → Types
 | `/dependencies` | POST | createDependency | Create dependency |
 | `/project-tasks` | POST | createProjectTask | Create task |
 | `/project-tasks/:id` | PATCH | updateProjectTask | Update task |
+| `/project-tasks/:id` | DELETE | deleteProjectTask | Delete task |
 
 ---
 

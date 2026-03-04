@@ -4,4 +4,5 @@ export const TaskCommandType = {
 	ChangeStartDate: 'changeStartDate',
 	ChangeEndDate: 'changeEndDate',
 	UpdateTitle: 'updateTitle',
+	DeleteTask: 'deleteTask',
 } as const

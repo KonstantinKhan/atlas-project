@@ -20,6 +20,7 @@ The GanttChart module provides the main visualization component for project task
 | `GanttTaskLayer.tsx` | Layer for rendering task bars |
 | `GanttBar.tsx` | Individual task bar component |
 | `GanttCalendarBackground.tsx` | Calendar background with working day indicators |
+| `ConfirmDeleteModal.tsx` | Modal dialog for task deletion confirmation |
 | `index.ts` | Module exports |
 
 ---
@@ -39,6 +40,7 @@ export const GanttChart = () => { ... }
 **State:**
 - `allTasks: GanttTask[]` - All project tasks
 - `dependencies: GanttDependencyDto[]` - Task dependencies
+- `pendingDeleteTaskId: string | null` - ID of task pending deletion
 
 **Hooks Used:**
 - `useTimelineCalendar()` - Fetch work calendar
@@ -48,11 +50,13 @@ export const GanttChart = () => { ... }
 - `useChangeTaskEndDate()` - Update task end
 - `useCreateDependency()` - Create dependencies
 - `useUpdateProjectTask()` - Update task details
+- `useDeleteProjectTask()` - Delete tasks
 
 **Event Handlers:**
 - `handleUpdateTask(cmd: TaskCommand)` - Process task commands
 - `handleCreateDependency(fromId, toId)` - Create task dependency
 - `handleRemoveDependency(fromId, toId)` - Remove task dependency
+- `handleConfirmDelete()` - Confirm task deletion
 - `syncScroll()` - Synchronize scroll between panels
 
 ### Dependencies
@@ -62,7 +66,7 @@ export const GanttChart = () => { ... }
 - Custom hooks: `useTimelineCalendar`, `useProjectTasks` (multiple)
 - Types: `GanttTask`, `GanttDependencyDto`, `TaskCommand`, `GanttProjectPlan`
 - Utils: `getCalendarRange`, `getDaysInRange`, `groupDaysByMonth`
-- Child components: `GanttTaskList`, `GanttCalendarHeader`, `GanttCalendarGrid`
+- Child components: `GanttTaskList`, `GanttCalendarHeader`, `GanttCalendarGrid`, `ConfirmDeleteModal`
 
 **Imported by:**
 - `src/app/page.tsx`
@@ -179,8 +183,32 @@ interface GanttTaskRowProps {
     rowHeight: number
     onCreateDependency: (fromId: string, toId: string) => void
     onRemoveDependency: (fromId: string, toId: string) => void
+    onUpdateTask: (cmd: TaskCommand) => void
 }
 ```
+
+### Features
+
+- **Task Bar Rendering:** Displays the task bar at the correct position
+- **Dependency Handles:** Connection points for creating/removing dependencies
+- **Delete Button:** Hover-activated Trash2 icon for task deletion
+- **Group Hover Pattern:** Delete button only visible on parent row hover
+
+### Delete Button Implementation
+
+```typescript
+<button
+    onClick={() => onUpdateTask({ type: TaskCommandType.DeleteTask, taskId: TaskId(task.id) })}
+    className="opacity-0 group-hover:opacity-100 shrink-0 text-gray-400 hover:text-red-500 transition-opacity"
+>
+    <Trash2 size={14} />
+</button>
+```
+
+**Styling:**
+- Parent row has `group` class
+- Button has `opacity-0 group-hover:opacity-100` for hover effect
+- Red color on hover to indicate destructive action
 
 ---
 
@@ -257,7 +285,53 @@ export { GanttTaskRow } from './GanttTaskRow'
 export { GanttTaskLayer } from './GanttTaskLayer'
 export { GanttBar } from './GanttBar'
 export { GanttCalendarBackground } from './GanttCalendarBackground'
+export { ConfirmDeleteModal } from './ConfirmDeleteModal'
 ```
+
+---
+
+## ConfirmDeleteModal.tsx
+
+### Purpose
+
+Modal dialog component that confirms task deletion. Displays the task title and the number of affected dependencies.
+
+### Props
+
+```typescript
+interface ConfirmDeleteModalProps {
+    taskTitle: string
+    affectedDependenciesCount: number
+    onConfirm: () => void
+    onCancel: () => void
+}
+```
+
+### Features
+
+- **Task Title Display:** Shows the title of the task being deleted
+- **Dependency Warning:** Displays count of dependencies that will be deleted
+- **Confirmation Actions:** Cancel and Delete buttons
+- **Styled with Tailwind:** Dark mode support, red delete button
+
+### Usage Example
+
+```tsx
+<ConfirmDeleteModal
+    taskTitle={pendingDeleteTask.title}
+    affectedDependenciesCount={affectedDepsCount}
+    onConfirm={handleConfirmDelete}
+    onCancel={() => setPendingDeleteTaskId(null)}
+/>
+```
+
+### Dependencies
+
+**Imports:**
+- React (no hooks - presentational component)
+
+**Imported by:**
+- `GanttChart.tsx`
 
 ---
 

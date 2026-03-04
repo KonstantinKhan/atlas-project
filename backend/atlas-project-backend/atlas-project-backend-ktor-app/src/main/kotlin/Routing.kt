@@ -25,6 +25,7 @@ import io.ktor.server.application.*
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.routing.get
+import io.ktor.server.routing.delete
 import io.ktor.server.routing.patch
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
@@ -203,6 +204,20 @@ fun Application.configureRouting(config: AppConfig) {
             } catch (e: IllegalArgumentException) {
                 call.respond(HttpStatusCode.BadRequest, mapOf("error" to e.message))
             }
+        }
+        delete("/project-tasks/{id}") {
+            val id = call.parameters["id"]
+                ?: return@delete call.respond(HttpStatusCode.BadRequest, "Task ID parameter is missing")
+
+            if (id.isBlank()) {
+                return@delete call.respond(HttpStatusCode.BadRequest, "Task ID cannot be empty")
+            }
+
+            config.repo.getTask(id)
+                ?: return@delete call.respond(HttpStatusCode.NotFound)
+
+            config.repo.deleteTask(id)
+            call.respond(HttpStatusCode.NoContent)
         }
         patch("/project-tasks/{id}") {
             try {

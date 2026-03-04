@@ -1,8 +1,8 @@
 # Postgres Module - Detail
 
-**Path:** `/backend/atlas-project-backend/atlas-project-backend-postgres/`  
-**Module:** [Backend Index](../INDEX.md)  
-**Last Updated:** 2026-03-03
+**Path:** `/backend/atlas-project-backend/atlas-project-backend-postgres/`
+**Module:** [Backend Index](../INDEX.md)
+**Last Updated:** 2026-03-04
 
 ## Purpose
 
@@ -112,11 +112,48 @@ SELECT * FROM project_tasks WHERE id = ?
 
 **SQL:**
 ```sql
-UPDATE project_tasks 
+UPDATE project_tasks
 SET title = ?, description = ?, duration = ?, status = ?
 WHERE id = ?
 RETURNING *
 ```
+
+---
+
+#### deleteTask(id: String): Int
+
+**Purpose:** Delete a task and all associated schedules and dependencies.
+
+**SQL:**
+```sql
+-- Delete associated schedules first
+DELETE FROM task_schedules WHERE task_id = ?
+
+-- Delete associated dependencies (both as predecessor and successor)
+DELETE FROM task_dependencies 
+WHERE predecessor_id = ? OR successor_id = ?
+
+-- Delete the task itself
+DELETE FROM project_tasks WHERE id = ?
+```
+
+**Implementation:**
+```kotlin
+override suspend fun deleteTask(id: String): Int = newSuspendedTransaction(db = database) {
+    val uuid = UUID.fromString(id)
+    TaskSchedulesTable.deleteWhere { taskId eq uuid }
+    TaskDependenciesTable.deleteWhere { (predecessorTaskId eq uuid) or (successorTaskId eq uuid) }
+    ProjectTasksTable.deleteWhere { ProjectTasksTable.id eq uuid }
+}
+```
+
+**Cascade Delete:**
+- All task schedules are deleted first
+- All dependencies where the task is either predecessor or successor are deleted
+- Finally, the task itself is deleted
+- All operations are wrapped in a single transaction for atomicity
+
+**Returns:** Number of tasks deleted (1 if successful, 0 if not found)
 
 ---
 

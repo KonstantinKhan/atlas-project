@@ -1,8 +1,8 @@
 # Common Module - Detail
 
-**Path:** `/backend/atlas-project-backend/atlas-project-backend-common/`  
-**Module:** [Backend Index](../INDEX.md)  
-**Last Updated:** 2026-03-03
+**Path:** `/backend/atlas-project-backend/atlas-project-backend-common/`
+**Module:** [Backend Index](../INDEX.md)
+**Last Updated:** 2026-03-04
 
 ## Purpose
 
@@ -219,22 +219,28 @@ interface IAtlasProjectTaskRepo {
     fun createTaskWithoutSchedule(task: ProjectTask): ProjectTask
     fun getTask(id: String): ProjectTask?
     fun updateTask(task: ProjectTask): ProjectTask
-    
+    suspend fun deleteTask(id: String): Int
+
     // Schedule operations
     fun updateSchedule(schedule: TaskSchedule)
-    
+
     // Dependency operations
-    fun addDependency(predecessorId: String, successorId: String, 
+    fun addDependency(predecessorId: String, successorId: String,
                       type: String, lagDays: Int)
-    
+
     // Project plan
     fun projectPlan(): ProjectPlan
 }
 ```
 
 **Implementations:**
-- `PostgresRepo` - PostgreSQL implementation
+- `PostgresRepo` - PostgreSQL implementation with cascade delete
 - `InMemoryRepo` - In-memory implementation for testing
+
+**Delete Operation:**
+- Returns the number of tasks deleted (typically 1)
+- Implementations should cascade delete associated schedules and dependencies
+- Returns 0 if task not found (implementations should check existence)
 
 ---
 

@@ -7,6 +7,7 @@ import {
 	changeTaskStartDate,
 	changeTaskEndDate,
 	createDependency,
+	deleteProjectTask,
 } from '@/services/projectTasksApi'
 import { Task, GanttProjectPlan, ScheduleDelta } from '@/types'
 import { string } from 'zod'
@@ -109,6 +110,25 @@ export function useCreateProjectTask() {
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: QUERY_KEY })
 			queryClient.invalidateQueries({ queryKey: ['projectPlan'] })
+		},
+	})
+}
+
+export function useDeleteProjectTask() {
+	const queryClient = useQueryClient()
+	return useMutation({
+		mutationFn: ({ id }: { id: string }) => deleteProjectTask(id),
+		onSuccess: (_, { id }) => {
+			queryClient.setQueryData<GanttProjectPlan>(['projectPlan'], (old) => {
+				if (!old) return old
+				return {
+					...old,
+					tasks: old.tasks.filter((t) => t.id !== id),
+					dependencies: old.dependencies.filter(
+						(d) => d.fromTaskId !== id && d.toTaskId !== id
+					),
+				}
+			})
 		},
 	})
 }

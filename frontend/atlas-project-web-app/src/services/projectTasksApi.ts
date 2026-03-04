@@ -84,6 +84,11 @@ export async function createProjectTask(title: string): Promise<Task> {
 	return TaskSchema.parse(await response.json())
 }
 
+export async function deleteProjectTask(id: string): Promise<void> {
+	const res = await fetch(`${API_BASE_URL}/project-tasks/${id}`, { method: 'DELETE' })
+	if (!res.ok) throw new Error('Failed to delete project task')
+}
+
 export async function createDependency(
 	planId: string,
 	fromTaskId: string,

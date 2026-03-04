@@ -9,6 +9,7 @@ import {
 	useChangeTaskEndDate,
 	useCreateDependency,
 	useUpdateProjectTask,
+	useDeleteProjectTask,
 } from '@/hooks/useProjectTasks'
 import { GanttTask, GanttDependencyDto, TaskCommand, GanttProjectPlan } from '@/types'
 import {
@@ -19,6 +20,7 @@ import {
 import GanttTaskList from './GanttTaskList'
 import GanttCalendarHeader from './GanttCalendarHeader'
 import GanttCalendarGrid from './GanttCalendarGrid'
+import ConfirmDeleteModal from './ConfirmDeleteModal'
 import { TaskCommandType } from '@/types/types/TaskCommandType'
 
 const DAY_COLUMN_WIDTH = 40
@@ -47,6 +49,8 @@ export const GanttChart = () => {
 	const changeEndMutation = useChangeTaskEndDate()
 	const createDependencyMutation = useCreateDependency()
 	const updateTitleMutation = useUpdateProjectTask()
+	const deleteTaskMutation = useDeleteProjectTask()
+	const [pendingDeleteTaskId, setPendingDeleteTaskId] = useState<string | null>(null)
 	const leftRef = useRef<HTMLDivElement>(null)
 	const rightRef = useRef<HTMLDivElement>(null)
 	const isSyncing = useRef(false)
@@ -98,6 +102,9 @@ export const GanttChart = () => {
 							},
 						},
 					)
+					break
+				case TaskCommandType.DeleteTask:
+					setPendingDeleteTaskId(cmd.taskId)
 					break
 				default: {
 					const _exhaustive: never = cmd
@@ -193,7 +200,42 @@ export const GanttChart = () => {
 	const days = getDaysInRange(rangeStart, rangeEnd)
 	const monthGroups = groupDaysByMonth(days)
 
+	const pendingDeleteTask = pendingDeleteTaskId
+		? allTasks.find((t) => t.id === pendingDeleteTaskId)
+		: null
+	const affectedDepsCount = pendingDeleteTaskId
+		? dependencies.filter(
+				(d) => d.fromTaskId === pendingDeleteTaskId || d.toTaskId === pendingDeleteTaskId,
+		  ).length
+		: 0
+
+	const handleConfirmDelete = () => {
+		if (!pendingDeleteTaskId) return
+		const idToDelete = pendingDeleteTaskId
+		deleteTaskMutation.mutate(
+			{ id: idToDelete },
+			{
+				onSuccess: () => {
+					setAllTasks((prev) => prev.filter((t) => t.id !== idToDelete))
+					setDependencies((prev) =>
+						prev.filter((d) => d.fromTaskId !== idToDelete && d.toTaskId !== idToDelete),
+					)
+					setPendingDeleteTaskId(null)
+				},
+			},
+		)
+	}
+
 	return (
+		<>
+		{pendingDeleteTask && (
+			<ConfirmDeleteModal
+				taskTitle={pendingDeleteTask.title}
+				affectedDependenciesCount={affectedDepsCount}
+				onConfirm={handleConfirmDelete}
+				onCancel={() => setPendingDeleteTaskId(null)}
+			/>
+		)}
 		<div className="flex h-screen bg-white dark:bg-zinc-950 overflow-hidden">
 			<div
 				ref={leftRef}
@@ -235,5 +277,6 @@ export const GanttChart = () => {
 				/>
 			</div>
 		</div>
+		</>
 	)
 }

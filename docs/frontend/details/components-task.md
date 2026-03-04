@@ -1,8 +1,8 @@
 # Task Components - Detail
 
-**Path:** `/frontend/atlas-project-web-app/src/components/Task/`  
-**Module:** [Frontend Index](../INDEX.md)  
-**Last Updated:** 2026-03-03
+**Path:** `/frontend/atlas-project-web-app/src/components/Task/`
+**Module:** [Frontend Index](../INDEX.md)
+**Last Updated:** 2026-03-04
 
 ## Purpose
 
@@ -39,7 +39,8 @@ export const Task: React.FC<TaskProps> = ({ task, onUpdateTask }) => { ... }
 
 - **Inline Editing:** Click to edit task title
 - **Status Display:** Shows task status indicator
-- **Command Dispatch:** Sends `UpdateTitle` command on change
+- **Delete Button:** Hover-activated delete button with Trash2 icon
+- **Command Dispatch:** Sends `UpdateTitle` and `DeleteTask` commands
 
 ### State Management
 
@@ -53,6 +54,7 @@ const [title, setTitle] = useState(task.title)
 - `handleKeyDown(e: KeyboardEvent)` - Handle Enter/Escape during editing
 - `handleBlur()` - Save changes on blur
 - `handleClick()` - Enter edit mode
+- `handleDelete()` - Dispatch DeleteTask command (on hover visible)
 
 ### Dependencies
 
@@ -60,7 +62,7 @@ const [title, setTitle] = useState(task.title)
 - React: `useState`, `KeyboardEvent`
 - Types: `GanttTask`, `TaskCommand`, `TaskCommandType`
 - Styles: `taskStyles` from `Task.styles.ts`
-- Icons: `Pencil`, `Check`, `X` from lucide-react
+- Icons: `Pencil`, `Check`, `X`, `Trash2` from lucide-react
 
 **Imported by:**
 - `GanttTaskList.tsx`
