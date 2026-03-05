@@ -15,10 +15,12 @@ src/commonMain/kotlin/com/khan366kos/atlas/project/backend/transport/
 ├── calendar/
 │   └── (calendar DTOs)
 ├── commands/
+│   ├── AssignScheduleCommandDto.kt
 │   ├── ChangeTaskEndDateCommandDto.kt
 │   ├── ChangeTaskStartDateCommandDto.kt
 │   ├── CreateDependencyCommandDto.kt
-│   └── CreateTaskInPoolCommandDto.kt
+│   ├── CreateTaskInPoolCommandDto.kt
+│   └── PlanFromEndCommandDto.kt
 ├── enums/
 ├── ganttProjectPlan/
 ├── plan/
@@ -196,6 +198,40 @@ data class CreateTaskInPoolCommandDto(
     val description: String = "",
 )
 ```
+
+---
+
+### AssignScheduleCommandDto
+
+**Path:** `commands/AssignScheduleCommandDto.kt`
+
+**Purpose:** Command to assign a schedule to an existing pool task.
+
+```kotlin
+data class AssignScheduleCommandDto(
+    val start: String,      // ISO date string
+    val duration: Int,      // Duration in days
+)
+```
+
+**Usage:** Sent when dragging a pool task to the timeline grid.
+
+---
+
+### PlanFromEndCommandDto
+
+**Path:** `commands/PlanFromEndCommandDto.kt`
+
+**Purpose:** Command to plan a task backwards from its end date.
+
+```kotlin
+data class PlanFromEndCommandDto(
+    val taskId: String,
+    val newPlannedEnd: String,  // ISO date (deadline)
+)
+```
+
+**Usage:** Used for deadline-driven scheduling where end date is fixed.
 
 ---
 

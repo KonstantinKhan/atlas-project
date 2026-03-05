@@ -52,15 +52,18 @@ data class ProjectPlan(
         val successorSchedule = schedules[TaskScheduleId(successorId.value)]
             ?: return ScheduleDelta(emptyList())
 
+        // Compute actual duration from schedule to avoid stale durationDays in project_tasks
+        val successorDuration = actualDuration(successorSchedule, calendar) ?: successorTask.duration
+
         val allPreds = dependencies.filter { it.successor == successorId }
         val constrainedStart = allPreds.mapNotNull { pd ->
             val predSched = schedules[TaskScheduleId(pd.predecessor.value)]
                 ?.takeIf { it.start is ProjectDate.Set && it.end is ProjectDate.Set }
                 ?: return@mapNotNull null
-            calculateConstrainedStart(pd, predSched, successorTask.duration, calendar)
+            calculateConstrainedStart(pd, predSched, successorDuration, calendar)
         }.maxOrNull() ?: (successorSchedule.start as? ProjectDate.Set)?.date ?: return ScheduleDelta(emptyList())
 
-        val constrainedEnd = calendar.addWorkingDays(constrainedStart, successorTask.duration)
+        val constrainedEnd = calendar.addWorkingDays(constrainedStart, successorDuration)
         val updatedSched = TaskSchedule(
             id = TaskScheduleId(successorId.value),
             start = ProjectDate.Set(constrainedStart),
@@ -89,15 +92,17 @@ data class ProjectPlan(
             for (dep in outgoing) {
                 val successorId = dep.successor
                 val successorTask = tasks[successorId] ?: continue
+                val successorSchedule = schedules[TaskScheduleId(successorId.value)]
+                val successorDuration = successorSchedule?.let { actualDuration(it, calendar) } ?: successorTask.duration
                 val allPreds = dependencies.filter { it.successor == successorId }
                 val constrainedStart = allPreds.mapNotNull { pd ->
                     val predSched = schedules[TaskScheduleId(pd.predecessor.value)]
                         ?.takeIf { it.start is ProjectDate.Set && it.end is ProjectDate.Set }
                         ?: return@mapNotNull null
-                    calculateConstrainedStart(pd, predSched, successorTask.duration, calendar)
+                    calculateConstrainedStart(pd, predSched, successorDuration, calendar)
                 }.maxOrNull() ?: continue
 
-                val constrainedEnd = calendar.addWorkingDays(constrainedStart, successorTask.duration)
+                val constrainedEnd = calendar.addWorkingDays(constrainedStart, successorDuration)
                 val updatedSched = TaskSchedule(
                     id = TaskScheduleId(successorId.value),
                     start = ProjectDate.Set(constrainedStart),
@@ -139,7 +144,8 @@ data class ProjectPlan(
         predecessorId: TaskId,
         successorId: TaskId,
         type: DependencyType,
-        calendar: TimelineCalendar
+        calendar: TimelineCalendar,
+        allowNegativeLag: Boolean = false,
     ): Int {
         val predSchedule = schedules[TaskScheduleId(predecessorId.value)]
             ?.takeIf { it.start is ProjectDate.Set && it.end is ProjectDate.Set }
@@ -155,14 +161,15 @@ data class ProjectPlan(
 
         return when (type) {
             DependencyType.FS -> {
-                // Для FS: задача должна начаться на lag+1 рабочих дней после окончания предшественника
-                // Если задача уже начинается после predEnd, рассчитываем lag
-                // Если задача начинается до или в predEnd, lag = 0 (задача будет перенесена)
-                if (succStart <= predEnd) {
-                    0 // Задача будет перенесена на следующий рабочий день после predEnd
+                // lag = 0: встык (predEnd=Mon, succStart=Tue)
+                // lag > 0: зазор в рабочих днях
+                // lag < 0: опережение (succStart раньше predEnd) — только если allowNegativeLag
+                if (succStart >= predEnd) {
+                    calendar.workingDaysBetween(predEnd, succStart).asInt() - 2
+                } else if (allowNegativeLag) {
+                    -calendar.workingDaysBetween(succStart, predEnd).asInt()
                 } else {
-                    val daysBetween = calendar.workingDaysBetween(predEnd, succStart).asInt()
-                    (daysBetween - 1).coerceAtLeast(0)
+                    0 // overlap при создании зависимости → задача будет сдвинута на след. раб. день
                 }
             }
             DependencyType.SS -> {
@@ -178,6 +185,24 @@ data class ProjectPlan(
                 calendar.workingDaysBetween(predStart, succEnd).asInt()
             }
         }
+    }
+
+    fun planFromEnd(
+        taskId: TaskId,
+        newEnd: LocalDate,
+        calendar: TimelineCalendar
+    ): ScheduleDelta {
+        val task = tasks[taskId] ?: error("Unknown task $taskId")
+        val newStart = calendar.subtractWorkingDays(newEnd, task.duration)
+        val newSchedule = TaskSchedule(
+            id = TaskScheduleId(taskId.value),
+            start = ProjectDate.Set(newStart),
+            end = ProjectDate.Set(newEnd),
+        )
+        schedules[newSchedule.id] = newSchedule
+        val updated = mutableListOf(newSchedule)
+        updated.addAll(cascadeBfs(taskId, calendar))
+        return ScheduleDelta(updated)
     }
 
     fun changeTaskStartDate(
@@ -201,7 +226,19 @@ data class ProjectPlan(
         // Step 2 — BFS cascade through dependency graph
         updatedSchedules.addAll(cascadeBfs(taskId, calendar))
 
-        return ScheduleDelta(updatedSchedules)
+        // Step 3 — recalculate lag for incoming dependencies (user explicitly moved this task)
+        val incomingDeps = dependencies.filter { it.successor == taskId }
+        val updatedDeps = incomingDeps.mapNotNull { dep ->
+            val newLag = calculateLag(dep.predecessor, taskId, dep.type, calendar, allowNegativeLag = true)
+            if (newLag == dep.lag.asInt()) null
+            else dep.copy(lag = Duration(newLag))
+        }
+        updatedDeps.forEach { updated ->
+            dependencies.removeIf { it.predecessor == updated.predecessor && it.successor == updated.successor }
+            dependencies.add(updated)
+        }
+
+        return ScheduleDelta(updatedSchedules, updatedDeps)
     }
 
     fun changeTaskEndDate(
@@ -237,6 +274,51 @@ data class ProjectPlan(
         return ScheduleDelta(updatedSchedules)
     }
 
+    private fun actualDuration(schedule: TaskSchedule, calendar: TimelineCalendar): Duration? {
+        val start = (schedule.start as? ProjectDate.Set)?.date ?: return null
+        val end = (schedule.end as? ProjectDate.Set)?.date ?: return null
+        return calendar.workingDaysBetween(start, end)
+    }
+
+    fun recalculateAll(calendar: TimelineCalendar): ScheduleDelta {
+        val tasksWithPredecessors = dependencies.map { it.successor }.toSet()
+        val rootIds = tasks.keys.filter { it !in tasksWithPredecessors }
+
+        val queue = ArrayDeque<TaskId>()
+        val visited = mutableSetOf<TaskId>()
+        rootIds.forEach { queue.add(it); visited.add(it) }
+
+        val updatedSchedules = mutableListOf<TaskSchedule>()
+        while (queue.isNotEmpty()) {
+            val currentId = queue.removeFirst()
+            for (dep in dependencies.filter { it.predecessor == currentId }) {
+                val successorId = dep.successor
+                if (successorId in visited) continue
+                val successorSchedule = schedules[TaskScheduleId(successorId.value)] ?: continue
+                val successorDuration = actualDuration(successorSchedule, calendar)
+                    ?: tasks[successorId]?.duration ?: continue
+                val allPreds = dependencies.filter { it.successor == successorId }
+                val constrainedStart = allPreds.mapNotNull { pd ->
+                    val predSched = schedules[TaskScheduleId(pd.predecessor.value)]
+                        ?.takeIf { it.start is ProjectDate.Set && it.end is ProjectDate.Set }
+                        ?: return@mapNotNull null
+                    calculateConstrainedStart(pd, predSched, successorDuration, calendar)
+                }.maxOrNull() ?: continue
+                val constrainedEnd = calendar.addWorkingDays(constrainedStart, successorDuration)
+                val sched = TaskSchedule(
+                    id = TaskScheduleId(successorId.value),
+                    start = ProjectDate.Set(constrainedStart),
+                    end = ProjectDate.Set(constrainedEnd),
+                )
+                schedules[sched.id] = sched
+                updatedSchedules.add(sched)
+                visited.add(successorId)
+                queue.add(successorId)
+            }
+        }
+        return ScheduleDelta(updatedSchedules)
+    }
+
     private fun calculateConstrainedStart(
         dep: TaskDependency,
         predSchedule: TaskSchedule,
@@ -247,7 +329,12 @@ data class ProjectPlan(
         val predEnd = (predSchedule.end as ProjectDate.Set).date
         val lag = dep.lag.asInt()
         return when (dep.type) {
-            DependencyType.FS -> calendar.addWorkingDays(predEnd, Duration(lag + 1))
+            DependencyType.FS -> {
+                // lag=0 → встык (next working day), lag=1 → 1 day gap, lag=-1 → same day as predEnd, lag=-2 → 1 day before predEnd
+                val n = lag + 2
+                if (n > 0) calendar.addWorkingDays(predEnd, Duration(n))
+                else calendar.subtractWorkingDays(predEnd, Duration(-lag))
+            }
             DependencyType.SS -> calendar.addWorkingDays(predStart, Duration(lag))
             DependencyType.FF -> {
                 val constrainedEnd = calendar.addWorkingDays(predEnd, Duration(lag))

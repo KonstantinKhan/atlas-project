@@ -165,7 +165,7 @@ post("/dependencies") {
 
 **Purpose:** Recalculate all task schedules based on dependencies.
 
-**Algorithm:** BFS through dependency graph starting from root tasks.
+**Algorithm:** Uses `ProjectPlan.recalculateAll()` which iterates through all tasks and applies constraint-based scheduling via `calculateConstrainedStart()`.
 
 **Response:** `GanttProjectPlan` DTO (updated plan)
 
@@ -174,15 +174,16 @@ post("/dependencies") {
 post("/dependencies/recalculate") {
     val plan = config.repo.projectPlan()
     val calendar = config.calendarService.current()
-    
-    // Find root tasks (no predecessors)
-    // BFS through dependency graph
-    // Update schedules for affected tasks
-    // Persist changes
-    
-    call.respond(updatedPlan.toGanttDto())
+    val delta = plan.recalculateAll(calendar)
+    delta.updatedSchedule.forEach { config.repo.updateSchedule(it) }
+    call.respond(config.repo.projectPlan().toGanttDto())
 }
 ```
+
+**Implementation Details:**
+- Replaces previous BFS-based cascade recalculation
+- Uses unified `calculateConstrainedStart()` formula for all tasks
+- Handles all dependency types (FS, SS, FF, SF) with lag support
 
 ---
 
@@ -276,6 +277,106 @@ delete("/project-tasks/{id}") {
 - Checks if the task exists before attempting deletion (returns 404 if not found)
 - Calls `repo.deleteTask(id)` which cascade deletes schedules and dependencies
 - Returns 204 No Content on successful deletion (no response body)
+
+---
+
+#### POST /project-tasks/{id}/schedule
+
+**Purpose:** Assign a schedule to an existing task (typically for pool tasks).
+
+**Request:** `AssignScheduleCommandDto`
+
+```kotlin
+data class AssignScheduleCommandDto(
+    val start: String,      // ISO date string
+    val duration: Int,
+)
+```
+
+**Response:** `GanttProjectPlan` DTO (updated plan)
+
+**Error Responses:**
+- `400 Bad Request` - Task ID is missing or empty
+- `404 Not Found` - Task with specified ID does not exist
+
+**Handler:**
+```kotlin
+post("/project-tasks/{id}/schedule") {
+    val id = call.parameters["id"]
+        ?: return@post call.respond(HttpStatusCode.BadRequest, "Task ID parameter is missing")
+
+    if (id.isBlank()) {
+        return@post call.respond(HttpStatusCode.BadRequest, "Task ID cannot be empty")
+    }
+
+    config.repo.getTask(id)
+        ?: return@post call.respond(HttpStatusCode.NotFound)
+
+    val request = call.receive<AssignScheduleCommandDto>()
+    val calendar = config.calendarService.current()
+    val startDate = calendar.currentOrNextWorkingDay(LocalDate.parse(request.start))
+    val endDate = calendar.addWorkingDays(startDate, Duration(request.duration))
+
+    config.repo.updateSchedule(
+        TaskSchedule(
+            id = TaskScheduleId(id),
+            start = ProjectDate.Set(startDate),
+            end = ProjectDate.Set(endDate),
+        )
+    )
+    call.respond(config.repo.projectPlan().toGanttDto())
+}
+```
+
+**Implementation Details:**
+- Validates task ID parameter
+- Verifies task exists before assigning schedule
+- Parses start date from ISO string
+- Calculates end date using calendar service: `calendar.addWorkingDays(startDate, duration)`
+- Updates schedule in repository
+- Returns updated project plan (`GanttProjectPlan` DTO)
+
+---
+
+#### POST /plan-from-end
+
+**Purpose:** Plan a task backwards from its end date (useful for deadline-driven scheduling).
+
+**Request:** `PlanFromEndCommandDto`
+
+```kotlin
+data class PlanFromEndCommandDto(
+    val taskId: String,
+    val newPlannedEnd: String,  // ISO date string
+)
+```
+
+**Response:** `GanttProjectPlanDto` (updated plan)
+
+**Handler:**
+```kotlin
+post("/plan-from-end") {
+    val request = call.receive<PlanFromEndCommandDto>()
+    val plan = config.repo.projectPlan()
+    val calendar = config.calendarService.current()
+    val delta = plan.planFromEnd(
+        taskId = TaskId(request.taskId),
+        newEnd = LocalDate.parse(request.newPlannedEnd),
+        calendar = calendar
+    )
+    delta.updatedSchedule.forEach {
+        config.repo.updateSchedule(it)
+    }
+    call.respond(plan.toGanttDto())
+}
+```
+
+**Implementation Details:**
+- Calculates start date by working backwards from end date using `TimelineCalendar.subtractWorkingDays()`
+- Respects working days and holidays
+- Updates all affected schedules via `plan.planFromEnd()`
+- Persists changes to repository
+- Returns updated project plan
 
 ---
 

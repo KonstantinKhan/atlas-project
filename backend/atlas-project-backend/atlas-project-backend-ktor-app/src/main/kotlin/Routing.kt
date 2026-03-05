@@ -5,7 +5,6 @@ import com.khan366kos.atlas.project.backend.common.models.simple.Duration
 import com.khan366kos.atlas.project.backend.common.models.taskSchedule.TaskSchedule
 import com.khan366kos.atlas.project.backend.common.models.taskSchedule.TaskScheduleId
 import com.khan366kos.atlas.project.backend.common.models.task.simple.TaskId
-import com.khan366kos.atlas.project.backend.common.repo.IAtlasProjectTaskRepo
 import com.khan366kos.atlas.project.backend.mappers.toDto
 import com.khan366kos.atlas.project.backend.mappers.toGanttDto
 import com.khan366kos.atlas.project.backend.mappers.toTransport
@@ -16,6 +15,9 @@ import com.khan366kos.atlas.project.backend.transport.commands.CreateTaskInPoolC
 import com.khan366kos.atlas.project.backend.transport.CreateProjectTaskRequest
 import com.khan366kos.atlas.project.backend.transport.UpdateProjectTaskRequest
 import com.khan366kos.atlas.project.backend.transport.commands.ChangeTaskEndDateCommandDto
+import com.khan366kos.atlas.project.backend.transport.commands.AssignScheduleCommandDto
+import com.khan366kos.atlas.project.backend.transport.commands.PlanFromEndCommandDto
+import kotlinx.datetime.LocalDate
 import com.khan366kos.config.AppConfig
 import io.ktor.http.HttpStatusCode
 import kotlinx.datetime.Clock
@@ -53,6 +55,9 @@ fun Application.configureRouting(config: AppConfig) {
                 plan.schedules()[it.id] = it
                 config.repo.updateSchedule(it)
             }
+            delta.updatedDependencies.forEach {
+                config.repo.updateDependencyLag(it.predecessor.value, it.successor.value, it.lag.asInt())
+            }
             call.respond(delta.toDto())
         }
 
@@ -68,6 +73,8 @@ fun Application.configureRouting(config: AppConfig) {
                 plan.schedules()[it.id] = it
                 config.repo.updateSchedule(it)
             }
+            plan.tasks().find { it.id == TaskId(request.taskId) }
+                ?.let { config.repo.updateTask(it) }
             call.respond(delta.toDto())
         }
 
@@ -85,11 +92,14 @@ fun Application.configureRouting(config: AppConfig) {
             )
             
             // Persist the dependency and updated schedules
+            val computedLag = plan.dependencies()
+                .find { it.predecessor == TaskId(request.fromTaskId) && it.successor == TaskId(request.toTaskId) }
+                ?.lag?.asInt() ?: 0
             config.repo.addDependency(
                 predecessorId = request.fromTaskId,
                 successorId = request.toTaskId,
                 type = request.type.name,
-                lagDays = request.lagDays ?: 0
+                lagDays = computedLag
             )
             delta.updatedSchedule.forEach {
                 plan.schedules()[it.id] = it
@@ -103,71 +113,50 @@ fun Application.configureRouting(config: AppConfig) {
         post("/dependencies/recalculate") {
             val plan = config.repo.projectPlan()
             val calendar = config.calendarService.current()
-            
-            // Get all tasks without dependencies as starting points
-            val allTasks = plan.tasks()
-            val allDeps = plan.dependencies()
-            val tasksWithPredecessors = allDeps.map { it.successor }.toSet()
-            val rootTasks = allTasks.filter { it.id !in tasksWithPredecessors }
-            
-            // BFS through dependency graph
-            val visited = mutableSetOf<TaskId>()
-            val queue = ArrayDeque<TaskId>()
-            
-            // Add all root tasks to queue
-            rootTasks.forEach { task ->
-                queue.add(task.id)
-                visited.add(task.id)
+            val delta = plan.recalculateAll(calendar)
+            delta.updatedSchedule.forEach { config.repo.updateSchedule(it) }
+            call.respond(config.repo.projectPlan().toGanttDto())
+        }
+
+        post("/project-tasks/{id}/schedule") {
+            val id = call.parameters["id"]
+                ?: return@post call.respond(HttpStatusCode.BadRequest, "Task ID parameter is missing")
+
+            if (id.isBlank()) {
+                return@post call.respond(HttpStatusCode.BadRequest, "Task ID cannot be empty")
             }
-            
-            val updatedSchedules = mutableListOf<TaskSchedule>()
-            
-            while (queue.isNotEmpty()) {
-                val currentId = queue.removeFirst()
-                
-                // Find all tasks that depend on current
-                val dependents = allDeps.filter { it.predecessor == currentId }
-                
-                for (dep in dependents) {
-                    val successorId = dep.successor
-                    val successorTask = allTasks.find { it.id == successorId } ?: continue
-                    
-                    // Calculate constrained start based on ALL predecessors of successor
-                    val allPreds = allDeps.filter { it.successor == successorId }
-                    val constrainedStart = allPreds.mapNotNull { pd ->
-                        val predSched = plan.schedules()[TaskScheduleId(pd.predecessor.value)]
-                            ?.takeIf { it.start is ProjectDate.Set && it.end is ProjectDate.Set }
-                            ?: return@mapNotNull null
-                        val predEnd = (predSched.end as ProjectDate.Set).date
-                        val lag = pd.lag.asInt()  // Используем lag из pd, а не dep
-                        calendar.addWorkingDays(predEnd, Duration(lag + 1))
-                    }.maxOrNull()
-                    
-                    if (constrainedStart != null) {
-                        val newEnd = calendar.addWorkingDays(constrainedStart, successorTask.duration)
-                        val updatedSched = TaskSchedule(
-                            id = TaskScheduleId(successorId.value),
-                            start = ProjectDate.Set(constrainedStart),
-                            end = ProjectDate.Set(newEnd),
-                        )
-                        plan.schedules()[updatedSched.id] = updatedSched
-                        updatedSchedules.add(updatedSched)
-                        
-                        if (successorId !in visited) {
-                            visited.add(successorId)
-                            queue.add(successorId)
-                        }
-                    }
-                }
-            }
-            
-            updatedSchedules.forEach {
+
+            config.repo.getTask(id)
+                ?: return@post call.respond(HttpStatusCode.NotFound)
+
+            val request = call.receive<AssignScheduleCommandDto>()
+            val calendar = config.calendarService.current()
+            val startDate = calendar.currentOrNextWorkingDay(LocalDate.parse(request.start))
+            val endDate = calendar.addWorkingDays(startDate, Duration(request.duration))
+
+            config.repo.updateSchedule(
+                TaskSchedule(
+                    id = TaskScheduleId(id),
+                    start = ProjectDate.Set(startDate),
+                    end = ProjectDate.Set(endDate),
+                )
+            )
+            call.respond(config.repo.projectPlan().toGanttDto())
+        }
+
+        post("/plan-from-end") {
+            val request = call.receive<PlanFromEndCommandDto>()
+            val plan = config.repo.projectPlan()
+            val calendar = config.calendarService.current()
+            val delta = plan.planFromEnd(
+                taskId = TaskId(request.taskId),
+                newEnd = LocalDate.parse(request.newPlannedEnd),
+                calendar = calendar
+            )
+            delta.updatedSchedule.forEach {
                 config.repo.updateSchedule(it)
             }
-            
-            // Return the updated plan
-            val updatedPlan = config.repo.projectPlan()
-            call.respond(updatedPlan.toGanttDto())
+            call.respond(plan.toGanttDto())
         }
 
         post("/project-tasks") {

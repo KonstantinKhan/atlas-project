@@ -10,22 +10,37 @@ import {
 	useCreateDependency,
 	useUpdateProjectTask,
 	useDeleteProjectTask,
+	useAssignTaskSchedule,
+	usePlanFromEnd,
 } from '@/hooks/useProjectTasks'
-import { GanttTask, GanttDependencyDto, TaskCommand, GanttProjectPlan } from '@/types'
+import { GanttTask, GanttDependencyDto, TaskCommand } from '@/types'
 import {
 	getCalendarRange,
 	getDaysInRange,
 	groupDaysByMonth,
+	formatDateForInput,
 } from '@/utils/ganttDateUtils'
 import GanttTaskList from './GanttTaskList'
 import GanttCalendarHeader from './GanttCalendarHeader'
-import GanttCalendarGrid from './GanttCalendarGrid'
+import GanttCalendarGrid, { TIMELINE_DROP_ID } from './GanttCalendarGrid'
 import ConfirmDeleteModal from './ConfirmDeleteModal'
 import { TaskCommandType } from '@/types/types/TaskCommandType'
+import { TaskId } from '@/utils/types/TaskId'
+import { LocalDate } from '@/utils/types/LocalDate'
+import { DragDropProvider } from '@dnd-kit/react'
+import type { DragEndEvent } from '@dnd-kit/react'
+
+type DragEndArg = Parameters<DragEndEvent>[0]
 
 const DAY_COLUMN_WIDTH = 40
 const ROW_HEIGHT = 48
 const HEADER_HEIGHT = 60
+
+function addDays(date: Date, days: number): Date {
+	const result = new Date(date)
+	result.setDate(result.getDate() + days)
+	return result
+}
 
 export const GanttChart = () => {
 	const {
@@ -44,12 +59,17 @@ export const GanttChart = () => {
 
 	const [allTasks, setAllTasks] = useState<GanttTask[]>([])
 	const [dependencies, setDependencies] = useState<GanttDependencyDto[]>([])
+	const prevTasksRef = useRef<GanttTask[]>([])
+
 	const createTaskMutation = useCreateProjectTask()
 	const changeStartMutation = useChangeTaskStartDate()
 	const changeEndMutation = useChangeTaskEndDate()
 	const createDependencyMutation = useCreateDependency()
 	const updateTitleMutation = useUpdateProjectTask()
 	const deleteTaskMutation = useDeleteProjectTask()
+	const assignScheduleMutation = useAssignTaskSchedule()
+	const planFromEndMutation = usePlanFromEnd()
+
 	const [pendingDeleteTaskId, setPendingDeleteTaskId] = useState<string | null>(null)
 	const leftRef = useRef<HTMLDivElement>(null)
 	const rightRef = useRef<HTMLDivElement>(null)
@@ -106,20 +126,100 @@ export const GanttChart = () => {
 				case TaskCommandType.DeleteTask:
 					setPendingDeleteTaskId(cmd.taskId)
 					break
+				case TaskCommandType.PlanFromEnd:
+					planFromEndMutation.mutate(
+						{ taskId: cmd.taskId, newPlannedEnd: cmd.newEndDate },
+						{
+							onSuccess: (newPlan) => {
+								setAllTasks(newPlan.tasks)
+								setDependencies(newPlan.dependencies)
+							},
+							onError: (error) => {
+								console.error('[GanttChart] Failed to plan from end:', error)
+							},
+						},
+					)
+					break
+				case TaskCommandType.AssignSchedule:
+					setAllTasks((prev) => {
+						prevTasksRef.current = prev
+						return prev.map((t) =>
+							t.id === cmd.taskId
+								? { ...t, start: new Date(cmd.start), end: addDays(new Date(cmd.start), cmd.duration) }
+								: t,
+						)
+					})
+					assignScheduleMutation.mutate(
+						{ taskId: cmd.taskId, start: cmd.start, duration: cmd.duration },
+						{
+							onSuccess: (newPlan) => {
+								setAllTasks(newPlan.tasks)
+								setDependencies(newPlan.dependencies)
+							},
+							onError: () => {
+								setAllTasks(prevTasksRef.current)
+							},
+						},
+					)
+					break
+				case TaskCommandType.MoveTask:
+					setAllTasks((prev) => {
+						prevTasksRef.current = prev
+						return prev.map((t) => {
+							if (t.id !== cmd.taskId || !t.start || !t.end) return t
+							const diffMs = new Date(cmd.newStartDate).getTime() - t.start.getTime()
+							return {
+								...t,
+								start: new Date(cmd.newStartDate),
+								end: new Date(t.end.getTime() + diffMs),
+							}
+						})
+					})
+					changeStartMutation.mutate(
+						{ planId: planData.projectId, taskId: cmd.taskId, newPlannedStart: cmd.newStartDate },
+						{
+							onError: () => {
+								setAllTasks(prevTasksRef.current)
+							},
+						},
+					)
+					break
+				case TaskCommandType.ResizeTask:
+					setAllTasks((prev) => {
+						prevTasksRef.current = prev
+						return prev.map((t) =>
+							t.id === cmd.taskId ? { ...t, end: new Date(cmd.newEndDate) } : t,
+						)
+					})
+					changeEndMutation.mutate(
+						{ planId: planData.projectId, taskId: cmd.taskId, newPlannedEnd: cmd.newEndDate },
+						{
+							onError: () => {
+								setAllTasks(prevTasksRef.current)
+							},
+						},
+					)
+					break
 				default: {
 					const _exhaustive: never = cmd
 					throw new Error(`Unhandled command: ${JSON.stringify(_exhaustive)}`)
 				}
 			}
 		},
-		[changeStartMutation, changeEndMutation, createTaskMutation, updateTitleMutation, planData],
+		[
+			changeStartMutation,
+			changeEndMutation,
+			createTaskMutation,
+			updateTitleMutation,
+			planFromEndMutation,
+			assignScheduleMutation,
+			planData,
+		],
 	)
 
 	const handleCreateDependency = useCallback((fromId: string, toId: string) => {
 		if (fromId === toId) return
 		if (!planData) return
-
-		console.log('[GanttChart] Creating dependency:', { fromId, toId, planId: planData.projectId })
 
 		createDependencyMutation.mutate({
 			planId: planData.projectId,
@@ -128,7 +228,6 @@ export const GanttChart = () => {
 			type: 'FS',
 		}, {
 			onSuccess: (newPlan) => {
-				console.log('[GanttChart] Dependency created, new plan:', newPlan.tasks.map(t => ({ id: t.id, start: t.start, end: t.end })))
 				setAllTasks(newPlan.tasks)
 				setDependencies(newPlan.dependencies)
 			},
@@ -143,6 +242,46 @@ export const GanttChart = () => {
 			prev.filter((d) => !(d.fromTaskId === fromId && d.toTaskId === toId)),
 		)
 	}, [])
+
+	const handleMoveTask = useCallback((taskId: string, newStartDate: string) => {
+		if (!planData) return
+		handleUpdateTask({ type: TaskCommandType.MoveTask, taskId: TaskId(taskId), newStartDate: LocalDate(newStartDate) })
+	}, [handleUpdateTask, planData])
+
+	const handleResizeTask = useCallback((taskId: string, newEndDate: string) => {
+		if (!planData) return
+		handleUpdateTask({ type: TaskCommandType.ResizeTask, taskId: TaskId(taskId), newEndDate: LocalDate(newEndDate) })
+	}, [handleUpdateTask, planData])
+
+	const handleDragEnd = useCallback((event: DragEndArg) => {
+		if (event.canceled) return
+		const { operation } = event
+		if (!operation.source || !operation.target) return
+		if (operation.target.id !== TIMELINE_DROP_ID) return
+
+		const taskId = String(operation.source.id)
+		const task = allTasks.find((t) => t.id === taskId)
+		if (!task || task.start || task.end) return // only pool tasks
+
+		const nativeEvent = event.nativeEvent as PointerEvent | undefined
+		const droppableElement = operation.target.element
+		if (!nativeEvent || !droppableElement) return
+
+		const rect = droppableElement.getBoundingClientRect()
+		const dropX = nativeEvent.clientX - rect.left
+		const dayOffset = Math.max(0, Math.round(dropX / DAY_COLUMN_WIDTH))
+
+		if (!planData) return
+		const { start: rangeStart } = getCalendarRange(allTasks.filter((t) => t.start && t.end))
+		const dropDate = addDays(rangeStart, dayOffset)
+
+		handleUpdateTask({
+			type: TaskCommandType.AssignSchedule,
+			taskId: TaskId(taskId),
+			start: LocalDate(formatDateForInput(dropDate)),
+			duration: 1,
+		})
+	}, [allTasks, planData, handleUpdateTask])
 
 	const syncScroll = useCallback(
 		(source: 'left' | 'right') => () => {
@@ -227,56 +366,58 @@ export const GanttChart = () => {
 	}
 
 	return (
-		<>
-		{pendingDeleteTask && (
-			<ConfirmDeleteModal
-				taskTitle={pendingDeleteTask.title}
-				affectedDependenciesCount={affectedDepsCount}
-				onConfirm={handleConfirmDelete}
-				onCancel={() => setPendingDeleteTaskId(null)}
-			/>
-		)}
-		<div className="flex h-screen bg-white dark:bg-zinc-950 overflow-hidden">
-			<div
-				ref={leftRef}
-				onScroll={syncScroll('left')}
-				className="w-105 shrink-0 border-r border-gray-300 dark:border-zinc-700 overflow-y-auto"
-			>
-				<GanttTaskList
-					tasks={allTasks}
-					headerHeight={HEADER_HEIGHT}
-					rowHeight={ROW_HEIGHT}
-					onUpdateTask={handleUpdateTask}
+		<DragDropProvider onDragEnd={handleDragEnd}>
+			{pendingDeleteTask && (
+				<ConfirmDeleteModal
+					taskTitle={pendingDeleteTask.title}
+					affectedDependenciesCount={affectedDepsCount}
+					onConfirm={handleConfirmDelete}
+					onCancel={() => setPendingDeleteTaskId(null)}
 				/>
-			</div>
-
-			<div
-				ref={rightRef}
-				onScroll={syncScroll('right')}
-				className="flex-1 overflow-auto"
-			>
-				<div className="sticky top-0 z-10 bg-white dark:bg-zinc-950">
-					<GanttCalendarHeader
-						days={days}
-						monthGroups={monthGroups}
-						dayWidth={DAY_COLUMN_WIDTH}
+			)}
+			<div className="flex h-screen bg-white dark:bg-zinc-950 overflow-hidden">
+				<div
+					ref={leftRef}
+					onScroll={syncScroll('left')}
+					className="w-105 shrink-0 border-r border-gray-300 dark:border-zinc-700 overflow-y-auto"
+				>
+					<GanttTaskList
+						tasks={allTasks}
 						headerHeight={HEADER_HEIGHT}
-						workCalendar={calendar}
+						rowHeight={ROW_HEIGHT}
+						onUpdateTask={handleUpdateTask}
 					/>
 				</div>
-				<GanttCalendarGrid
-					tasks={allTasks}
-					dependencies={dependencies}
-					days={days}
-					rangeStart={rangeStart}
-					dayWidth={DAY_COLUMN_WIDTH}
-					rowHeight={ROW_HEIGHT}
-					timelineCalendar={calendar}
-					onCreateDependency={handleCreateDependency}
-					onRemoveDependency={handleRemoveDependency}
-				/>
+
+				<div
+					ref={rightRef}
+					onScroll={syncScroll('right')}
+					className="flex-1 overflow-auto"
+				>
+					<div className="sticky top-0 z-10 bg-white dark:bg-zinc-950">
+						<GanttCalendarHeader
+							days={days}
+							monthGroups={monthGroups}
+							dayWidth={DAY_COLUMN_WIDTH}
+							headerHeight={HEADER_HEIGHT}
+							workCalendar={calendar}
+						/>
+					</div>
+					<GanttCalendarGrid
+						tasks={allTasks}
+						dependencies={dependencies}
+						days={days}
+						rangeStart={rangeStart}
+						dayWidth={DAY_COLUMN_WIDTH}
+						rowHeight={ROW_HEIGHT}
+						timelineCalendar={calendar}
+						onCreateDependency={handleCreateDependency}
+						onRemoveDependency={handleRemoveDependency}
+						onMoveTask={handleMoveTask}
+						onResizeTask={handleResizeTask}
+					/>
+				</div>
 			</div>
-		</div>
-		</>
+		</DragDropProvider>
 	)
 }

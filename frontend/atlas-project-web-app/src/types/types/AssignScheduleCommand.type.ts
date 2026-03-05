@@ -1,0 +1,10 @@
+import { LocalDate } from './LocalDate.type'
+import { TaskCommandType } from './TaskCommandType'
+import { TaskId } from './TaskId.type'
+
+export type AssignScheduleCommand = {
+	type: typeof TaskCommandType.AssignSchedule
+	taskId: TaskId
+	start: LocalDate
+	duration: number
+}

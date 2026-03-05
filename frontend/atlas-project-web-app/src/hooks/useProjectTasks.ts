@@ -8,10 +8,10 @@ import {
 	changeTaskEndDate,
 	createDependency,
 	deleteProjectTask,
+	assignTaskSchedule,
+	planTaskFromEnd,
 } from '@/services/projectTasksApi'
 import { Task, GanttProjectPlan, ScheduleDelta } from '@/types'
-import { string } from 'zod'
-import { start } from 'repl'
 
 const QUERY_KEY = ['projectTasks']
 
@@ -129,6 +129,26 @@ export function useDeleteProjectTask() {
 					),
 				}
 			})
+		},
+	})
+}
+
+export function useAssignTaskSchedule() {
+	const queryClient = useQueryClient()
+	return useMutation<GanttProjectPlan, Error, { taskId: string; start: string; duration: number }>({
+		mutationFn: ({ taskId, start, duration }) => assignTaskSchedule(taskId, start, duration),
+		onSuccess: (newPlan: GanttProjectPlan) => {
+			queryClient.setQueryData<GanttProjectPlan>(['projectPlan'], () => newPlan)
+		},
+	})
+}
+
+export function usePlanFromEnd() {
+	const queryClient = useQueryClient()
+	return useMutation<GanttProjectPlan, Error, { taskId: string; newPlannedEnd: string }>({
+		mutationFn: ({ taskId, newPlannedEnd }) => planTaskFromEnd(taskId, newPlannedEnd),
+		onSuccess: (newPlan: GanttProjectPlan) => {
+			queryClient.setQueryData<GanttProjectPlan>(['projectPlan'], () => newPlan)
 		},
 	})
 }

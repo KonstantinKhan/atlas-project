@@ -32,11 +32,16 @@ types/
 │   ├── task.schema.ts
 │   └── timeline-calendar.schema.ts
 ├── types/                      # Type aliases
+│   ├── AssignScheduleCommand.type.ts
 │   ├── ChangeEndDateCommand.type.ts
 │   ├── ChangeStartDateCommand.type.ts
 │   ├── CreateTaskCommand.type.ts
 │   ├── CreateTaskInPoolCommand.type.ts
+│   ├── DeleteTaskCommand.type.ts
 │   ├── LocalDate.type.ts
+│   ├── MoveTaskCommand.type.ts
+│   ├── PlanFromEndCommand.type.ts
+│   ├── ResizeTaskCommand.type.ts
 │   ├── TaskCommand.type.ts
 │   ├── TaskCommandType.ts
 │   ├── TaskId.type.ts
@@ -74,6 +79,8 @@ TypeScript DTOs that mirror the backend Kotlin data classes. These are typically
 | `commands/change-task-start-date-command.dto.ts` | `ChangeTaskStartDateCommandDto` | Start date change |
 | `commands/create-dependency-command.dto.ts` | `CreateDependencyCommandDto` | Dependency creation |
 | `commands/create-task-in-pool-command.dto.ts` | `CreateTaskInPoolCommandDto` | Pool task creation |
+| `commands/assign-schedule-command.dto.ts` | `AssignScheduleCommandDto` | Assign schedule to pool task |
+| `commands/plan-from-end-command.dto.ts` | `PlanFromEndCommandDto` | Plan backwards from end date |
 
 ---
 
@@ -170,6 +177,10 @@ export const TaskCommandType = {
     ChangeEndDate = 'changeEndDate',
     UpdateTitle = 'updateTitle',
     DeleteTask = 'deleteTask',
+    MoveTask = 'moveTask',
+    ResizeTask = 'resizeTask',
+    AssignSchedule = 'assignSchedule',
+    PlanFromEnd = 'planFromEnd',
 } as const
 
 // TaskCommand.type.ts - Union type
@@ -179,6 +190,10 @@ export type TaskCommand =
     | ChangeEndDateCommand
     | UpdateTitleCommand
     | DeleteTaskCommand
+    | MoveTaskCommand
+    | ResizeTaskCommand
+    | AssignScheduleCommand
+    | PlanFromEndCommand
 
 // Individual command types
 export type CreateTaskInPoolCommand = {
@@ -207,6 +222,31 @@ export type UpdateTitleCommand = {
 export type DeleteTaskCommand = {
     type: typeof TaskCommandType.DeleteTask
     taskId: string
+}
+
+export type MoveTaskCommand = {
+    type: typeof TaskCommandType.MoveTask
+    taskId: string
+    newStartDate: string
+}
+
+export type ResizeTaskCommand = {
+    type: typeof TaskCommandType.ResizeTask
+    taskId: string
+    newEndDate: string
+}
+
+export type AssignScheduleCommand = {
+    type: typeof TaskCommandType.AssignSchedule
+    taskId: string
+    start: string
+    duration: number
+}
+
+export type PlanFromEndCommand = {
+    type: typeof TaskCommandType.PlanFromEnd
+    taskId: string
+    newEndDate: string
 }
 ```
 

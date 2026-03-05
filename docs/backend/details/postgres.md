@@ -12,7 +12,19 @@ The Postgres module provides the PostgreSQL implementation of the repository int
 
 ```
 src/main/kotlin/com/khan366kos/atlas/project/backend/repo/postgres/
-└── (PostgreSQL repository implementation)
+├── AtlasProjectTaskRepoPostgres.kt    # Main repository implementation
+├── ProjectTasksTable.kt               # Task table definition
+├── mapper/
+│   ├── TimelineCalendarMapper.kt
+│   ├── TimelineCalendarHolidayMapper.kt
+│   └── TimelineCalendarWorkingWeekendMapper.kt
+└── table/
+    ├── ProjectPlansTable.kt
+    ├── TaskSchedulesTable.kt
+    ├── TaskDependenciesTable.kt
+    ├── TimelineCalendarTable.kt
+    ├── TimelineCalendarHolidaysTable.kt
+    └── TimelineCalendarWorkingWeekendsTable.kt
 ```
 
 ---
@@ -259,6 +271,151 @@ override fun projectPlan(): ProjectPlan {
 | successor_id | VARCHAR(36) | FK → project_tasks |
 | type | VARCHAR(2) | NOT NULL (FS, SS, FF, SF) |
 | lag_days | INTEGER | DEFAULT 0 |
+
+---
+
+### project_plans Table
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | VARCHAR(36) | PRIMARY KEY |
+| name | VARCHAR(255) | NOT NULL |
+| created_at | TIMESTAMP | DEFAULT NOW() |
+| updated_at | TIMESTAMP | |
+
+---
+
+### timeline_calendar Table
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | VARCHAR(36) | PRIMARY KEY |
+| name | VARCHAR(255) | NOT NULL |
+| version | INTEGER | NOT NULL |
+
+---
+
+### timeline_calendar_holidays Table
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | SERIAL | PRIMARY KEY |
+| calendar_id | VARCHAR(36) | FK → timeline_calendar |
+| holiday_date | DATE | NOT NULL |
+
+---
+
+### timeline_calendar_working_weekends Table
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | SERIAL | PRIMARY KEY |
+| calendar_id | VARCHAR(36) | FK → timeline_calendar |
+| weekend_date | DATE | NOT NULL |
+
+---
+
+## Table Definitions (table/)
+
+### ProjectTasksTable.kt
+
+**Purpose:** Defines the `project_tasks` table schema and Exposed DSL mappings.
+
+**Key Functions:**
+- Table definition with id, title, description, duration, status columns
+- Object reference to task_schedules and task_dependencies
+
+---
+
+### TaskSchedulesTable.kt
+
+**Purpose:** Defines the `task_schedules` table schema.
+
+**Key Functions:**
+- Table definition with task_id (as foreign key), start_date, end_date columns
+- Reference to project_tasks table
+
+---
+
+### TaskDependenciesTable.kt
+
+**Purpose:** Defines the `task_dependencies` table schema.
+
+**Key Functions:**
+- Table definition with predecessor_id, successor_id, type, lag_days columns
+- References to project_tasks for both predecessor and successor
+
+---
+
+### ProjectPlansTable.kt
+
+**Purpose:** Defines the `project_plans` table schema.
+
+**Key Functions:**
+- Table definition for storing project plan metadata
+- Reference to tasks and schedules
+
+---
+
+### TimelineCalendarTable.kt
+
+**Purpose:** Defines the `timeline_calendar` table schema.
+
+**Key Functions:**
+- Table definition for work calendar configuration
+- Version tracking for calendar updates
+
+---
+
+### TimelineCalendarHolidaysTable.kt
+
+**Purpose:** Defines the `timeline_calendar_holidays` table schema.
+
+**Key Functions:**
+- Stores holiday dates associated with a calendar
+- Many-to-one relationship with timeline_calendar
+
+---
+
+### TimelineCalendarWorkingWeekendsTable.kt
+
+**Purpose:** Defines the `timeline_calendar_working_weekends` table schema.
+
+**Key Functions:**
+- Stores working weekend dates (weekends that are working days)
+- Many-to-one relationship with timeline_calendar
+
+---
+
+## Mapper Classes (mapper/)
+
+### TimelineCalendarMapper.kt
+
+**Purpose:** Maps between database rows and `TimelineCalendar` domain model.
+
+**Key Functions:**
+- `mapRow()` - Convert database result to TimelineCalendar
+- Handles holidays and working weekends aggregation
+
+---
+
+### TimelineCalendarHolidayMapper.kt
+
+**Purpose:** Maps between database rows and holiday entities.
+
+**Key Functions:**
+- `mapRow()` - Convert database row to holiday date
+- `toEntity()` - Convert to domain entity
+
+---
+
+### TimelineCalendarWorkingWeekendMapper.kt
+
+**Purpose:** Maps between database rows and working weekend entities.
+
+**Key Functions:**
+- `mapRow()` - Convert database row to working weekend date
+- `toEntity()` - Convert to domain entity
 
 ---
 

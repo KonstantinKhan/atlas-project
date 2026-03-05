@@ -1,6 +1,6 @@
 # План реализации
 
-> _Последнее обновление: 2026-03-04 (Фаза B завершена)_
+> _Последнее обновление: 2026-03-05 (Фаза C завершена)_
 
 Поэтапный план завершения Этапа 1 дорожной карты. Задачи сгруппированы по фазам, упорядочены по зависимостям.
 
@@ -54,32 +54,32 @@
 
 ---
 
-## Фаза C: Завершение 1.2 — Gantt-планирование
+## Фаза C: Завершение 1.2 — Gantt-планирование — ✅ ЗАВЕРШЕНА
 
 > Цель: полноценное интерактивное планирование через Gantt-диаграмму.
 
-| ID | Задача | Слой | Размер | Зависит от |
-|----|--------|------|--------|------------|
-| C1 | Drag бара (перемещение задачи) | Frontend | L | — |
-| C2 | Resize бара (изменение длительности) | Frontend | L | — |
-| C3 | Backend: эндпоинт для назначения расписания | Backend | M | — |
-| C4 | Назначение задачи из пула на таймлайн | Both | L | C3 |
-| C5 | Планирование назад (end → start) | Both | M | — |
-| C6 | Оптимистичные обновления для drag/resize | Frontend | M | C1, C2 |
+| ID | Задача | Слой | Размер | Статус |
+|----|--------|------|--------|--------|
+| C1 | Drag бара (перемещение задачи) | Frontend | L | ✅ |
+| C2 | Resize бара (изменение длительности) | Frontend | L | ✅ |
+| C3 | Backend: эндпоинт для назначения расписания | Backend | M | ✅ |
+| C4 | Назначение задачи из пула на таймлайн | Both | L | ✅ |
+| C5 | Планирование назад (end → start) | Both | M | ✅ |
+| C6 | Оптимистичные обновления для drag/resize | Frontend | M | ✅ |
 
-### Детали
+### Результаты
 
-**C1** — `onMouseDown` + `onMouseMove` + `onMouseUp` на `GanttBar`. При отпускании — вычислить новую дату по позиции, отправить `ChangeStartDate`-команду. Визуальный фидбек во время drag (ghost bar).
+**C1** — Mouse-driven drag в `GanttTaskLayer.tsx` (onMouseDown/Move/Up). При отпускании — новая дата по offset от `rangeStart`, `MoveTask`-команда. `prevTasksRef.current` + `onError`-откат.
 
-**C2** — Resize-handle на правом краю бара. При отпускании — `ChangeEndDate`-команда. Минимальная длительность — 1 рабочий день.
+**C2** — Resize-handle на правом краю `GanttBar`. При отпускании — `ResizeTask`-команда. Минимум 1 рабочий день. Аналогичный оптимистичный паттерн.
 
-**C3** — `POST /project-tasks/{id}/schedule` — принимает `{ start, duration }`, создаёт `TaskSchedule` для задачи из пула.
+**C3** — `POST /project-tasks/{id}/schedule` принимает `{ start, duration }`, вычисляет `end = addWorkingDays(start, duration)`, сохраняет через `updateSchedule()`.
 
-**C4** — Drag задачи из списка пула на область таймлайна. Определить дату по позиции drop, вызвать C3-эндпоинт.
+**C4** — `@dnd-kit/react` v0.3.2: `DragDropProvider` в `GanttChart`, `useDroppable` в `GanttCalendarGrid`, `useDraggable` в `GanttTaskRow` (только пул). `handleDragEnd` → дата по X-позиции → `AssignSchedule`.
 
-**C5** — Новый метод в `ProjectPlan`: задаётся `end` + `duration` → вычисляется `start` через `subtractWorkingDays`. Новый UX-command + API-эндпоинт.
+**C5** — `ProjectPlan.planFromEnd(taskId, newEnd, calendar)` → `subtractWorkingDays(newEnd, duration)` → `cascadeBfs()`. `POST /plan-from-end`. Фронт: end-дата пул-задачи → `PlanFromEnd`-команда.
 
-**C6** — Мгновенное обновление позиции бара в UI до ответа сервера. Откат при ошибке.
+**C6** — `setAllTasks((prev) => { prevTasksRef.current = prev; return newState })` — атомарный захват предыдущего стейта. `onError: () => setAllTasks(prevTasksRef.current)` для MoveTask, ResizeTask, AssignSchedule.
 
 ---
 

@@ -89,6 +89,33 @@ export async function deleteProjectTask(id: string): Promise<void> {
 	if (!res.ok) throw new Error('Failed to delete project task')
 }
 
+export async function assignTaskSchedule(
+	taskId: string,
+	start: string,
+	duration: number,
+): Promise<GanttProjectPlan> {
+	const res = await fetch(`${API_BASE_URL}/project-tasks/${taskId}/schedule`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ start, duration }),
+	})
+	if (!res.ok) throw new Error('Failed to assign task schedule')
+	return GanttProjectPlanSchema.parse(await res.json())
+}
+
+export async function planTaskFromEnd(
+	taskId: string,
+	newPlannedEnd: string,
+): Promise<GanttProjectPlan> {
+	const res = await fetch(`${API_BASE_URL}/plan-from-end`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ taskId, newPlannedEnd }),
+	})
+	if (!res.ok) throw new Error('Failed to plan task from end')
+	return GanttProjectPlanSchema.parse(await res.json())
+}
+
 export async function createDependency(
 	planId: string,
 	fromTaskId: string,

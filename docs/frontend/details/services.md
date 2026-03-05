@@ -193,6 +193,68 @@ export async function createDependency(
 
 ---
 
+#### assignTaskSchedule(taskId, start, duration)
+
+**Purpose:** Assign a schedule to an existing task (typically for pool tasks being dragged to timeline).
+
+**Signature:**
+```typescript
+export async function assignTaskSchedule(
+    taskId: string,
+    start: string,
+    duration: number,
+): Promise<GanttProjectPlan>
+```
+
+**Parameters:**
+- `taskId` - Task ID to assign schedule to
+- `start` - Start date (ISO string)
+- `duration` - Duration in days
+
+**API:** `POST /project-tasks/{taskId}/schedule`
+
+**Returns:** Updated `GanttProjectPlan` with new task schedule
+
+**Throws:** Error if response is not OK
+
+**Usage Example:**
+```typescript
+await assignTaskSchedule('task-123', '2026-03-15', 5)
+// Task scheduled from 2026-03-15 for 5 days
+```
+
+---
+
+#### planTaskFromEnd(taskId, newPlannedEnd)
+
+**Purpose:** Plan a task backwards from its end date (useful for deadline-driven scheduling).
+
+**Signature:**
+```typescript
+export async function planTaskFromEnd(
+    taskId: string,
+    newPlannedEnd: string,
+): Promise<GanttProjectPlan>
+```
+
+**Parameters:**
+- `taskId` - Task ID to plan
+- `newPlannedEnd` - Target end date (ISO string)
+
+**API:** `POST /plan-from-end`
+
+**Returns:** Updated `GanttProjectPlan` with recalculated start date
+
+**Throws:** Error if response is not OK
+
+**Usage Example:**
+```typescript
+await planTaskFromEnd('task-123', '2026-04-01')
+// Task start date calculated backwards from 2026-04-01 deadline
+```
+
+---
+
 ### Dependencies
 
 **Imports:**

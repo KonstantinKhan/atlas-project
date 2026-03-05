@@ -122,6 +122,8 @@ Utils → Types
 | `/project-tasks` | POST | createProjectTask | Create task |
 | `/project-tasks/:id` | PATCH | updateProjectTask | Update task |
 | `/project-tasks/:id` | DELETE | deleteProjectTask | Delete task |
+| `/project-tasks/:id/schedule` | POST | assignTaskSchedule | Assign schedule to pool task |
+| `/plan-from-end` | POST | planTaskFromEnd | Plan backwards from end date |
 
 ---
 

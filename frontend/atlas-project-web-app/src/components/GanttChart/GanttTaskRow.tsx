@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useRef, useState } from 'react'
 import { GanttTask, TaskCommand } from '@/types'
 import { TaskCommandType } from '@/types/types/TaskCommandType'
 import { TaskId } from '@/utils/types/TaskId'
@@ -10,6 +10,7 @@ import { Calendar } from 'primereact/calendar'
 import { addLocale } from 'primereact/api'
 import { Trash2 } from 'lucide-react'
 import { ProjectTaskStatus } from '@/types/generated/enums/project-task-status.enum'
+import { useDraggable } from '@dnd-kit/react'
 
 addLocale('ru', {
 	firstDayOfWeek: 1,
@@ -45,6 +46,16 @@ export default function GanttTaskRow({
 	const [editTitle, setEditTitle] = useState(task.title)
 	const startCalRef = useRef<Calendar>(null)
 	const endCalRef = useRef<Calendar>(null)
+	const elementRef = useRef<HTMLDivElement>(null)
+
+	const isPoolTask = !task.start && !task.end
+
+	const { ref: dragRef, isDragging } = useDraggable({
+		id: task.id,
+		element: elementRef,
+		data: { taskId: task.id },
+		disabled: !isPoolTask,
+	})
 
 	const formatDate = (date?: Date) => {
 		if (!date) return '—'
@@ -68,13 +79,24 @@ export default function GanttTaskRow({
 
 	const handleEndDateChange = (value: Date | null | undefined) => {
 		if (value !== null && value !== undefined) {
-			onUpdateTask({ type: TaskCommandType.ChangeEndDate, taskId: TaskId(task.id), newEndDate: LocalDate(formatDateForInput(value)) })
+			if (isPoolTask) {
+				// Pool task: plan backwards from end date
+				onUpdateTask({ type: TaskCommandType.PlanFromEnd, taskId: TaskId(task.id), newEndDate: LocalDate(formatDateForInput(value)) })
+			} else {
+				onUpdateTask({ type: TaskCommandType.ChangeEndDate, taskId: TaskId(task.id), newEndDate: LocalDate(formatDateForInput(value)) })
+			}
 		}
 	}
 
 	return (
 		<div
-			className="group flex items-center gap-2 px-3 border-b border-gray-200 dark:border-zinc-800"
+			ref={(node) => {
+				elementRef.current = node
+				dragRef(node)
+			}}
+			className={`group flex items-center gap-2 px-3 border-b border-gray-200 dark:border-zinc-800 ${
+				isDragging ? 'opacity-50' : ''
+			} ${isPoolTask ? 'cursor-grab active:cursor-grabbing' : ''}`}
 			style={{ height: rowHeight }}
 		>
 			<div

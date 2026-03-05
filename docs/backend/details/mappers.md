@@ -59,17 +59,17 @@ fun ProjectTask.toScheduledTaskDto(startDate: LocalDate, endDate: LocalDate): Sc
 #### ProjectTask → GanttTaskDto
 
 ```kotlin
-fun ProjectTask.toGanttDto(schedule: TaskSchedule?): GanttTaskDto = 
+fun ProjectTask.toGanttDto(schedule: TaskSchedule?): GanttTaskDto =
     GanttTaskDto(
         id = this.id.value,
         title = this.title.value,
-        description = this.description.value,
-        duration = this.duration.asInt(),
-        status = this.status.name,
-        start = (schedule?.start as? ProjectDate.Set)?.date?.toString(),
-        end = (schedule?.end as? ProjectDate.Set)?.date?.toString(),
+        start = (schedule?.start as? ProjectDate.Set)?.date,
+        end = (schedule?.end as? ProjectDate.Set)?.date,
+        status = ProjectTaskStatus.valueOf(this.status.name),
     )
 ```
+
+**Note:** `GanttTaskDto` contains only id, title, start, end, and status (no description or duration fields).
 
 ---
 
@@ -106,29 +106,35 @@ fun TaskDependency.toDto(): GanttDependencyDto =
 #### ScheduleDelta → ScheduleDeltaDto
 
 ```kotlin
-fun ScheduleDelta.toDto(): ScheduleDeltaDto = 
+fun ScheduleDelta.toDto(): ScheduleDeltaDto =
     ScheduleDeltaDto(
-        updatedSchedule = this.updatedSchedule.map { schedule ->
+        updatedSchedules = this.updatedSchedule.map { schedule ->
             ScheduleUpdateDto(
-                id = schedule.id.value,
-                start = (schedule.start as ProjectDate.Set).date.toString(),
-                end = (schedule.end as ProjectDate.Set).date.toString(),
+                taskId = schedule.id.value,
+                start = (schedule.start as ProjectDate.Set).date,
+                end = (schedule.end as ProjectDate.Set).date,
             )
         },
     )
 ```
+
+**Note:** Property is `updatedSchedules` (plural) with `taskId` field in `ScheduleUpdateDto`.
 
 ---
 
 #### TimelineCalendar → TimelineCalendarDto
 
 ```kotlin
-fun TimelineCalendar.toTransport(): TimelineCalendarDto = 
+fun TimelineCalendar.toTransport(): TimelineCalendarDto =
     TimelineCalendarDto(
-        holidays = this.holidays.map { it.toString() },
-        workingDays = this.workingDays,
+        workingWeekDays = this.workingWeekDays,
+        weekendWeekDays = this.weekendWeekDays,
+        holidays = this.holidays,
+        workingWeekends = this.workingWeekends,
     )
 ```
+
+**Note:** `TimelineCalendarDto` has `workingWeekDays`, `weekendWeekDays`, `holidays`, and `workingWeekends` properties.
 
 ---
 
@@ -143,7 +149,7 @@ Extension functions and utilities for converting transport DTOs to domain models
 #### CreateProjectTaskRequest → ProjectTask
 
 ```kotlin
-fun CreateProjectTaskRequest.toModel(): ProjectTask = 
+fun CreateProjectTaskRequest.toModel(): ProjectTask =
     ProjectTask(
         id = TaskId.NONE,
         title = Title(this.title),
@@ -158,7 +164,7 @@ fun CreateProjectTaskRequest.toModel(): ProjectTask =
 #### CreateTaskInPoolCommandDto → ProjectTask
 
 ```kotlin
-fun CreateTaskInPoolCommandDto.toModel(): ProjectTask = 
+fun CreateTaskInPoolCommandDto.toModel(): ProjectTask =
     ProjectTask(
         id = TaskId.NONE,
         title = Title(this.title),
@@ -170,17 +176,11 @@ fun CreateTaskInPoolCommandDto.toModel(): ProjectTask =
 
 ---
 
-#### DependencyType String → Domain
+#### DependencyTypeDto → Domain
 
 ```kotlin
-fun String.toDependencyType(): DependencyType = 
-    when (this) {
-        "FS" -> DependencyType.FS
-        "SS" -> DependencyType.SS
-        "FF" -> DependencyType.FF
-        "SF" -> DependencyType.SF
-        else -> DependencyType.FS
-    }
+fun DependencyTypeDto.toDomain(): DependencyType =
+    DependencyType.valueOf(this.name)
 ```
 
 ---
@@ -188,7 +188,7 @@ fun String.toDependencyType(): DependencyType =
 #### UpdateProjectTaskRequest → Domain Update
 
 ```kotlin
-fun ProjectTask.applyUpdate(request: UpdateProjectTaskRequest): ProjectTask = 
+fun ProjectTask.applyUpdate(request: UpdateProjectTaskRequest): ProjectTask =
     this.copy(
         title = request.title?.let { Title(it) } ?: this.title,
         description = request.description?.let { Description(it) } ?: this.description,

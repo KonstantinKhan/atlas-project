@@ -34,6 +34,7 @@ import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
 import org.jetbrains.exposed.sql.deleteWhere
+import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.update
 import java.util.UUID
@@ -101,9 +102,22 @@ class AtlasProjectTaskRepoPostgres(private val database: Database) : IAtlasProje
     }
 
     override suspend fun updateSchedule(schedule: TaskSchedule) = newSuspendedTransaction(db = database) {
-        TaskSchedulesTable.update({ TaskSchedulesTable.taskId eq UUID.fromString(schedule.id.value) }) { row ->
-            row[TaskSchedulesTable.plannedStart] = (schedule.start as ProjectDate.Set).date
-            row[TaskSchedulesTable.plannedEnd] = (schedule.end as ProjectDate.Set).date
+        val uuid = UUID.fromString(schedule.id.value)
+        val start = (schedule.start as ProjectDate.Set).date
+        val end = (schedule.end as ProjectDate.Set).date
+        val updated = TaskSchedulesTable.update({ TaskSchedulesTable.taskId eq uuid }) { row ->
+            row[TaskSchedulesTable.plannedStart] = start
+            row[TaskSchedulesTable.plannedEnd] = end
+        }
+        if (updated == 0) {
+            TaskSchedulesTable.insert { row ->
+                row[TaskSchedulesTable.taskId] = uuid
+                row[TaskSchedulesTable.plannedStart] = start
+                row[TaskSchedulesTable.plannedEnd] = end
+            }
+            1
+        } else {
+            updated
         }
     }
 
@@ -169,6 +183,16 @@ class AtlasProjectTaskRepoPostgres(private val database: Database) : IAtlasProje
         TaskDependenciesTable.deleteWhere { (predecessorTaskId eq uuid) or (successorTaskId eq uuid) }
         ProjectTasksTable.deleteWhere { ProjectTasksTable.id eq uuid }
     }
+
+    override suspend fun updateDependencyLag(predecessorId: String, successorId: String, lag: Int): Int =
+        newSuspendedTransaction(db = database) {
+            TaskDependenciesTable.update({
+                (TaskDependenciesTable.predecessorTaskId eq UUID.fromString(predecessorId)) and
+                (TaskDependenciesTable.successorTaskId eq UUID.fromString(successorId))
+            }) {
+                it[TaskDependenciesTable.lagDays] = lag
+            }
+        }
 
     override suspend fun addDependency(predecessorId: String, successorId: String, type: String, lagDays: Int): Int =
         newSuspendedTransaction(db = database) {

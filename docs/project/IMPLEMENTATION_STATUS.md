@@ -1,6 +1,6 @@
 # Статус реализации
 
-> _Последнее обновление: 2026-03-04 (Фаза B завершена)_
+> _Последнее обновление: 2026-03-05 (Фаза C завершена)_
 
 Документ сопоставляет дорожную карту ([ROAD_MAP.md](../ROAD_MAP.md)) с фактическим состоянием кода.
 
@@ -54,15 +54,15 @@ UI → UX Command → API → Domain → DB → DTO → UI
 
 ---
 
-## Этап 1.2. Gantt-планирование (~50%)
+## Этап 1.2. Gantt-планирование (~100%)
 
 | Функция | Статус | Комментарий |
 |---------|--------|-------------|
-| Назначение на таймлайн | 🔧 | Через date-пикеры, нет drag-to-assign из пула |
-| Drag (перемещение бара) | ❌ | Нет обработчика `onMouseDown` для drag на баре |
-| Resize (изменение длительности) | ❌ | Нет resize-handle на баре |
+| Назначение на таймлайн | ✅ | Drag из пула (C4) + date-пикеры |
+| Drag (перемещение бара) | ✅ | `GanttTaskLayer` mouse events → `MoveTask` → `ChangeStartDate` |
+| Resize (изменение длительности) | ✅ | Resize-handle на баре → `ResizeTask` → `ChangeEndDate` |
 | Планирование вперёд | ✅ | `changeTaskStartDate` пересчитывает end через календарь |
-| Планирование назад | ❌ | `subtractWorkingDays` есть в календаре, но не используется как фича |
+| Планирование назад | ✅ | `planFromEnd()` + `POST /plan-from-end` (C5) |
 | Реакция на нерабочие дни | ✅ | `TimelineCalendar.addWorkingDays` пропускает выходные |
 | Пересчёт через календарь | ✅ | Все изменения дат проходят через `TimelineCalendar` |
 | UI не считает даты | ✅ | Все расчёты на бэкенде |
@@ -104,6 +104,41 @@ UI → UX Command → API → Domain → DB → DTO → UI
 - `useProjectTasks.ts` — `useDeleteProjectTask` с оптимистичным обновлением кеша
 - `GanttTaskRow.tsx` — `group`-hover + кнопка удаления
 - `GanttChart.tsx` — `pendingDeleteTaskId` стейт, `handleConfirmDelete`, рендер модала
+
+---
+
+## Фаза C: Gantt-планирование ✅ (завершена 2026-03-05)
+
+| Задача | Статус | Комментарий |
+|--------|--------|-------------|
+| C1: Drag бара (перемещение) | ✅ | Mouse events в `GanttTaskLayer` → `MoveTask` → `changeStartMutation` с оптимистичным обновлением |
+| C2: Resize бара (длительность) | ✅ | Resize-handle в `GanttBar` → `ResizeTask` → `changeEndMutation` с оптимистичным обновлением |
+| C3: POST /project-tasks/{id}/schedule | ✅ | Назначает расписание задаче из пула; принимает `{ start, duration }`, вычисляет end через календарь |
+| C4: Drag задачи из пула на таймлайн | ✅ | `@dnd-kit/react` DragDropProvider; `GanttCalendarGrid` как drop-zone; `AssignSchedule` команда |
+| C5: Планирование назад (end → start) | ✅ | `ProjectPlan.planFromEnd()` + `POST /plan-from-end`; end → start через `subtractWorkingDays` |
+| C6: Оптимистичные обновления + rollback | ✅ | `prevTasksRef.current` паттерн; `onError` откат для MoveTask/ResizeTask/AssignSchedule |
+
+### Изменения в коде (Фаза C)
+- `ProjectPlan.kt` — `planFromEnd()`, `recalculateAll()`, `calculateConstrainedStart()` с поддержкой negative lag, `actualDuration()`
+- `Routing.kt` — `/project-tasks/{id}/schedule`, `/plan-from-end`, `/dependencies/recalculate` (BFS заменён на `recalculateAll()`)
+- `ScheduleDelta.kt` — добавлено поле `updatedDependencies: List<TaskDependency>`
+- `GanttChart.tsx` — MoveTask/ResizeTask/AssignSchedule/PlanFromEnd команды + DragDropProvider + handleDragEnd
+- `GanttTaskLayer.tsx` — drag/resize mouse state machine + real-time SVG arrow offsets
+- `GanttBar.tsx` — resize-handle + drag prop
+- `GanttCalendarGrid.tsx` — useDroppable для drop-zone таймлайна
+- `GanttTaskRow.tsx` — useDraggable для задач из пула + PlanFromEnd триггер
+- `useProjectTasks.ts` — хуки `useChangeStartDate`, `useChangeEndDate`, `useAssignSchedule`, `usePlanFromEnd`
+- `projectTasksApi.ts` — `assignTaskSchedule()`, `planTaskFromEnd()`
+- Новые файлы: `AssignScheduleCommand.type.ts`, `MoveTaskCommand.type.ts`, `ResizeTaskCommand.type.ts`, `PlanFromEndCommand.type.ts`
+- Новые DTOs: `AssignScheduleCommandDto.kt`, `PlanFromEndCommandDto.kt`
+
+### Технический долг, устранённый в рамках фазы C
+
+| Проблема | Фикс |
+|----------|------|
+| Лаг зависимости не сохранялся в БД при создании | `/dependencies` читает лаг из `plan.dependencies()` после `addDependency()` |
+| `durationDays` не синхронизировался при изменении даты окончания | `/change-end` вызывает `config.repo.updateTask()` после `updateSchedule()` |
+| `/dependencies/recalculate` использовал расходящуюся формулу BFS | Заменён на `plan.recalculateAll(calendar)` — единая формула с `calculateConstrainedStart()` |
 
 ---
 

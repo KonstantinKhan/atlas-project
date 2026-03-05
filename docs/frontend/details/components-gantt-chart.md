@@ -51,13 +51,23 @@ export const GanttChart = () => { ... }
 - `useCreateDependency()` - Create dependencies
 - `useUpdateProjectTask()` - Update task details
 - `useDeleteProjectTask()` - Delete tasks
+- `useAssignTaskSchedule()` - Assign schedule to pool task
+- `usePlanFromEnd()` - Plan task backwards from end date
 
 **Event Handlers:**
 - `handleUpdateTask(cmd: TaskCommand)` - Process task commands
 - `handleCreateDependency(fromId, toId)` - Create task dependency
-- `handleRemoveDependency(fromId, toId)` - Remove task dependency
+- `handleRemoveDependency(fromId, toId)` - Remove task dependency (local only)
 - `handleConfirmDelete()` - Confirm task deletion
 - `syncScroll()` - Synchronize scroll between panels
+- `handleDragEnd(event)` - Handle drag-and-drop from pool to timeline
+- `handleMoveTask(taskId, newStartDate)` - Move task bar
+- `handleResizeTask(taskId, newEndDate)` - Resize task bar
+
+**Drag-and-Drop:**
+- Uses `@dnd-kit/react` `DragDropProvider` for pool-to-timeline drag
+- Pool tasks can be dragged to `GanttCalendarGrid` drop zone
+- Drop position calculates date based on column offset
 
 ### Dependencies
 
@@ -154,6 +164,8 @@ interface GanttCalendarGridProps {
     timelineCalendar: WorkCalendar
     onCreateDependency: (fromId: string, toId: string) => void
     onRemoveDependency: (fromId: string, toId: string) => void
+    onMoveTask: (taskId: string, newStartDate: string) => void
+    onResizeTask: (taskId: string, newEndDate: string) => void
 }
 ```
 
@@ -193,6 +205,9 @@ interface GanttTaskRowProps {
 - **Dependency Handles:** Connection points for creating/removing dependencies
 - **Delete Button:** Hover-activated Trash2 icon for task deletion
 - **Group Hover Pattern:** Delete button only visible on parent row hover
+- **Drag-and-Drop:** Pool tasks use `useDraggable` from @dnd-kit for timeline assignment
+- **Date Pickers:** PrimeReact Calendar for start/end date selection
+- **Plan from End:** Right-click or special action on end date triggers backward planning
 
 ### Delete Button Implementation
 
@@ -209,6 +224,22 @@ interface GanttTaskRowProps {
 - Parent row has `group` class
 - Button has `opacity-0 group-hover:opacity-100` for hover effect
 - Red color on hover to indicate destructive action
+
+### Drag-and-Drop Integration
+
+```typescript
+const { ref: dragRef, isDragging } = useDraggable({
+    id: task.id,
+    element: elementRef,
+    data: { taskId: task.id },
+    disabled: !isPoolTask,  // Only pool tasks are draggable
+})
+```
+
+**Behavior:**
+- Pool tasks (no start/end dates) are draggable
+- Scheduled tasks cannot be dragged (use date pickers instead)
+- Drag cursor shown only for draggable tasks
 
 ---
 
@@ -332,6 +363,87 @@ interface ConfirmDeleteModalProps {
 
 **Imported by:**
 - `GanttChart.tsx`
+
+---
+
+## Task Commands
+
+The GanttChart component uses a command pattern for type-safe task operations. Commands are dispatched via `handleUpdateTask()`:
+
+### MoveTask
+
+**Purpose:** Move a scheduled task to a new start date (maintaining duration).
+
+**Command:**
+```typescript
+{
+    type: TaskCommandType.MoveTask,
+    taskId: string,
+    newStartDate: string  // ISO date
+}
+```
+
+**Trigger:** Drag task bar horizontally on timeline
+
+**Handler:** `changeStartMutation` with optimistic update + rollback
+
+---
+
+### ResizeTask
+
+**Purpose:** Change a task's end date (changing duration).
+
+**Command:**
+```typescript
+{
+    type: TaskCommandType.ResizeTask,
+    taskId: string,
+    newEndDate: string  // ISO date
+}
+```
+
+**Trigger:** Drag resize handle on right edge of task bar
+
+**Handler:** `changeEndMutation` with optimistic update + rollback
+
+---
+
+### AssignSchedule
+
+**Purpose:** Assign a schedule to a pool task (drag from pool to timeline).
+
+**Command:**
+```typescript
+{
+    type: TaskCommandType.AssignSchedule,
+    taskId: string,
+    start: string,       // ISO date
+    duration: number     // days
+}
+```
+
+**Trigger:** Drop pool task onto timeline grid
+
+**Handler:** `assignScheduleMutation` with optimistic update + rollback
+
+---
+
+### PlanFromEnd
+
+**Purpose:** Plan a task backwards from its end date (deadline-driven).
+
+**Command:**
+```typescript
+{
+    type: TaskCommandType.PlanFromEnd,
+    taskId: string,
+    newEndDate: string  // ISO date (deadline)
+}
+```
+
+**Trigger:** Right-click or special action on end date picker
+
+**Handler:** `planFromEndMutation` — calculates start date backwards
 
 ---
 

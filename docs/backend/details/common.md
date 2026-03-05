@@ -133,6 +133,80 @@ data class ProjectPlan(
 - `changeTaskStartDate()` - Update task start and recalculate
 - `changeTaskEndDate()` - Update task end and recalculate
 - `addDependency()` - Add dependency and recalculate schedules
+- `planFromEnd()` - Plan task backwards from end date (deadline-driven scheduling)
+- `recalculateAll()` - Recalculate all task schedules based on dependencies
+- `calculateConstrainedStart()` - Calculate task start based on dependency constraints (FS, SS, FF, SF with lag)
+
+### ProjectPlan Method Details
+
+#### planFromEnd()
+
+**Purpose:** Calculate a task's start date by working backwards from a specified end date.
+
+**Signature:**
+```kotlin
+fun planFromEnd(
+    taskId: TaskId,
+    newEnd: LocalDate,
+    calendar: TimelineCalendar
+): ScheduleDelta
+```
+
+**Algorithm:**
+1. Get task duration
+2. Calculate start date: `calendar.subtractWorkingDays(newEnd, duration)`
+3. Update task schedule with new start and end dates
+4. Return `ScheduleDelta` with updated schedules
+
+**Use Case:** Deadline-driven scheduling where end date is fixed.
+
+---
+
+#### recalculateAll()
+
+**Purpose:** Recalculate all task schedules based on dependencies and constraints.
+
+**Signature:**
+```kotlin
+fun recalculateAll(calendar: TimelineCalendar): ScheduleDelta
+```
+
+**Algorithm:**
+1. Build dependency graph
+2. Find root tasks (no predecessors)
+3. Topologically sort tasks
+4. For each task, call `calculateConstrainedStart()` to apply dependency constraints
+5. Collect all schedule changes
+6. Return `ScheduleDelta` with updated schedules
+
+**Use Case:** Bulk recalculation after dependency changes or batch updates.
+
+---
+
+#### calculateConstrainedStart()
+
+**Purpose:** Calculate a task's start date based on all predecessor dependencies.
+
+**Signature:**
+```kotlin
+fun calculateConstrainedStart(
+    taskId: TaskId,
+    calendar: TimelineCalendar
+): LocalDate
+```
+
+**Supported Dependency Types:**
+- **FS (Finish-to-Start):** `start = predecessor.end + lag`
+- **SS (Start-to-Start):** `start = predecessor.start + lag`
+- **FF (Finish-to-Finish):** `start = predecessor.end + lag - task.duration`
+- **SF (Start-to-Finish):** `start = predecessor.start + lag - task.duration`
+
+**Features:**
+- Supports negative lag (overlap)
+- Respects working days and holidays via calendar
+- Returns earliest valid start date
+
+---
 
 ---
 

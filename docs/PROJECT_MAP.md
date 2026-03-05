@@ -104,8 +104,13 @@ docs/backend/
 | `/change-start` | POST | Change task start | [Detail](backend/details/ktor-app.md) |
 | `/change-end` | POST | Change task end | [Detail](backend/details/ktor-app.md) |
 | `/dependencies` | POST | Create dependency | [Detail](backend/details/ktor-app.md) |
+| `/dependencies/recalculate` | POST | Recalculate all schedules | [Detail](backend/details/ktor-app.md) |
 | `/project-tasks` | POST | Create task | [Detail](backend/details/ktor-app.md) |
+| `/project-tasks/create-in-pool` | POST | Create task without schedule | [Detail](backend/details/ktor-app.md) |
 | `/project-tasks/:id` | PATCH | Update task | [Detail](backend/details/ktor-app.md) |
+| `/project-tasks/:id` | DELETE | Delete task | [Detail](backend/details/ktor-app.md) |
+| `/project-tasks/:id/schedule` | POST | Assign schedule to pool task | [Detail](backend/details/ktor-app.md) |
+| `/plan-from-end` | POST | Plan backwards from end date | [Detail](backend/details/ktor-app.md) |
 
 ---
 

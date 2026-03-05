@@ -37,6 +37,8 @@ export function useDeleteProjectTask()
 export function useChangeTaskStartDate()
 export function useChangeTaskEndDate()
 export function useCreateDependency()
+export function useAssignTaskSchedule()
+export function usePlanFromEnd()
 ```
 
 ### useProjectPlan
@@ -142,6 +144,7 @@ UseMutationResult<void, Error, { id: string }>
 **Features:**
 - **Optimistic Update:** Immediately removes task from cache before server response
 - **Cascade Cleanup:** Automatically removes task from dependencies list
+- **Rollback on Error:** Reverts cache if server request fails
 
 **Usage Example:**
 ```typescript
@@ -257,6 +260,110 @@ createDepMutation.mutate({
     toTaskId: 'task-2',
     type: 'FS' // Finish-to-Start
 })
+```
+
+---
+
+### useAssignTaskSchedule
+
+**Purpose:** Assign a schedule to an existing task (typically for pool tasks being dragged to the timeline).
+
+**Returns:**
+```typescript
+UseMutationResult<GanttProjectPlan, Error, {
+    taskId: string
+    start: string
+    duration: number
+}>
+```
+
+**API Call:** `POST /project-tasks/{taskId}/schedule`
+
+**Features:**
+- **Optimistic Update:** Immediately updates cache with new schedule before server response
+- **Rollback on Error:** Reverts to previous state if server request fails
+
+**Usage Example:**
+```typescript
+const assignMutation = useAssignTaskSchedule()
+
+assignMutation.mutate({
+    taskId: 'task-123',
+    start: '2026-03-15',
+    duration: 5  // 5 days
+}, {
+    onSuccess: (newPlan) => {
+        console.log('Task scheduled:', newPlan)
+    },
+    onError: (error) => {
+        console.error('Failed to schedule:', error)
+        // Cache automatically reverted
+    }
+})
+```
+
+**Implementation:**
+```typescript
+export function useAssignTaskSchedule() {
+    const queryClient = useQueryClient()
+    return useMutation<GanttProjectPlan, Error, { taskId: string; start: string; duration: number }>({
+        mutationFn: ({ taskId, start, duration }) => assignTaskSchedule(taskId, start, duration),
+        onSuccess: (newPlan: GanttProjectPlan) => {
+            queryClient.setQueryData<GanttProjectPlan>(['projectPlan'], () => newPlan)
+        },
+    })
+}
+```
+
+---
+
+### usePlanFromEnd
+
+**Purpose:** Plan a task backwards from its end date (useful for deadline-driven scheduling).
+
+**Returns:**
+```typescript
+UseMutationResult<GanttProjectPlan, Error, {
+    taskId: string
+    newPlannedEnd: string
+}>
+```
+
+**API Call:** `POST /plan-from-end`
+
+**Features:**
+- **Backwards Planning:** Calculates start date by working backwards from end date
+- **Working Days Respect:** Uses calendar to skip weekends and holidays
+- **Optimistic Update:** Immediately updates cache with new plan
+
+**Usage Example:**
+```typescript
+const planFromEndMutation = usePlanFromEnd()
+
+planFromEndMutation.mutate({
+    taskId: 'task-123',
+    newPlannedEnd: '2026-04-01'  // Deadline
+}, {
+    onSuccess: (newPlan) => {
+        console.log('Task planned from end:', newPlan)
+    },
+    onError: (error) => {
+        console.error('Failed to plan from end:', error)
+    }
+})
+```
+
+**Implementation:**
+```typescript
+export function usePlanFromEnd() {
+    const queryClient = useQueryClient()
+    return useMutation<GanttProjectPlan, Error, { taskId: string; newPlannedEnd: string }>({
+        mutationFn: ({ taskId, newPlannedEnd }) => planTaskFromEnd(taskId, newPlannedEnd),
+        onSuccess: (newPlan: GanttProjectPlan) => {
+            queryClient.setQueryData<GanttProjectPlan>(['projectPlan'], () => newPlan)
+        },
+    })
+}
 ```
 
 ---
