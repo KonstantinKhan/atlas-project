@@ -194,6 +194,25 @@ class AtlasProjectTaskRepoPostgres(private val database: Database) : IAtlasProje
             }
         }
 
+    override suspend fun updateDependency(predecessorId: String, successorId: String, type: String, lagDays: Int): Int =
+        newSuspendedTransaction(db = database) {
+            TaskDependenciesTable.update({
+                (TaskDependenciesTable.predecessorTaskId eq UUID.fromString(predecessorId)) and
+                (TaskDependenciesTable.successorTaskId eq UUID.fromString(successorId))
+            }) {
+                it[TaskDependenciesTable.type] = type
+                it[TaskDependenciesTable.lagDays] = lagDays
+            }
+        }
+
+    override suspend fun deleteDependency(predecessorId: String, successorId: String): Int =
+        newSuspendedTransaction(db = database) {
+            TaskDependenciesTable.deleteWhere {
+                (TaskDependenciesTable.predecessorTaskId eq UUID.fromString(predecessorId)) and
+                (TaskDependenciesTable.successorTaskId eq UUID.fromString(successorId))
+            }
+        }
+
     override suspend fun addDependency(predecessorId: String, successorId: String, type: String, lagDays: Int): Int =
         newSuspendedTransaction(db = database) {
             val planUuid = ProjectPlansTable.selectAll().single()[ProjectPlansTable.id]

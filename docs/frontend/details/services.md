@@ -193,6 +193,98 @@ export async function createDependency(
 
 ---
 
+#### changeDependencyType(fromTaskId, toTaskId, newType)
+
+**Purpose:** Change the type of an existing dependency (e.g., from FS to SS).
+
+**Signature:**
+```typescript
+export async function changeDependencyType(
+    fromTaskId: string,
+    toTaskId: string,
+    newType: string,  // FS, SS, FF, SF
+): Promise<GanttProjectPlan>
+```
+
+**Parameters:**
+- `fromTaskId` - Predecessor task ID
+- `toTaskId` - Successor task ID
+- `newType` - New dependency type (FS, SS, FF, SF)
+
+**API:** `PATCH /dependencies`
+
+**Returns:** Updated `GanttProjectPlan` with recalculated schedules
+
+**Throws:** Error if response is not OK
+
+**Usage Example:**
+```typescript
+await changeDependencyType('task-1', 'task-2', 'SS')
+// Dependency changed to Start-to-Start, schedules recalculated
+```
+
+---
+
+#### deleteDependency(fromTaskId, toTaskId)
+
+**Purpose:** Remove a dependency between two tasks.
+
+**Signature:**
+```typescript
+export async function deleteDependency(
+    fromTaskId: string,
+    toTaskId: string,
+): Promise<GanttProjectPlan>
+```
+
+**Parameters:**
+- `fromTaskId` - Predecessor task ID
+- `toTaskId` - Successor task ID
+
+**API:** `DELETE /dependencies?from={fromTaskId}&to={toTaskId}`
+
+**Returns:** Updated `GanttProjectPlan` with dependency removed
+
+**Throws:** Error if response is not OK
+
+**Usage Example:**
+```typescript
+await deleteDependency('task-1', 'task-2')
+// Dependency removed, successor may move earlier
+```
+
+---
+
+#### resizeTaskFromStart(taskId, newPlannedStart)
+
+**Purpose:** Resize a task from its start date (left edge drag). Changes the start date while keeping the end date fixed.
+
+**Signature:**
+```typescript
+export async function resizeTaskFromStart(
+    taskId: string,
+    newPlannedStart: string,
+): Promise<ScheduleDelta>
+```
+
+**Parameters:**
+- `taskId` - Task ID to resize
+- `newPlannedStart` - New start date (ISO string)
+
+**API:** `POST /resize-from-start`
+
+**Returns:** `ScheduleDelta` with updated schedules
+
+**Throws:** Error if response is not OK
+
+**Usage Example:**
+```typescript
+await resizeTaskFromStart('task-123', '2026-03-15')
+// Task start changed, duration adjusted to keep end date fixed
+```
+
+---
+
 #### assignTaskSchedule(taskId, start, duration)
 
 **Purpose:** Assign a schedule to an existing task (typically for pool tasks being dragged to timeline).

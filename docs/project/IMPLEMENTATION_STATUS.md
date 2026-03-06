@@ -1,6 +1,6 @@
 # Статус реализации
 
-> _Последнее обновление: 2026-03-05 (Фаза C завершена)_
+> _Последнее обновление: 2026-03-06 (Фаза D завершена)_
 
 Документ сопоставляет дорожную карту ([ROAD_MAP.md](../ROAD_MAP.md)) с фактическим состоянием кода.
 
@@ -30,8 +30,9 @@
 | Rename (UpdateTitle) | ✅ | PATCH `/project-tasks/{id}` |
 | ChangeStartDate | ✅ | POST `/change-start` с BFS-каскадом |
 | ChangeEndDate | ✅ | POST `/change-end` с BFS-каскадом |
-| Move (drag бара) | ❌ | Нет ни команды, ни обработчика drag |
-| Resize (drag правого края) | ❌ | Нет ни команды, ни обработчика resize |
+| Move (drag бара) | ✅ | `MoveTask` → `changeStartMutation` с оптимистичным обновлением |
+| Resize (drag правого края) | ✅ | `ResizeTask` → `changeEndMutation` с оптимистичным обновлением |
+| Resize слева (drag левого края) | ✅ | `ResizeFromStart` → start меняется, end сохраняется |
 
 ### Pipeline
 
@@ -69,19 +70,20 @@ UI → UX Command → API → Domain → DB → DTO → UI
 
 ---
 
-## Этап 1.3. Зависимости (~70%)
+## Этап 1.3. Зависимости (~100%)
 
 | Функция | Статус | Комментарий |
 |---------|--------|-------------|
 | FS (Finish–Start) | ✅ | Полный цикл: UI → API → Domain → DB → UI |
-| SS / FF / SF | 🔧 | В домене (`ProjectPlan.calculateConstrainedStart`) и DTO — да. В UI — только FS (hardcoded) |
-| Визуальные связи (SVG) | ✅ | SVG-стрелки в `GanttArrows` |
+| SS / FF / SF | ✅ | Все типы: создание через gesture (fromSide × toSide), смена через попап, визуализация SVG |
+| Визуальные связи (SVG) | ✅ | SVG-стрелки с разными точками привязки по типу (FS/SS/FF/SF) |
 | Пересчёт цепочек (BFS-каскад) | ✅ | `ProjectPlan.changeTaskStartDate/changeTaskEndDate` с каскадом |
 | Детекция циклов | ✅ | Реализовано в `ProjectPlan.addDependency` |
-| Создание зависимости | ✅ | POST `/dependencies` |
-| Удаление зависимости (UI) | 🔧 | Клик по стрелке убирает из React-стейта, **но не вызывает API** |
-| Удаление зависимости (API) | ❌ | Нет DELETE-эндпоинта для зависимостей (каскадное удаление при удалении задачи — ✅) |
-| Пересчёт при удалении | ❌ | Без API удаления зависимости — пересчёт невозможен |
+| Создание зависимости | ✅ | POST `/dependencies` с автоопределением типа из gesture |
+| Удаление зависимости | ✅ | `DELETE /dependencies` + `deleteDependencyMutation` с оптимистичным обновлением |
+| Смена типа зависимости | ✅ | `PATCH /dependencies` + `DependencyActionPopover` с кнопками FS/SS/FF/SF |
+| Пересчёт при удалении | ✅ | `recalculateAll()` при удалении — successor может сдвинуться назад |
+| UX стрелок | ✅ | Hit-area (14px), hover-glow, попап по клику, Escape/click-outside dismiss |
 
 ---
 
@@ -139,6 +141,42 @@ UI → UX Command → API → Domain → DB → DTO → UI
 | Лаг зависимости не сохранялся в БД при создании | `/dependencies` читает лаг из `plan.dependencies()` после `addDependency()` |
 | `durationDays` не синхронизировался при изменении даты окончания | `/change-end` вызывает `config.repo.updateTask()` после `updateSchedule()` |
 | `/dependencies/recalculate` использовал расходящуюся формулу BFS | Заменён на `plan.recalculateAll(calendar)` — единая формула с `calculateConstrainedStart()` |
+
+---
+
+## Фаза D: Зависимости ✅ (завершена 2026-03-06)
+
+| Задача | Статус | Комментарий |
+|--------|--------|-------------|
+| D1: DELETE-эндпоинт для зависимости | ✅ | `DELETE /dependencies?from={id}&to={id}` → пересчитанный `GanttProjectPlan` |
+| D2: Подключить удаление к API | ✅ | `deleteDependencyMutation` с оптимистичным обновлением + откат |
+| D3: UI выбора типа зависимости | ✅ | Двусторонние маркеры (start/end) на GanttBar + попап `[Start\|Finish]` на целевой задаче |
+| D4: Визуализация SS/FF/SF стрелок | ✅ | SVG-стрелки с разными точками привязки по типу зависимости |
+| D5: Пересчёт при удалении | ✅ | `recalculateAll()` — successor сдвигается назад при снятии ограничения |
+| D6: Смена типа зависимости | ✅ | `PATCH /dependencies` + `changeDependencyType()` в `ProjectPlan.kt` + `DependencyActionPopover` |
+| D7: Resize слева | ✅ | `POST /resize-from-start` + `resizeTaskFromStart()` — start меняется, end сохраняется |
+| D8: UX стрелок | ✅ | Hit-area (14px), hover-glow (1.5→3, #818cf8), попап по клику |
+| D9: Сохранение порядка задач | ✅ | Order-preserving merge вместо `setAllTasks(newPlan.tasks)` |
+
+### Изменения в коде (Фаза D)
+- `ProjectPlan.kt` — `changeDependencyType()`, `resizeTaskFromStart()` с clamping по FS/SS
+- `Routing.kt` — `DELETE /dependencies`, `PATCH /dependencies`, `POST /resize-from-start`
+- `IAtlasProjectTaskRepo.kt` — `updateDependency(predecessorId, successorId, type, lagDays)`
+- `AtlasProjectTaskRepoPostgres.kt` — реализация `updateDependency`
+- `GanttBar.tsx` — двусторонние link-маркеры (start/end) + left resize handle
+- `GanttTaskLayer.tsx` — left resize state machine, target side selector, hit-area + hover для стрелок, `clickedDep` попап
+- `GanttChart.tsx` — `handleChangeDependencyType`, `handleResizeFromStart`, order-preserving merge
+- `DependencyActionPopover.tsx` — новый: попап с кнопками FS/SS/FF/SF + удаление
+- `projectTasksApi.ts` — `changeDependencyType()`, `resizeTaskFromStart()`
+- `useProjectTasks.ts` — `useChangeDependencyType()`, `useResizeTaskFromStart()`
+- Новый DTO: `ChangeDependencyTypeCommandDto.kt`
+
+### Технический долг, устранённый в рамках фазы D
+
+| Проблема | Фикс |
+|----------|------|
+| SF лаг рассчитывался из текущих позиций при смене типа | Лаг по умолчанию: SF→1, остальные→0 (без `calculateLag`) |
+| `setAllTasks(newPlan.tasks)` пересортировывал задачи | Order-preserving merge: `prev.map(t => updated ?? t)` |
 
 ---
 

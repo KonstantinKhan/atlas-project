@@ -5,9 +5,12 @@ import {
 	updateProjectTask,
 	getProjectPlan,
 	changeTaskStartDate,
+	resizeTaskFromStart,
 	changeTaskEndDate,
 	createDependency,
 	deleteProjectTask,
+	deleteDependency,
+	changeDependencyType,
 	assignTaskSchedule,
 	planTaskFromEnd,
 } from '@/services/projectTasksApi'
@@ -61,6 +64,33 @@ export function useChangeTaskStartDate() {
 			taskId: string
 			newPlannedStart: string
 		}) => changeTaskStartDate(planId, taskId, newPlannedStart),
+		onSuccess: (delta: ScheduleDelta) => {
+			queryClient.setQueryData<GanttProjectPlan>(['projectPlan'], (old) => {
+				if (!old) return old
+				return {
+					...old,
+					tasks: old.tasks.map((t) => {
+						const update = delta.updatedSchedules.find((u) => u.taskId === t.id)
+						return update ? { ...t, start: update.start, end: update.end } : t
+					}),
+				}
+			})
+		},
+	})
+}
+
+export function useResizeTaskFromStart() {
+	const queryClient = useQueryClient()
+	return useMutation({
+		mutationFn: ({
+			planId,
+			taskId,
+			newPlannedStart,
+		}: {
+			planId: string
+			taskId: string
+			newPlannedStart: string
+		}) => resizeTaskFromStart(planId, taskId, newPlannedStart),
 		onSuccess: (delta: ScheduleDelta) => {
 			queryClient.setQueryData<GanttProjectPlan>(['projectPlan'], (old) => {
 				if (!old) return old
@@ -147,6 +177,31 @@ export function usePlanFromEnd() {
 	const queryClient = useQueryClient()
 	return useMutation<GanttProjectPlan, Error, { taskId: string; newPlannedEnd: string }>({
 		mutationFn: ({ taskId, newPlannedEnd }) => planTaskFromEnd(taskId, newPlannedEnd),
+		onSuccess: (newPlan: GanttProjectPlan) => {
+			queryClient.setQueryData<GanttProjectPlan>(['projectPlan'], () => newPlan)
+		},
+	})
+}
+
+export function useDeleteDependency() {
+	const queryClient = useQueryClient()
+	return useMutation<GanttProjectPlan, Error, { fromTaskId: string; toTaskId: string }>({
+		mutationFn: ({ fromTaskId, toTaskId }) => deleteDependency(fromTaskId, toTaskId),
+		onSuccess: (newPlan: GanttProjectPlan) => {
+			queryClient.setQueryData<GanttProjectPlan>(['projectPlan'], () => newPlan)
+		},
+	})
+}
+
+export function useChangeDependencyType() {
+	const queryClient = useQueryClient()
+	return useMutation<GanttProjectPlan, Error, {
+		fromTaskId: string
+		toTaskId: string
+		newType: string
+	}>({
+		mutationFn: ({ fromTaskId, toTaskId, newType }) =>
+			changeDependencyType(fromTaskId, toTaskId, newType),
 		onSuccess: (newPlan: GanttProjectPlan) => {
 			queryClient.setQueryData<GanttProjectPlan>(['projectPlan'], () => newPlan)
 		},

@@ -78,6 +78,8 @@ atlas-project-backend-common
 | `/project-plan` | GET | ktor-app | `configureRouting` |
 | `/change-start` | POST | ktor-app | `configureRouting` |
 | `/change-end` | POST | ktor-app | `configureRouting` |
+| `/resize-from-start` | POST | ktor-app | `configureRouting` |
+| `/plan-from-end` | POST | ktor-app | `configureRouting` |
 
 ### Dependencies
 
@@ -85,6 +87,8 @@ atlas-project-backend-common
 |----------|--------|--------|---------|
 | `/dependencies` | POST | ktor-app | `configureRouting` |
 | `/dependencies/recalculate` | POST | ktor-app | `configureRouting` |
+| `/dependencies` | PATCH | ktor-app | `configureRouting` |
+| `/dependencies` | DELETE | ktor-app | `configureRouting` |
 
 ### Tasks
 
@@ -94,6 +98,7 @@ atlas-project-backend-common
 | `/project-tasks/create-in-pool` | POST | ktor-app | `configureRouting` |
 | `/project-tasks/:id` | PATCH | ktor-app | `configureRouting` |
 | `/project-tasks/:id` | DELETE | ktor-app | `configureRouting` |
+| `/project-tasks/:id/schedule` | POST | ktor-app | `configureRouting` |
 
 ## Domain Models
 

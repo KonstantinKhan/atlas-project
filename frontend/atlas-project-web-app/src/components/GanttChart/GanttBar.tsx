@@ -10,9 +10,9 @@ interface GanttBarProps {
 	dayWidth: number
 	previewOffsetPx?: number
 	previewWidthPx?: number
-	onLinkStart?: (taskId: string, e: React.MouseEvent) => void
-	isLinkTarget?: boolean
+	onLinkStart?: (taskId: string, side: 'start' | 'end', e: React.MouseEvent) => void
 	onDragStart?: (taskId: string, e: React.MouseEvent) => void
+	onResizeStartLeft?: (taskId: string, e: React.MouseEvent) => void
 	onResizeStart?: (taskId: string, e: React.MouseEvent) => void
 }
 
@@ -23,8 +23,8 @@ export default function GanttBar({
 	previewOffsetPx = 0,
 	previewWidthPx,
 	onLinkStart,
-	isLinkTarget,
 	onDragStart,
+	onResizeStartLeft,
 	onResizeStart,
 }: GanttBarProps) {
 	if (!task.start || !task.end) return null
@@ -53,6 +53,17 @@ export default function GanttBar({
 			<span className="text-white text-xs truncate px-2 font-medium">
 				{task.title}
 			</span>
+			{/* Resize handle — left edge */}
+			{onResizeStartLeft && (
+				<div
+					data-handle="resize"
+					className="absolute left-0 top-0 w-2 h-full cursor-ew-resize z-10"
+					onMouseDown={(e) => {
+						e.stopPropagation()
+						onResizeStartLeft(task.id, e)
+					}}
+				/>
+			)}
 			{/* Resize handle — right edge */}
 			{onResizeStart && (
 				<div
@@ -64,28 +75,32 @@ export default function GanttBar({
 					}}
 				/>
 			)}
-			{/* Link handle — shown only in normal mode */}
-			{onLinkStart && !isLinkTarget && (
-				<div
-					data-handle="link"
-					className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2
-					           w-3 h-3 rounded-full bg-white border-2 border-blue-400
-					           cursor-crosshair opacity-0 group-hover:opacity-100 z-10
-					           transition-opacity"
-					onMouseDown={(e) => {
-						e.stopPropagation()
-						onLinkStart(task.id, e)
-					}}
-				/>
-			)}
-			{/* Left handle — shown only when this bar is a potential link target */}
-			{isLinkTarget && (
-				<div
-					className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2
-					           w-3 h-3 rounded-full bg-white border-2 border-blue-400
-					           opacity-0 group-hover:opacity-100 z-10
-					           transition-opacity pointer-events-none"
-				/>
+			{/* Link handles — left (start) and right (end) */}
+			{onLinkStart && (
+				<>
+					<div
+						data-handle="link"
+						className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2
+						           w-3 h-3 rounded-full bg-white border-2 border-blue-400
+						           cursor-crosshair opacity-0 group-hover:opacity-100 z-10
+						           transition-opacity"
+						onMouseDown={(e) => {
+							e.stopPropagation()
+							onLinkStart(task.id, 'start', e)
+						}}
+					/>
+					<div
+						data-handle="link"
+						className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2
+						           w-3 h-3 rounded-full bg-white border-2 border-blue-400
+						           cursor-crosshair opacity-0 group-hover:opacity-100 z-10
+						           transition-opacity"
+						onMouseDown={(e) => {
+							e.stopPropagation()
+							onLinkStart(task.id, 'end', e)
+						}}
+					/>
+				</>
 			)}
 		</div>
 	)

@@ -2,7 +2,7 @@
 
 **Path:** `/backend/atlas-project-backend/atlas-project-backend-ktor-app/`
 **Module:** [Backend Index](../INDEX.md)
-**Last Updated:** 2026-03-04
+**Last Updated:** 2026-03-06
 
 ## Purpose
 
@@ -134,6 +134,50 @@ post("/change-start") {
 
 ---
 
+#### POST /resize-from-start
+
+**Purpose:** Resize a task from its start date (left edge drag). Changes the start date while keeping the end date fixed, effectively changing the duration.
+
+**Request:** `ChangeTaskStartDateCommandDto`
+
+```kotlin
+data class ChangeTaskStartDateCommandDto(
+    val taskId: String,
+    val newPlannedStart: String,  // ISO date
+)
+```
+
+**Response:** `ScheduleDelta` DTO
+
+**Handler:**
+```kotlin
+post("/resize-from-start") {
+    val request = call.receive<ChangeTaskStartDateCommandDto>()
+    val plan = config.repo.projectPlan()
+    val delta = plan.resizeTaskFromStart(
+        taskId = TaskId(request.taskId),
+        newStart = request.newPlannedStart,
+        calendar = config.calendarService.current()
+    )
+    delta.updatedSchedule.forEach {
+        plan.schedules()[it.id] = it
+        config.repo.updateSchedule(it)
+    }
+    // Update task duration
+    plan.tasks().find { it.id == TaskId(request.taskId) }
+        ?.let { config.repo.updateTask(it) }
+    call.respond(delta.toDto())
+}
+```
+
+**Implementation Details:**
+- Uses `ProjectPlan.resizeTaskFromStart()` which calculates new duration while preserving end date
+- Respects dependency constraints (FS/SS clamping)
+- Updates task duration in repository
+- Returns schedule delta with all affected schedules
+
+---
+
 #### POST /dependencies
 
 **Purpose:** Create a dependency between two tasks.
@@ -184,6 +228,107 @@ post("/dependencies/recalculate") {
 - Replaces previous BFS-based cascade recalculation
 - Uses unified `calculateConstrainedStart()` formula for all tasks
 - Handles all dependency types (FS, SS, FF, SF) with lag support
+
+---
+
+#### PATCH /dependencies
+
+**Purpose:** Change the type of an existing dependency (e.g., from FS to SS).
+
+**Request:** `ChangeDependencyTypeCommandDto`
+
+```kotlin
+data class ChangeDependencyTypeCommandDto(
+    val fromTaskId: String,
+    val toTaskId: String,
+    val newType: String,  // FS, SS, FF, SF
+)
+```
+
+**Response:** `GanttProjectPlan` DTO (updated plan)
+
+**Handler:**
+```kotlin
+patch("/dependencies") {
+    val request = call.receive<ChangeDependencyTypeCommandDto>()
+    val plan = config.repo.projectPlan()
+    val calendar = config.calendarService.current()
+
+    val delta = plan.changeDependencyType(
+        predecessorId = TaskId(request.fromTaskId),
+        successorId = TaskId(request.toTaskId),
+        newType = request.newType.toDomain(),
+        calendar = calendar
+    )
+
+    // Persist updated dependency type and lag
+    val updatedDep = plan.dependencies()
+        .find { it.predecessor == TaskId(request.fromTaskId) && it.successor == TaskId(request.toTaskId) }
+    if (updatedDep != null) {
+        config.repo.updateDependency(
+            predecessorId = request.fromTaskId,
+            successorId = request.toTaskId,
+            type = updatedDep.type.name,
+            lagDays = updatedDep.lag.asInt()
+        )
+    }
+    delta.updatedSchedule.forEach { config.repo.updateSchedule(it) }
+
+    call.respond(plan.toGanttDto())
+}
+```
+
+**Implementation Details:**
+- Uses `ProjectPlan.changeDependencyType()` to recalculate schedules with new dependency type
+- Persists updated dependency type and lag to repository
+- Returns updated project plan with recalculated schedules
+- Frontend: Triggered by `DependencyActionPopover` component
+
+---
+
+#### DELETE /dependencies
+
+**Purpose:** Remove a dependency between two tasks.
+
+**Query Parameters:**
+- `from` - Predecessor task ID
+- `to` - Successor task ID
+
+**Response:** `GanttProjectPlan` DTO (updated plan)
+
+**Error Responses:**
+- `400 Bad Request` - Missing 'from' or 'to' parameter
+
+**Handler:**
+```kotlin
+delete("/dependencies") {
+    val from = call.request.queryParameters["from"]
+        ?: return@delete call.respond(HttpStatusCode.BadRequest, "Missing 'from' parameter")
+    val to = call.request.queryParameters["to"]
+        ?: return@delete call.respond(HttpStatusCode.BadRequest, "Missing 'to' parameter")
+
+    val plan = config.repo.projectPlan()
+    val calendar = config.calendarService.current()
+
+    val delta = plan.removeDependency(
+        predecessorId = TaskId(from),
+        successorId = TaskId(to),
+        calendar = calendar
+    )
+
+    config.repo.deleteDependency(from, to)
+    delta.updatedSchedule.forEach { config.repo.updateSchedule(it) }
+
+    call.respond(plan.toGanttDto())
+}
+```
+
+**Implementation Details:**
+- Uses `ProjectPlan.removeDependency()` to recalculate schedules after dependency removal
+- Successor tasks may move earlier (backward) when constraint is removed
+- Persists dependency deletion to repository
+- Returns updated project plan
+- Frontend: Triggered by delete button in `DependencyActionPopover`
 
 ---
 

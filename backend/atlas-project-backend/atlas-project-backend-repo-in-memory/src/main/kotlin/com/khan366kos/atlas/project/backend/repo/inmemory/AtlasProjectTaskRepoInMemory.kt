@@ -15,6 +15,7 @@ import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.update
 import java.util.UUID
@@ -72,6 +73,18 @@ class AtlasProjectTaskRepoInMemory(private val database: Database) : IAtlasProje
     }
 
     override suspend fun addDependency(predecessorId: String, successorId: String, type: String, lagDays: Int): Int {
+        TODO("Not yet implemented - in-memory repo does not support dependencies")
+    }
+
+    override suspend fun updateDependencyLag(predecessorId: String, successorId: String, lag: Int): Int {
+        TODO("Not yet implemented - in-memory repo does not support dependencies")
+    }
+
+    override suspend fun updateDependency(predecessorId: String, successorId: String, type: String, lagDays: Int): Int {
+        TODO("Not yet implemented - in-memory repo does not support dependencies")
+    }
+
+    override suspend fun deleteDependency(predecessorId: String, successorId: String): Int {
         TODO("Not yet implemented - in-memory repo does not support dependencies")
     }
 

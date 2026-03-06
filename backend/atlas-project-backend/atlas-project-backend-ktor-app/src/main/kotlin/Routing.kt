@@ -16,6 +16,7 @@ import com.khan366kos.atlas.project.backend.transport.CreateProjectTaskRequest
 import com.khan366kos.atlas.project.backend.transport.UpdateProjectTaskRequest
 import com.khan366kos.atlas.project.backend.transport.commands.ChangeTaskEndDateCommandDto
 import com.khan366kos.atlas.project.backend.transport.commands.AssignScheduleCommandDto
+import com.khan366kos.atlas.project.backend.transport.commands.ChangeDependencyTypeCommandDto
 import com.khan366kos.atlas.project.backend.transport.commands.PlanFromEndCommandDto
 import kotlinx.datetime.LocalDate
 import com.khan366kos.config.AppConfig
@@ -55,9 +56,23 @@ fun Application.configureRouting(config: AppConfig) {
                 plan.schedules()[it.id] = it
                 config.repo.updateSchedule(it)
             }
-            delta.updatedDependencies.forEach {
-                config.repo.updateDependencyLag(it.predecessor.value, it.successor.value, it.lag.asInt())
+            call.respond(delta.toDto())
+        }
+
+        post("/resize-from-start") {
+            val request = call.receive<ChangeTaskStartDateCommandDto>()
+            val plan = config.repo.projectPlan()
+            val delta = plan.resizeTaskFromStart(
+                taskId = TaskId(request.taskId),
+                newStart = request.newPlannedStart,
+                calendar = config.calendarService.current()
+            )
+            delta.updatedSchedule.forEach {
+                plan.schedules()[it.id] = it
+                config.repo.updateSchedule(it)
             }
+            plan.tasks().find { it.id == TaskId(request.taskId) }
+                ?.let { config.repo.updateTask(it) }
             call.respond(delta.toDto())
         }
 
@@ -107,6 +122,55 @@ fun Application.configureRouting(config: AppConfig) {
             }
             
             // Return the updated plan
+            call.respond(plan.toGanttDto())
+        }
+
+        patch("/dependencies") {
+            val request = call.receive<ChangeDependencyTypeCommandDto>()
+            val plan = config.repo.projectPlan()
+            val calendar = config.calendarService.current()
+
+            val delta = plan.changeDependencyType(
+                predecessorId = TaskId(request.fromTaskId),
+                successorId = TaskId(request.toTaskId),
+                newType = request.newType.toDomain(),
+                calendar = calendar
+            )
+
+            // Persist updated dependency type and lag
+            val updatedDep = plan.dependencies()
+                .find { it.predecessor == TaskId(request.fromTaskId) && it.successor == TaskId(request.toTaskId) }
+            if (updatedDep != null) {
+                config.repo.updateDependency(
+                    predecessorId = request.fromTaskId,
+                    successorId = request.toTaskId,
+                    type = updatedDep.type.name,
+                    lagDays = updatedDep.lag.asInt()
+                )
+            }
+            delta.updatedSchedule.forEach { config.repo.updateSchedule(it) }
+
+            call.respond(plan.toGanttDto())
+        }
+
+        delete("/dependencies") {
+            val from = call.request.queryParameters["from"]
+                ?: return@delete call.respond(HttpStatusCode.BadRequest, "Missing 'from' parameter")
+            val to = call.request.queryParameters["to"]
+                ?: return@delete call.respond(HttpStatusCode.BadRequest, "Missing 'to' parameter")
+
+            val plan = config.repo.projectPlan()
+            val calendar = config.calendarService.current()
+
+            val delta = plan.removeDependency(
+                predecessorId = TaskId(from),
+                successorId = TaskId(to),
+                calendar = calendar
+            )
+
+            config.repo.deleteDependency(from, to)
+            delta.updatedSchedule.forEach { config.repo.updateSchedule(it) }
+
             call.respond(plan.toGanttDto())
         }
 

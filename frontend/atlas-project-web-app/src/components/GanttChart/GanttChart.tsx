@@ -6,8 +6,11 @@ import {
 	useProjectPlan,
 	useCreateProjectTask,
 	useChangeTaskStartDate,
+	useResizeTaskFromStart,
 	useChangeTaskEndDate,
 	useCreateDependency,
+	useChangeDependencyType,
+	useDeleteDependency,
 	useUpdateProjectTask,
 	useDeleteProjectTask,
 	useAssignTaskSchedule,
@@ -63,8 +66,11 @@ export const GanttChart = () => {
 
 	const createTaskMutation = useCreateProjectTask()
 	const changeStartMutation = useChangeTaskStartDate()
+	const resizeFromStartMutation = useResizeTaskFromStart()
 	const changeEndMutation = useChangeTaskEndDate()
 	const createDependencyMutation = useCreateDependency()
+	const changeDependencyTypeMutation = useChangeDependencyType()
+	const deleteDependencyMutation = useDeleteDependency()
 	const updateTitleMutation = useUpdateProjectTask()
 	const deleteTaskMutation = useDeleteProjectTask()
 	const assignScheduleMutation = useAssignTaskSchedule()
@@ -131,7 +137,10 @@ export const GanttChart = () => {
 						{ taskId: cmd.taskId, newPlannedEnd: cmd.newEndDate },
 						{
 							onSuccess: (newPlan) => {
-								setAllTasks(newPlan.tasks)
+								setAllTasks((prev) => prev.map((t) => {
+									const updated = newPlan.tasks.find((nt) => nt.id === t.id)
+									return updated ?? t
+								}))
 								setDependencies(newPlan.dependencies)
 							},
 							onError: (error) => {
@@ -153,7 +162,10 @@ export const GanttChart = () => {
 						{ taskId: cmd.taskId, start: cmd.start, duration: cmd.duration },
 						{
 							onSuccess: (newPlan) => {
-								setAllTasks(newPlan.tasks)
+								setAllTasks((prev) => prev.map((t) => {
+									const updated = newPlan.tasks.find((nt) => nt.id === t.id)
+									return updated ?? t
+								}))
 								setDependencies(newPlan.dependencies)
 							},
 							onError: () => {
@@ -217,7 +229,7 @@ export const GanttChart = () => {
 		],
 	)
 
-	const handleCreateDependency = useCallback((fromId: string, toId: string) => {
+	const handleCreateDependency = useCallback((fromId: string, toId: string, type: string) => {
 		if (fromId === toId) return
 		if (!planData) return
 
@@ -225,10 +237,13 @@ export const GanttChart = () => {
 			planId: planData.projectId,
 			fromTaskId: fromId,
 			toTaskId: toId,
-			type: 'FS',
+			type,
 		}, {
 			onSuccess: (newPlan) => {
-				setAllTasks(newPlan.tasks)
+				setAllTasks((prev) => prev.map((t) => {
+					const updated = newPlan.tasks.find((nt) => nt.id === t.id)
+					return updated ?? t
+				}))
 				setDependencies(newPlan.dependencies)
 			},
 			onError: (error) => {
@@ -237,11 +252,49 @@ export const GanttChart = () => {
 		})
 	}, [planData, createDependencyMutation])
 
+	const handleChangeDependencyType = useCallback((fromId: string, toId: string, newType: string) => {
+		setDependencies((prev) =>
+			prev.map((d) =>
+				d.fromTaskId === fromId && d.toTaskId === toId ? { ...d, type: newType } : d
+			),
+		)
+		changeDependencyTypeMutation.mutate(
+			{ fromTaskId: fromId, toTaskId: toId, newType },
+			{
+				onSuccess: (newPlan) => {
+					setAllTasks((prev) => prev.map((t) => {
+						const updated = newPlan.tasks.find((nt) => nt.id === t.id)
+						return updated ?? t
+					}))
+					setDependencies(newPlan.dependencies)
+				},
+				onError: () => {
+					refetchPlan()
+				},
+			},
+		)
+	}, [changeDependencyTypeMutation, refetchPlan])
+
 	const handleRemoveDependency = useCallback((fromId: string, toId: string) => {
 		setDependencies((prev) =>
 			prev.filter((d) => !(d.fromTaskId === fromId && d.toTaskId === toId)),
 		)
-	}, [])
+		deleteDependencyMutation.mutate(
+			{ fromTaskId: fromId, toTaskId: toId },
+			{
+				onSuccess: (newPlan) => {
+					setAllTasks((prev) => prev.map((t) => {
+						const updated = newPlan.tasks.find((nt) => nt.id === t.id)
+						return updated ?? t
+					}))
+					setDependencies(newPlan.dependencies)
+				},
+				onError: () => {
+					refetchPlan()
+				},
+			},
+		)
+	}, [deleteDependencyMutation, refetchPlan])
 
 	const handleMoveTask = useCallback((taskId: string, newStartDate: string) => {
 		if (!planData) return
@@ -252,6 +305,33 @@ export const GanttChart = () => {
 		if (!planData) return
 		handleUpdateTask({ type: TaskCommandType.ResizeTask, taskId: TaskId(taskId), newEndDate: LocalDate(newEndDate) })
 	}, [handleUpdateTask, planData])
+
+	const handleResizeFromStart = useCallback((taskId: string, newStartDate: string) => {
+		if (!planData) return
+		setAllTasks((prev) => {
+			prevTasksRef.current = prev
+			return prev.map((t) => {
+				if (t.id !== taskId || !t.end) return t
+				return { ...t, start: new Date(newStartDate) }
+			})
+		})
+		resizeFromStartMutation.mutate(
+			{ planId: planData.projectId, taskId, newPlannedStart: newStartDate },
+			{
+				onSuccess: (delta) => {
+					setAllTasks((prev) =>
+						prev.map((t) => {
+							const update = delta.updatedSchedules.find((u) => u.taskId === t.id)
+							return update ? { ...t, start: update.start, end: update.end } : t
+						}),
+					)
+				},
+				onError: () => {
+					setAllTasks(prevTasksRef.current)
+				},
+			},
+		)
+	}, [planData, resizeFromStartMutation])
 
 	const handleDragEnd = useCallback((event: DragEndArg) => {
 		if (event.canceled) return
@@ -412,9 +492,11 @@ export const GanttChart = () => {
 						rowHeight={ROW_HEIGHT}
 						timelineCalendar={calendar}
 						onCreateDependency={handleCreateDependency}
+						onChangeDependencyType={handleChangeDependencyType}
 						onRemoveDependency={handleRemoveDependency}
 						onMoveTask={handleMoveTask}
 						onResizeTask={handleResizeTask}
+						onResizeFromStart={handleResizeFromStart}
 					/>
 				</div>
 			</div>

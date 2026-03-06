@@ -6,6 +6,8 @@ import GanttCalendarBackground from './GanttCalendarBackground'
 import GanttTaskLayer from './GanttTaskLayer'
 import { useDroppable } from '@dnd-kit/react'
 
+export type LinkSide = 'start' | 'end'
+
 interface GanttCalendarGridProps {
 	tasks: GanttTask[]
 	dependencies: GanttDependencyDto[]
@@ -14,10 +16,12 @@ interface GanttCalendarGridProps {
 	dayWidth: number
 	rowHeight: number
 	timelineCalendar: TimelineCalendar
-	onCreateDependency: (fromId: string, toId: string) => void
+	onCreateDependency: (fromId: string, toId: string, type: string) => void
+	onChangeDependencyType: (fromId: string, toId: string, newType: string) => void
 	onRemoveDependency: (fromId: string, toId: string) => void
 	onMoveTask: (taskId: string, newStartDate: string) => void
 	onResizeTask: (taskId: string, newEndDate: string) => void
+	onResizeFromStart: (taskId: string, newStartDate: string) => void
 }
 
 export const TIMELINE_DROP_ID = 'timeline-grid'
@@ -31,12 +35,14 @@ export default function GanttCalendarGrid({
 	rowHeight,
 	timelineCalendar,
 	onCreateDependency,
+	onChangeDependencyType,
 	onRemoveDependency,
 	onMoveTask,
 	onResizeTask,
+	onResizeFromStart,
 }: GanttCalendarGridProps) {
 	const gridRef = useRef<HTMLDivElement>(null)
-	const [linkingFrom, setLinkingFrom] = useState<string | null>(null)
+	const [linkingFrom, setLinkingFrom] = useState<{ taskId: string; side: LinkSide } | null>(null)
 	const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
 
 	const { ref: dropRef, isDropTarget } = useDroppable({
@@ -73,9 +79,11 @@ export default function GanttCalendarGrid({
 				dayWidth={dayWidth}
 				rowHeight={rowHeight}
 				onCreateDependency={onCreateDependency}
+				onChangeDependencyType={onChangeDependencyType}
 				onRemoveDependency={onRemoveDependency}
 				onMoveTask={onMoveTask}
 				onResizeTask={onResizeTask}
+				onResizeFromStart={onResizeFromStart}
 				linkingFrom={linkingFrom}
 				setLinkingFrom={setLinkingFrom}
 				mousePos={mousePos}

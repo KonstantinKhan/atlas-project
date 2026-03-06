@@ -20,6 +20,8 @@ interface IAtlasProjectTaskRepo {
 
     suspend fun addDependency(predecessorId: String, successorId: String, type: String, lagDays: Int): Int
     suspend fun updateDependencyLag(predecessorId: String, successorId: String, lag: Int): Int
+    suspend fun updateDependency(predecessorId: String, successorId: String, type: String, lagDays: Int): Int
+    suspend fun deleteDependency(predecessorId: String, successorId: String): Int
 
     suspend fun deleteTask(id: String): Int
 }

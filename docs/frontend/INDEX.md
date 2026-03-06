@@ -116,9 +116,13 @@ Utils → Types
 |----------|--------|--------------|-------------|
 | `/work-calendar` | GET | useTimelineCalendar | Fetch work calendar |
 | `/project-plan` | GET | useProjectPlan | Fetch project plan |
-| `/change-start` | POST | changeTaskStartDate | Update task start |
-| `/change-end` | POST | changeTaskEndDate | Update task end |
+| `/change-start` | POST | changeTaskStartDate | Update task start (drag bar) |
+| `/change-end` | POST | changeTaskEndDate | Update task end (resize right) |
+| `/resize-from-start` | POST | resizeTaskFromStart | Resize from start (drag left edge) |
 | `/dependencies` | POST | createDependency | Create dependency |
+| `/dependencies` | PATCH | changeDependencyType | Change dependency type |
+| `/dependencies` | DELETE | deleteDependency | Delete dependency |
+| `/dependencies/recalculate` | POST | recalculateDependencies | Recalculate all dependencies |
 | `/project-tasks` | POST | createProjectTask | Create task |
 | `/project-tasks/:id` | PATCH | updateProjectTask | Update task |
 | `/project-tasks/:id` | DELETE | deleteProjectTask | Delete task |

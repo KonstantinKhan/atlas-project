@@ -201,6 +201,24 @@ data class CreateTaskInPoolCommandDto(
 
 ---
 
+### ChangeDependencyTypeCommandDto
+
+**Path:** `commands/ChangeDependencyTypeCommandDto.kt`
+
+**Purpose:** Command to change the type of an existing dependency.
+
+```kotlin
+data class ChangeDependencyTypeCommandDto(
+    val fromTaskId: String,
+    val toTaskId: String,
+    val newType: String,  // FS, SS, FF, SF
+)
+```
+
+**Usage:** Sent when changing dependency type via `DependencyActionPopover` in the UI.
+
+---
+
 ### AssignScheduleCommandDto
 
 **Path:** `commands/AssignScheduleCommandDto.kt`

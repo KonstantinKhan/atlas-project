@@ -36,7 +36,10 @@ export function useUpdateProjectTask()
 export function useDeleteProjectTask()
 export function useChangeTaskStartDate()
 export function useChangeTaskEndDate()
+export function useResizeTaskFromStart()
 export function useCreateDependency()
+export function useChangeDependencyType()
+export function useDeleteDependency()
 export function useAssignTaskSchedule()
 export function usePlanFromEnd()
 ```
@@ -234,6 +237,43 @@ UseMutationResult<ScheduleDelta, Error, {
 
 ---
 
+### useResizeTaskFromStart
+
+**Purpose:** Resize a task from its start date (left edge drag). Changes the start date while keeping the end date fixed, effectively changing the duration.
+
+**Returns:**
+```typescript
+UseMutationResult<ScheduleDelta, Error, {
+    taskId: string
+    newPlannedStart: string
+}>
+```
+
+**API Call:** `POST /resize-from-start`
+
+**Features:**
+- **Optimistic Update:** Immediately updates cache with new schedule
+- **Rollback on Error:** Reverts to previous state if server request fails
+
+**Usage Example:**
+```typescript
+const resizeFromStartMutation = useResizeTaskFromStart()
+
+resizeFromStartMutation.mutate({
+    taskId: 'task-123',
+    newPlannedStart: '2026-03-15'
+}, {
+    onSuccess: (delta) => {
+        console.log('Task resized from start:', delta)
+    },
+    onError: (error) => {
+        console.error('Failed to resize:', error)
+    }
+})
+```
+
+---
+
 ### useCreateDependency
 
 **Purpose:** Create a dependency between two tasks.
@@ -259,6 +299,83 @@ createDepMutation.mutate({
     fromTaskId: 'task-1',
     toTaskId: 'task-2',
     type: 'FS' // Finish-to-Start
+})
+```
+
+---
+
+### useChangeDependencyType
+
+**Purpose:** Change the type of an existing dependency (e.g., from FS to SS).
+
+**Returns:**
+```typescript
+UseMutationResult<GanttProjectPlan, Error, {
+    fromTaskId: string
+    toTaskId: string
+    newType: string  // FS, SS, FF, SF
+}>
+```
+
+**API Call:** `PATCH /dependencies`
+
+**Features:**
+- **Optimistic Update:** Immediately updates cache with new plan
+- **Rollback on Error:** Reverts to previous state if server request fails
+
+**Usage Example:**
+```typescript
+const changeTypeMutation = useChangeDependencyType()
+
+changeTypeMutation.mutate({
+    fromTaskId: 'task-1',
+    toTaskId: 'task-2',
+    newType: 'SS' // Change to Start-to-Start
+}, {
+    onSuccess: (newPlan) => {
+        console.log('Dependency type changed:', newPlan)
+    },
+    onError: (error) => {
+        console.error('Failed to change type:', error)
+    }
+})
+```
+
+---
+
+### useDeleteDependency
+
+**Purpose:** Remove a dependency between two tasks.
+
+**Returns:**
+```typescript
+UseMutationResult<GanttProjectPlan, Error, {
+    fromTaskId: string
+    toTaskId: string
+}>
+```
+
+**API Call:** `DELETE /dependencies?from={fromTaskId}&to={toTaskId}`
+
+**Features:**
+- **Optimistic Update:** Immediately updates cache with new plan
+- **Recalculation:** Successor tasks may move earlier when constraint is removed
+- **Rollback on Error:** Reverts to previous state if server request fails
+
+**Usage Example:**
+```typescript
+const deleteDepMutation = useDeleteDependency()
+
+deleteDepMutation.mutate({
+    fromTaskId: 'task-1',
+    toTaskId: 'task-2'
+}, {
+    onSuccess: (newPlan) => {
+        console.log('Dependency removed:', newPlan)
+    },
+    onError: (error) => {
+        console.error('Failed to delete dependency:', error)
+    }
 })
 ```
 

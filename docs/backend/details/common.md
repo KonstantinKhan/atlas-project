@@ -208,6 +208,98 @@ fun calculateConstrainedStart(
 
 ---
 
+#### resizeTaskFromStart()
+
+**Purpose:** Resize a task from its start date while keeping the end date fixed. This changes the task duration.
+
+**Signature:**
+```kotlin
+fun resizeTaskFromStart(
+    taskId: TaskId,
+    newStart: LocalDate,
+    calendar: TimelineCalendar
+): ScheduleDelta
+```
+
+**Algorithm:**
+1. Get task's current end date
+2. Calculate new duration: `duration = end - newStart`
+3. Update task duration in domain model
+4. Update task schedule with new start date
+5. Apply dependency constraints (FS/SS clamping)
+6. Recalculate successor schedules if needed
+7. Return `ScheduleDelta` with updated schedules
+
+**Features:**
+- Preserves end date while changing start date
+- Updates task duration to match new span
+- Respects dependency constraints (clamps to FS/SS constraints)
+- Triggers cascade recalculation for dependent tasks
+
+**Use Case:** Dragging the left edge of a task bar in the Gantt chart.
+
+---
+
+#### changeDependencyType()
+
+**Purpose:** Change the type of an existing dependency (e.g., from FS to SS) and recalculate affected schedules.
+
+**Signature:**
+```kotlin
+fun changeDependencyType(
+    predecessorId: TaskId,
+    successorId: TaskId,
+    newType: DependencyType,
+    calendar: TimelineCalendar
+): ScheduleDelta
+```
+
+**Algorithm:**
+1. Find existing dependency between predecessor and successor
+2. Update dependency type
+3. Recalculate lag based on new type (default: SF→1, others→0)
+4. Recalculate successor's constrained start using `calculateConstrainedStart()`
+5. Cascade recalculation to all dependent tasks
+6. Return `ScheduleDelta` with updated schedules
+
+**Features:**
+- Updates dependency type in domain model
+- Recalculates lag based on new type
+- Triggers cascade recalculation for all affected tasks
+- Returns complete schedule delta
+
+**Use Case:** Changing dependency type via `DependencyActionPopover` in the UI.
+
+---
+
+#### removeDependency()
+
+**Purpose:** Remove a dependency between two tasks and recalculate affected schedules.
+
+**Signature:**
+```kotlin
+fun removeDependency(
+    predecessorId: TaskId,
+    successorId: TaskId,
+    calendar: TimelineCalendar
+): ScheduleDelta
+```
+
+**Algorithm:**
+1. Find and remove dependency from list
+2. Recalculate successor's start date (may move earlier)
+3. Cascade recalculation to all tasks that depended on successor
+4. Return `ScheduleDelta` with updated schedules
+
+**Features:**
+- Removes dependency constraint
+- Successor may move to earlier start date
+- Cascade recalculation propagates changes
+
+**Use Case:** Deleting a dependency via the UI.
+
+---
+
 ---
 
 ### ProjectDate
@@ -301,6 +393,9 @@ interface IAtlasProjectTaskRepo {
     // Dependency operations
     fun addDependency(predecessorId: String, successorId: String,
                       type: String, lagDays: Int)
+    fun updateDependency(predecessorId: String, successorId: String,
+                         type: String, lagDays: Int)
+    fun deleteDependency(predecessorId: String, successorId: String)
 
     // Project plan
     fun projectPlan(): ProjectPlan

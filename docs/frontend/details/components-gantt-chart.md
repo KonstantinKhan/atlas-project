@@ -1,8 +1,8 @@
 # GanttChart Components - Detail
 
-**Path:** `/frontend/atlas-project-web-app/src/components/GanttChart/`  
-**Module:** [Frontend Index](../INDEX.md)  
-**Last Updated:** 2026-03-03
+**Path:** `/frontend/atlas-project-web-app/src/components/GanttChart/`
+**Module:** [Frontend Index](../INDEX.md)
+**Last Updated:** 2026-03-06
 
 ## Purpose
 
@@ -21,6 +21,9 @@ The GanttChart module provides the main visualization component for project task
 | `GanttBar.tsx` | Individual task bar component |
 | `GanttCalendarBackground.tsx` | Calendar background with working day indicators |
 | `ConfirmDeleteModal.tsx` | Modal dialog for task deletion confirmation |
+| `DependencyActionPopover.tsx` | Popover for dependency actions (change type, delete) |
+| `DependencyTypePopover.tsx` | Popover for selecting dependency type during creation |
+| `GanttChart.styles.ts` | Shared style constants |
 | `index.ts` | Module exports |
 
 ---
@@ -317,6 +320,8 @@ export { GanttTaskLayer } from './GanttTaskLayer'
 export { GanttBar } from './GanttBar'
 export { GanttCalendarBackground } from './GanttCalendarBackground'
 export { ConfirmDeleteModal } from './ConfirmDeleteModal'
+export { DependencyActionPopover } from './DependencyActionPopover'
+export { DependencyTypePopover } from './DependencyTypePopover'
 ```
 
 ---
@@ -363,6 +368,108 @@ interface ConfirmDeleteModalProps {
 
 **Imported by:**
 - `GanttChart.tsx`
+
+---
+
+## DependencyActionPopover.tsx
+
+### Purpose
+
+Popover component that appears when clicking on a dependency arrow. Provides actions to change the dependency type or delete the dependency.
+
+### Props
+
+```typescript
+interface DependencyActionPopoverProps {
+    fromTaskId: string
+    toTaskId: string
+    currentType: string  // FS, SS, FF, SF
+    position: { x: number, y: number }
+    onChangeType: (fromId: string, toId: string, newType: string) => void
+    onDelete: (fromId: string, toId: string) => void
+    onClose: () => void
+}
+```
+
+### Features
+
+- **Dependency Type Buttons:** Four buttons for FS, SS, FF, SF types
+- **Delete Button:** Red delete button to remove the dependency
+- **Positioned Popover:** Appears near the clicked dependency arrow
+- **Click-Outside Dismiss:** Closes when clicking outside the popover
+- **Escape Key Dismiss:** Closes on Escape key press
+
+### Usage Example
+
+```tsx
+<DependencyActionPopover
+    fromTaskId={clickedDep.fromTaskId}
+    toTaskId={clickedDep.toTaskId}
+    currentType={clickedDep.type}
+    position={popoverPosition}
+    onChangeType={handleChangeDependencyType}
+    onDelete={handleDeleteDependency}
+    onClose={() => setClickedDep(null)}
+/>
+```
+
+### Dependencies
+
+**Imports:**
+- React hooks: `useEffect`, `useRef`
+- Icons from `lucide-react`
+- Tailwind for styling
+
+**Imported by:**
+- `GanttTaskLayer.tsx`
+
+---
+
+## DependencyTypePopover.tsx
+
+### Purpose
+
+Popover component for selecting dependency type when creating a new dependency via gesture (drag from one task to another).
+
+### Props
+
+```typescript
+interface DependencyTypePopoverProps {
+    fromTaskId: string
+    toTaskId: string
+    position: { x: number, y: number }
+    onSelectType: (fromId: string, toId: string, type: string) => void
+    onCancel: () => void
+}
+```
+
+### Features
+
+- **Type Selection:** Four buttons for FS, SS, FF, SF types
+- **Gesture-Based Creation:** Appears after dragging from source task to target task
+- **Positioned Popover:** Appears near the target task
+- **Click-Outside Dismiss:** Closes when clicking outside
+
+### Usage Example
+
+```tsx
+<DependencyTypePopover
+    fromTaskId={dragStartTaskId}
+    toTaskId={dragEndTaskId}
+    position={popoverPosition}
+    onSelectType={handleCreateDependency}
+    onCancel={() => setDependencyCreation(null)}
+/>
+```
+
+### Dependencies
+
+**Imports:**
+- React hooks: `useEffect`, `useRef`
+- Tailwind for styling
+
+**Imported by:**
+- `GanttTaskLayer.tsx`
 
 ---
 

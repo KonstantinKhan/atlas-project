@@ -81,12 +81,15 @@ ktor-app
 
 | Layer | Technology | Version |
 |-------|------------|---------|
-| Language | Kotlin | (multiplatform) |
-| HTTP Server | Ktor | Latest |
+| Language | Kotlin | 2.3.10 |
+| HTTP Server | Ktor | 3.4.0 |
 | Build Tool | Gradle Kotlin DSL | Latest |
-| Database | PostgreSQL | Via JDBC |
-| Date/Time | kotlinx-datetime | Latest |
-| Serialization | kotlinx.serialization | Latest |
+| Database | PostgreSQL | 42.7.9 (JDBC driver) |
+| ORM | Exposed | 0.61.0 |
+| Migrations | Flyway | 10.20.1 |
+| Date/Time | kotlinx-datetime | 0.7.1 |
+| Serialization | kotlinx.serialization | 1.10.0 |
+| Coroutines | kotlinx-coroutines | 1.10.2 |
 
 ## Module Structure
 

@@ -57,6 +57,20 @@ export async function changeTaskStartDate(
 	return ScheduleDeltaSchema.parse(await res.json())
 }
 
+export async function resizeTaskFromStart(
+	planId: string,
+	taskId: string,
+	newPlannedStart: string,
+): Promise<ScheduleDelta> {
+	const res = await fetch(`${API_BASE_URL}/resize-from-start`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ planId, taskId, newPlannedStart }),
+	})
+	if (!res.ok) throw new Error('Failed to resize task from start')
+	return ScheduleDeltaSchema.parse(await res.json())
+}
+
 export async function changeTaskEndDate(
 	planId: string,
 	taskId: string,
@@ -113,6 +127,32 @@ export async function planTaskFromEnd(
 		body: JSON.stringify({ taskId, newPlannedEnd }),
 	})
 	if (!res.ok) throw new Error('Failed to plan task from end')
+	return GanttProjectPlanSchema.parse(await res.json())
+}
+
+export async function deleteDependency(
+	fromTaskId: string,
+	toTaskId: string,
+): Promise<GanttProjectPlan> {
+	const res = await fetch(
+		`${API_BASE_URL}/dependencies?from=${encodeURIComponent(fromTaskId)}&to=${encodeURIComponent(toTaskId)}`,
+		{ method: 'DELETE' },
+	)
+	if (!res.ok) throw new Error('Failed to delete dependency')
+	return GanttProjectPlanSchema.parse(await res.json())
+}
+
+export async function changeDependencyType(
+	fromTaskId: string,
+	toTaskId: string,
+	newType: string,
+): Promise<GanttProjectPlan> {
+	const res = await fetch(`${API_BASE_URL}/dependencies`, {
+		method: 'PATCH',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ fromTaskId, toTaskId, newType }),
+	})
+	if (!res.ok) throw new Error('Failed to change dependency type')
 	return GanttProjectPlanSchema.parse(await res.json())
 }
 
