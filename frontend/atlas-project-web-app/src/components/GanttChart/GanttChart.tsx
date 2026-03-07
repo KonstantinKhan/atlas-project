@@ -83,7 +83,14 @@ export const GanttChart = () => {
 
 	useEffect(() => {
 		if (planData) {
-			setAllTasks(planData.tasks)
+			setAllTasks((prev) => {
+				if (prev.length === 0) return planData.tasks
+				const updatedById = new Map(planData.tasks.map((t) => [t.id, t]))
+				const merged = prev.map((t) => updatedById.get(t.id) ?? t).filter((t) => updatedById.has(t.id))
+				const existingIds = new Set(prev.map((t) => t.id))
+				const added = planData.tasks.filter((t) => !existingIds.has(t.id))
+				return [...merged, ...added]
+			})
 			setDependencies(planData.dependencies)
 		}
 	}, [planData])

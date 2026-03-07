@@ -94,7 +94,7 @@ class RoutingTest {
             configureSerialization()
             configureHTTP()
             configureStatusPages()
-            configureRouting(config)
+            configureRoutingOld(config)
         }
         block()
     }

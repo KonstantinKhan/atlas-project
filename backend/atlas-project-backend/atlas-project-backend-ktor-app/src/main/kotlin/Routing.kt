@@ -33,16 +33,16 @@ import io.ktor.server.routing.patch
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 
-fun Application.configureRouting(config: AppConfig) {
+fun Application.configureRoutingOld(config: AppConfig) {
     routing {
         get("/work-calendar") {
             val timelineCalendar = config.calendarService.current()
             call.respond(timelineCalendar.toTransport())
         }
-        get("/project-plan") {
-            val plan = config.repo.projectPlan()
-            call.respond(plan.toGanttDto())
-        }
+//        get("/project-plan") {
+//            val plan = config.repo.projectPlan()
+//            call.respond(plan.toGanttDto())
+//        }
 
         post("/change-start") {
             val request = call.receive<ChangeTaskStartDateCommandDto>()
