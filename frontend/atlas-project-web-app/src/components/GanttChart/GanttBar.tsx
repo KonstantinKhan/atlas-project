@@ -32,7 +32,8 @@ export default function GanttBar({
 	const startOffset = getDayOffset(task.start, rangeStart)
 	const endOffset = getDayOffset(task.end, rangeStart)
 	const left = startOffset * dayWidth
-	const baseWidth = (endOffset - startOffset + 1) * dayWidth
+	const durationDays = endOffset - startOffset + 1
+	const baseWidth = durationDays * dayWidth
 	const width = previewWidthPx ?? baseWidth
 
 	return (
@@ -50,8 +51,12 @@ export default function GanttBar({
 				onDragStart?.(task.id, e)
 			}}
 		>
-			<span className="text-white text-xs truncate px-2 font-medium">
+			<span className="text-white text-xs truncate px-2 font-medium flex-1">
 				{task.title}
+			</span>
+			{/* E4: Duration indicator */}
+			<span className="text-white/70 text-[10px] pr-1.5 shrink-0 tabular-nums">
+				{durationDays}д
 			</span>
 			{/* Resize handle — left edge */}
 			{onResizeStartLeft && (

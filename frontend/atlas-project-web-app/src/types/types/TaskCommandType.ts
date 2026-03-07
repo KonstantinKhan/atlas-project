@@ -4,6 +4,8 @@ export const TaskCommandType = {
 	ChangeStartDate: 'changeStartDate',
 	ChangeEndDate: 'changeEndDate',
 	UpdateTitle: 'updateTitle',
+	UpdateDescription: 'updateDescription',
+	ChangeStatus: 'changeStatus',
 	DeleteTask: 'deleteTask',
 	PlanFromEnd: 'planFromEnd',
 	AssignSchedule: 'assignSchedule',

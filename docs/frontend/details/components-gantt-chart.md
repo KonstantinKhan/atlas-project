@@ -23,6 +23,7 @@ The GanttChart module provides the main visualization component for project task
 | `ConfirmDeleteModal.tsx` | Modal dialog for task deletion confirmation |
 | `DependencyActionPopover.tsx` | Popover for dependency actions (change type, delete) |
 | `DependencyTypePopover.tsx` | Popover for selecting dependency type during creation |
+| `Toast.tsx` | Toast notification for error messages |
 | `GanttChart.styles.ts` | Shared style constants |
 | `index.ts` | Module exports |
 

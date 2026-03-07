@@ -37,7 +37,9 @@ export function useUpdateProjectTask() {
 				return {
 					...old,
 					tasks: old.tasks.map((t) =>
-						t.id === updatedTask.id ? { ...t, title: updatedTask.title } : t,
+						t.id === updatedTask.id
+							? { ...t, title: updatedTask.title, description: updatedTask.description, status: updatedTask.status }
+							: t,
 					),
 				}
 			})

@@ -37,6 +37,14 @@ const statusColors: Record<ProjectTaskStatus, string> = {
 	[ProjectTaskStatus.BLOCKED]: 'bg-red-400 dark:bg-red-600',
 }
 
+const statusLabels: Record<ProjectTaskStatus, string> = {
+	[ProjectTaskStatus.EMPTY]: 'Пусто',
+	[ProjectTaskStatus.BACKLOG]: 'Бэклог',
+	[ProjectTaskStatus.IN_PROGRESS]: 'В работе',
+	[ProjectTaskStatus.DONE]: 'Готово',
+	[ProjectTaskStatus.BLOCKED]: 'Заблокировано',
+}
+
 export default function GanttTaskRow({
 	task,
 	rowHeight,
@@ -44,9 +52,12 @@ export default function GanttTaskRow({
 }: GanttTaskRowProps) {
 	const [isEditing, setIsEditing] = useState(false)
 	const [editTitle, setEditTitle] = useState(task.title)
+	const [editDescription, setEditDescription] = useState(task.description)
+	const [showStatusMenu, setShowStatusMenu] = useState(false)
 	const startCalRef = useRef<Calendar>(null)
 	const endCalRef = useRef<Calendar>(null)
 	const elementRef = useRef<HTMLDivElement>(null)
+	const statusMenuRef = useRef<HTMLDivElement>(null)
 
 	const isPoolTask = !task.start && !task.end
 
@@ -69,6 +80,9 @@ export default function GanttTaskRow({
 		} else {
 			setEditTitle(task.title)
 		}
+		if (editDescription !== task.description) {
+			onUpdateTask({ type: TaskCommandType.UpdateDescription, taskId: TaskId(task.id), newDescription: editDescription })
+		}
 	}
 
 	const handleStartDateChange = (value: Date | null | undefined) => {
@@ -88,6 +102,13 @@ export default function GanttTaskRow({
 		}
 	}
 
+	const handleStatusChange = (newStatus: ProjectTaskStatus) => {
+		setShowStatusMenu(false)
+		if (newStatus !== task.status) {
+			onUpdateTask({ type: TaskCommandType.ChangeStatus, taskId: TaskId(task.id), newStatus })
+		}
+	}
+
 	return (
 		<div
 			ref={(node) => {
@@ -99,35 +120,93 @@ export default function GanttTaskRow({
 			} ${isPoolTask ? 'cursor-grab active:cursor-grabbing' : ''}`}
 			style={{ height: rowHeight }}
 		>
-			<div
-				className={`w-2.5 h-2.5 rounded-full shrink-0 ${statusColors[task.status]}`}
-			/>
+			{/* E1: Status dot with dropdown */}
+			<div className="relative shrink-0">
+				<div
+					className={`w-2.5 h-2.5 rounded-full cursor-pointer ${statusColors[task.status]}`}
+					onClick={() => setShowStatusMenu(!showStatusMenu)}
+					title={statusLabels[task.status]}
+				/>
+				{showStatusMenu && (
+					<div
+						ref={statusMenuRef}
+						className="absolute left-0 top-5 z-30 bg-white dark:bg-zinc-900 rounded-md shadow-lg border border-gray-200 dark:border-zinc-700 py-1 min-w-36"
+						onMouseLeave={() => setShowStatusMenu(false)}
+					>
+						{Object.values(ProjectTaskStatus).map((s) => (
+							<button
+								key={s}
+								onClick={() => handleStatusChange(s)}
+								className={`flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-zinc-800 text-left ${
+									s === task.status ? 'font-semibold' : ''
+								}`}
+							>
+								<div className={`w-2 h-2 rounded-full ${statusColors[s]}`} />
+								<span className="text-gray-700 dark:text-zinc-300">{statusLabels[s]}</span>
+							</button>
+						))}
+					</div>
+				)}
+			</div>
 
 			<div className="flex-1 min-w-0">
 				{isEditing ? (
-					<input
-						type="text"
-						value={editTitle}
-						onChange={(e) => setEditTitle(e.target.value)}
-						onBlur={handleTitleSubmit}
-						onKeyDown={(e) => {
-							if (e.key === 'Enter') handleTitleSubmit()
-							if (e.key === 'Escape') {
-								setEditTitle(task.title)
-								setIsEditing(false)
-							}
-						}}
-						className="w-full text-sm bg-transparent border-b border-blue-500 outline-none text-gray-900 dark:text-white py-0.5"
-						autoFocus
-					/>
+					<div className="flex flex-col gap-0.5">
+						<input
+							type="text"
+							value={editTitle}
+							onChange={(e) => setEditTitle(e.target.value)}
+							onBlur={handleTitleSubmit}
+							onKeyDown={(e) => {
+								if (e.key === 'Enter') handleTitleSubmit()
+								if (e.key === 'Escape') {
+									setEditTitle(task.title)
+									setEditDescription(task.description)
+									setIsEditing(false)
+								}
+							}}
+							className="w-full text-sm bg-transparent border-b border-blue-500 outline-none text-gray-900 dark:text-white py-0.5"
+							autoFocus
+						/>
+						{/* E2: Description inline editing */}
+						<input
+							type="text"
+							value={editDescription}
+							onChange={(e) => setEditDescription(e.target.value)}
+							onBlur={handleTitleSubmit}
+							onKeyDown={(e) => {
+								if (e.key === 'Enter') handleTitleSubmit()
+								if (e.key === 'Escape') {
+									setEditTitle(task.title)
+									setEditDescription(task.description)
+									setIsEditing(false)
+								}
+							}}
+							placeholder="Описание..."
+							className="w-full text-xs bg-transparent border-b border-gray-300 dark:border-zinc-600 outline-none text-gray-500 dark:text-zinc-400 py-0.5"
+						/>
+					</div>
 				) : (
-					<span
-						className="text-sm text-gray-900 dark:text-white truncate block cursor-pointer hover:text-blue-600 dark:hover:text-blue-400"
-						onClick={() => setIsEditing(true)}
-						title={task.title}
+					<div
+						className="cursor-pointer"
+						onClick={() => {
+							setEditTitle(task.title)
+							setEditDescription(task.description)
+							setIsEditing(true)
+						}}
 					>
-						{task.title || 'Без названия'}
-					</span>
+						<span
+							className="text-sm text-gray-900 dark:text-white truncate block hover:text-blue-600 dark:hover:text-blue-400"
+							title={task.title}
+						>
+							{task.title || 'Без названия'}
+						</span>
+						{task.description && (
+							<span className="text-xs text-gray-400 dark:text-zinc-500 truncate block">
+								{task.description}
+							</span>
+						)}
+					</div>
 				)}
 			</div>
 

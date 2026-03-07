@@ -42,6 +42,7 @@ fun ProjectPlan.toGanttDto() = GanttProjectPlanDto(
         GanttTaskDto(
             id = task.id.asString(),
             title = task.title.value,
+            description = task.description.value,
             start = startDate,
             end = endDate,
             status = ProjectTaskStatus.valueOf(task.status.name)

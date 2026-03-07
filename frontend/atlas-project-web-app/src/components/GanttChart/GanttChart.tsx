@@ -27,6 +27,7 @@ import GanttTaskList from './GanttTaskList'
 import GanttCalendarHeader from './GanttCalendarHeader'
 import GanttCalendarGrid, { TIMELINE_DROP_ID } from './GanttCalendarGrid'
 import ConfirmDeleteModal from './ConfirmDeleteModal'
+import Toast from './Toast'
 import { TaskCommandType } from '@/types/types/TaskCommandType'
 import { TaskId } from '@/utils/types/TaskId'
 import { LocalDate } from '@/utils/types/LocalDate'
@@ -77,6 +78,7 @@ export const GanttChart = () => {
 	const planFromEndMutation = usePlanFromEnd()
 
 	const [pendingDeleteTaskId, setPendingDeleteTaskId] = useState<string | null>(null)
+	const [toastMessage, setToastMessage] = useState<string | null>(null)
 	const leftRef = useRef<HTMLDivElement>(null)
 	const rightRef = useRef<HTMLDivElement>(null)
 	const isSyncing = useRef(false)
@@ -104,8 +106,8 @@ export const GanttChart = () => {
 			switch (cmd.type) {
 				case TaskCommandType.CreateTaskInPool:
 					createTaskMutation.mutate({ title: cmd.title }, {
-						onError: (error) => {
-							console.error('[GanttChart] Failed to create task:', error)
+						onError: () => {
+							setToastMessage('Не удалось создать задачу')
 						},
 					})
 					break
@@ -130,8 +132,34 @@ export const GanttChart = () => {
 					updateTitleMutation.mutate(
 						{ id: cmd.taskId, updates: { title: cmd.newTitle } },
 						{
-							onError: (error) => {
-								console.error('[GanttChart] Failed to update task title:', error)
+							onError: () => {
+								setToastMessage('Не удалось обновить название задачи')
+							},
+						},
+					)
+					break
+				case TaskCommandType.UpdateDescription:
+					setAllTasks((prev) =>
+						prev.map((t) => (t.id === cmd.taskId ? { ...t, description: cmd.newDescription } : t)),
+					)
+					updateTitleMutation.mutate(
+						{ id: cmd.taskId, updates: { description: cmd.newDescription } },
+						{
+							onError: () => {
+								setToastMessage('Не удалось обновить описание задачи')
+							},
+						},
+					)
+					break
+				case TaskCommandType.ChangeStatus:
+					setAllTasks((prev) =>
+						prev.map((t) => (t.id === cmd.taskId ? { ...t, status: cmd.newStatus } : t)),
+					)
+					updateTitleMutation.mutate(
+						{ id: cmd.taskId, updates: { status: cmd.newStatus } },
+						{
+							onError: () => {
+								setToastMessage('Не удалось обновить статус задачи')
 							},
 						},
 					)
@@ -150,8 +178,8 @@ export const GanttChart = () => {
 								}))
 								setDependencies(newPlan.dependencies)
 							},
-							onError: (error) => {
-								console.error('[GanttChart] Failed to plan from end:', error)
+							onError: () => {
+								setToastMessage('Не удалось запланировать задачу от конца')
 							},
 						},
 					)
@@ -177,6 +205,7 @@ export const GanttChart = () => {
 							},
 							onError: () => {
 								setAllTasks(prevTasksRef.current)
+								setToastMessage('Не удалось назначить расписание')
 							},
 						},
 					)
@@ -199,6 +228,7 @@ export const GanttChart = () => {
 						{
 							onError: () => {
 								setAllTasks(prevTasksRef.current)
+								setToastMessage('Не удалось переместить задачу')
 							},
 						},
 					)
@@ -215,6 +245,7 @@ export const GanttChart = () => {
 						{
 							onError: () => {
 								setAllTasks(prevTasksRef.current)
+								setToastMessage('Не удалось изменить длительность задачи')
 							},
 						},
 					)
@@ -335,6 +366,7 @@ export const GanttChart = () => {
 				},
 				onError: () => {
 					setAllTasks(prevTasksRef.current)
+					setToastMessage('Не удалось изменить начало задачи')
 				},
 			},
 		)
@@ -454,6 +486,9 @@ export const GanttChart = () => {
 
 	return (
 		<DragDropProvider onDragEnd={handleDragEnd}>
+			{toastMessage && (
+				<Toast message={toastMessage} onClose={() => setToastMessage(null)} />
+			)}
 			{pendingDeleteTask && (
 				<ConfirmDeleteModal
 					taskTitle={pendingDeleteTask.title}

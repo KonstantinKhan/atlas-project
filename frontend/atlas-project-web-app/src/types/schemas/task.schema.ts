@@ -32,6 +32,7 @@ export const ScheduledTaskSchema = TaskSchema.extend({
 export const GanttTaskSchema = z.object({
 	id: z.string(),
 	title: z.string(),
+	description: z.string(),
 	start: z.string().transform((v) => new Date(v)).nullable().optional(),
 	end: z.string().transform((v) => new Date(v)).nullable().optional(),
 	status: projectTaskStatus,
