@@ -17,6 +17,7 @@ import {
 	usePlanFromEnd,
 } from '@/hooks/useProjectTasks'
 import { GanttTask, GanttDependencyDto, TaskCommand } from '@/types'
+import { ProjectTaskStatus } from '@/types/generated/enums/project-task-status.enum'
 import {
 	getCalendarRange,
 	getDaysInRange,
@@ -77,7 +78,9 @@ export const GanttChart = () => {
 	const assignScheduleMutation = useAssignTaskSchedule()
 	const planFromEndMutation = usePlanFromEnd()
 
-	const [pendingDeleteTaskId, setPendingDeleteTaskId] = useState<string | null>(null)
+	const [pendingDeleteTaskId, setPendingDeleteTaskId] = useState<string | null>(
+		null,
+	)
 	const [toastMessage, setToastMessage] = useState<string | null>(null)
 	const leftRef = useRef<HTMLDivElement>(null)
 	const rightRef = useRef<HTMLDivElement>(null)
@@ -88,7 +91,9 @@ export const GanttChart = () => {
 			setAllTasks((prev) => {
 				if (prev.length === 0) return planData.tasks
 				const updatedById = new Map(planData.tasks.map((t) => [t.id, t]))
-				const merged = prev.map((t) => updatedById.get(t.id) ?? t).filter((t) => updatedById.has(t.id))
+				const merged = prev
+					.map((t) => updatedById.get(t.id) ?? t)
+					.filter((t) => updatedById.has(t.id))
 				const existingIds = new Set(prev.map((t) => t.id))
 				const added = planData.tasks.filter((t) => !existingIds.has(t.id))
 				return [...merged, ...added]
@@ -97,20 +102,74 @@ export const GanttChart = () => {
 		}
 	}, [planData])
 
+	// Helper: синхронизация состояния после успешной мутации
+	const syncPlanState = useCallback(
+		(newPlan: { tasks: GanttTask[]; dependencies: GanttDependencyDto[] }) => {
+			setAllTasks((prev) =>
+				prev.map((t) => {
+					const updated = newPlan.tasks.find((nt) => nt.id === t.id)
+					return updated ?? t
+				}),
+			)
+			setDependencies(newPlan.dependencies)
+		},
+		[],
+	)
+
+	// Helper: единый паттерн для оптимистических обновлений полей
+	const handleFieldUpdate = useCallback(
+		(
+			taskId: string,
+			updates: Partial<{
+				title: string
+				description: string
+				status: ProjectTaskStatus
+			}>,
+			errorMessage: string,
+		) => {
+			setAllTasks((prev) =>
+				prev.map((t) => (t.id === taskId ? { ...t, ...updates } : t)),
+			)
+			updateTitleMutation.mutate(
+				{ id: taskId, updates },
+				{ onError: () => setToastMessage(errorMessage) },
+			)
+		},
+		[updateTitleMutation],
+	)
+
+	// Helper: оптимистическое обновление с откатом при ошибке
+	const optimisticMutation = useCallback(
+		(
+			optimisticUpdate: (prev: GanttTask[]) => GanttTask[],
+			mutationFn: () => void,
+		) => {
+			setAllTasks((prev) => {
+				prevTasksRef.current = prev
+				return optimisticUpdate(prev)
+			})
+			mutationFn()
+		},
+		[],
+	)
+
 	const handleUpdateTask = useCallback(
 		(cmd: TaskCommand) => {
 			if (!planData) {
 				throw new Error('handleUpdateTask called without planData')
 			}
 
+			// Обработчики для каждого типа команд
 			switch (cmd.type) {
 				case TaskCommandType.CreateTaskInPool:
-					createTaskMutation.mutate({ title: cmd.title }, {
-						onError: () => {
-							setToastMessage('Не удалось создать задачу')
+					createTaskMutation.mutate(
+						{ title: cmd.title },
+						{
+							onError: () => setToastMessage('Не удалось создать задачу'),
 						},
-					})
+					)
 					break
+
 				case TaskCommandType.ChangeStartDate:
 					changeStartMutation.mutate({
 						planId: planData.projectId,
@@ -118,6 +177,7 @@ export const GanttChart = () => {
 						newPlannedStart: cmd.newStartDate,
 					})
 					break
+
 				case TaskCommandType.ChangeEndDate:
 					changeEndMutation.mutate({
 						planId: planData.projectId,
@@ -125,282 +185,320 @@ export const GanttChart = () => {
 						newPlannedEnd: cmd.newEndDate,
 					})
 					break
+
 				case TaskCommandType.UpdateTitle:
-					setAllTasks((prev) =>
-						prev.map((t) => (t.id === cmd.taskId ? { ...t, title: cmd.newTitle } : t)),
-					)
-					updateTitleMutation.mutate(
-						{ id: cmd.taskId, updates: { title: cmd.newTitle } },
-						{
-							onError: () => {
-								setToastMessage('Не удалось обновить название задачи')
-							},
-						},
+					handleFieldUpdate(
+						cmd.taskId,
+						{ title: cmd.newTitle },
+						'Не удалось обновить название задачи',
 					)
 					break
+
 				case TaskCommandType.UpdateDescription:
-					setAllTasks((prev) =>
-						prev.map((t) => (t.id === cmd.taskId ? { ...t, description: cmd.newDescription } : t)),
-					)
-					updateTitleMutation.mutate(
-						{ id: cmd.taskId, updates: { description: cmd.newDescription } },
-						{
-							onError: () => {
-								setToastMessage('Не удалось обновить описание задачи')
-							},
-						},
+					handleFieldUpdate(
+						cmd.taskId,
+						{ description: cmd.newDescription },
+						'Не удалось обновить описание задачи',
 					)
 					break
+
 				case TaskCommandType.ChangeStatus:
-					setAllTasks((prev) =>
-						prev.map((t) => (t.id === cmd.taskId ? { ...t, status: cmd.newStatus } : t)),
-					)
-					updateTitleMutation.mutate(
-						{ id: cmd.taskId, updates: { status: cmd.newStatus } },
-						{
-							onError: () => {
-								setToastMessage('Не удалось обновить статус задачи')
-							},
-						},
+					handleFieldUpdate(
+						cmd.taskId,
+						{ status: cmd.newStatus },
+						'Не удалось обновить статус задачи',
 					)
 					break
+
 				case TaskCommandType.DeleteTask:
 					setPendingDeleteTaskId(cmd.taskId)
 					break
+
 				case TaskCommandType.PlanFromEnd:
 					planFromEndMutation.mutate(
 						{ taskId: cmd.taskId, newPlannedEnd: cmd.newEndDate },
 						{
-							onSuccess: (newPlan) => {
-								setAllTasks((prev) => prev.map((t) => {
-									const updated = newPlan.tasks.find((nt) => nt.id === t.id)
-									return updated ?? t
-								}))
-								setDependencies(newPlan.dependencies)
-							},
-							onError: () => {
-								setToastMessage('Не удалось запланировать задачу от конца')
-							},
+							onSuccess: syncPlanState,
+							onError: () =>
+								setToastMessage('Не удалось запланировать задачу от конца'),
 						},
 					)
 					break
-				case TaskCommandType.AssignSchedule:
-					setAllTasks((prev) => {
-						prevTasksRef.current = prev
-						return prev.map((t) =>
+
+				case TaskCommandType.AssignSchedule: {
+					const optimisticUpdate = (prev: GanttTask[]) =>
+						prev.map((t) =>
 							t.id === cmd.taskId
-								? { ...t, start: new Date(cmd.start), end: addDays(new Date(cmd.start), cmd.duration) }
+								? {
+										...t,
+										start: new Date(cmd.start),
+										end: addDays(new Date(cmd.start), cmd.duration),
+									}
 								: t,
 						)
-					})
-					assignScheduleMutation.mutate(
-						{ taskId: cmd.taskId, start: cmd.start, duration: cmd.duration },
-						{
-							onSuccess: (newPlan) => {
-								setAllTasks((prev) => prev.map((t) => {
-									const updated = newPlan.tasks.find((nt) => nt.id === t.id)
-									return updated ?? t
-								}))
-								setDependencies(newPlan.dependencies)
+					optimisticMutation(optimisticUpdate, () =>
+						assignScheduleMutation.mutate(
+							{ taskId: cmd.taskId, start: cmd.start, duration: cmd.duration },
+							{
+								onSuccess: syncPlanState,
+								onError: () =>
+									setToastMessage('Не удалось назначить расписание'),
 							},
-							onError: () => {
-								setAllTasks(prevTasksRef.current)
-								setToastMessage('Не удалось назначить расписание')
-							},
-						},
+						),
 					)
 					break
-				case TaskCommandType.MoveTask:
-					setAllTasks((prev) => {
-						prevTasksRef.current = prev
-						return prev.map((t) => {
+				}
+
+				case TaskCommandType.MoveTask: {
+					const optimisticUpdate = (prev: GanttTask[]) =>
+						prev.map((t) => {
 							if (t.id !== cmd.taskId || !t.start || !t.end) return t
-							const diffMs = new Date(cmd.newStartDate).getTime() - t.start.getTime()
+							const diffMs =
+								new Date(cmd.newStartDate).getTime() - t.start.getTime()
 							return {
 								...t,
 								start: new Date(cmd.newStartDate),
 								end: new Date(t.end.getTime() + diffMs),
 							}
 						})
-					})
-					changeStartMutation.mutate(
-						{ planId: planData.projectId, taskId: cmd.taskId, newPlannedStart: cmd.newStartDate },
-						{
-							onError: () => {
-								setAllTasks(prevTasksRef.current)
-								setToastMessage('Не удалось переместить задачу')
+					optimisticMutation(optimisticUpdate, () =>
+						changeStartMutation.mutate(
+							{
+								planId: planData.projectId,
+								taskId: cmd.taskId,
+								newPlannedStart: cmd.newStartDate,
 							},
-						},
+							{
+								onError: () => setToastMessage('Не удалось переместить задачу'),
+							},
+						),
 					)
 					break
-				case TaskCommandType.ResizeTask:
-					setAllTasks((prev) => {
-						prevTasksRef.current = prev
-						return prev.map((t) =>
+				}
+
+				case TaskCommandType.ResizeTask: {
+					const optimisticUpdate = (prev: GanttTask[]) =>
+						prev.map((t) =>
 							t.id === cmd.taskId ? { ...t, end: new Date(cmd.newEndDate) } : t,
 						)
-					})
-					changeEndMutation.mutate(
-						{ planId: planData.projectId, taskId: cmd.taskId, newPlannedEnd: cmd.newEndDate },
-						{
-							onError: () => {
-								setAllTasks(prevTasksRef.current)
-								setToastMessage('Не удалось изменить длительность задачи')
+					optimisticMutation(optimisticUpdate, () =>
+						changeEndMutation.mutate(
+							{
+								planId: planData.projectId,
+								taskId: cmd.taskId,
+								newPlannedEnd: cmd.newEndDate,
 							},
-						},
+							{
+								onError: () =>
+									setToastMessage('Не удалось изменить длительность задачи'),
+							},
+						),
 					)
 					break
+				}
+
 				default: {
 					const _exhaustive: never = cmd
-					throw new Error(`Unhandled command: ${JSON.stringify(_exhaustive)}`)
+					console.error(
+						`[GanttChart] Unknown command type: ${(_exhaustive as any).type}`,
+					)
 				}
 			}
 		},
 		[
+			planData,
+			createTaskMutation,
 			changeStartMutation,
 			changeEndMutation,
-			createTaskMutation,
 			updateTitleMutation,
 			planFromEndMutation,
 			assignScheduleMutation,
-			planData,
+			handleFieldUpdate,
+			optimisticMutation,
+			syncPlanState,
 		],
 	)
 
-	const handleCreateDependency = useCallback((fromId: string, toId: string, type: string) => {
-		if (fromId === toId) return
-		if (!planData) return
+	const handleCreateDependency = useCallback(
+		(fromId: string, toId: string, type: string) => {
+			if (fromId === toId) return
+			if (!planData) return
 
-		createDependencyMutation.mutate({
-			planId: planData.projectId,
-			fromTaskId: fromId,
-			toTaskId: toId,
-			type,
-		}, {
-			onSuccess: (newPlan) => {
-				setAllTasks((prev) => prev.map((t) => {
-					const updated = newPlan.tasks.find((nt) => nt.id === t.id)
-					return updated ?? t
-				}))
-				setDependencies(newPlan.dependencies)
-			},
-			onError: (error) => {
-				console.error('[GanttChart] Error creating dependency:', error)
-			}
-		})
-	}, [planData, createDependencyMutation])
-
-	const handleChangeDependencyType = useCallback((fromId: string, toId: string, newType: string) => {
-		setDependencies((prev) =>
-			prev.map((d) =>
-				d.fromTaskId === fromId && d.toTaskId === toId ? { ...d, type: newType } : d
-			),
-		)
-		changeDependencyTypeMutation.mutate(
-			{ fromTaskId: fromId, toTaskId: toId, newType },
-			{
-				onSuccess: (newPlan) => {
-					setAllTasks((prev) => prev.map((t) => {
-						const updated = newPlan.tasks.find((nt) => nt.id === t.id)
-						return updated ?? t
-					}))
-					setDependencies(newPlan.dependencies)
+			createDependencyMutation.mutate(
+				{
+					planId: planData.projectId,
+					fromTaskId: fromId,
+					toTaskId: toId,
+					type,
 				},
-				onError: () => {
-					refetchPlan()
+				{
+					onSuccess: (newPlan) => {
+						setAllTasks((prev) =>
+							prev.map((t) => {
+								const updated = newPlan.tasks.find((nt) => nt.id === t.id)
+								return updated ?? t
+							}),
+						)
+						setDependencies(newPlan.dependencies)
+					},
+					onError: (error) => {
+						console.error('[GanttChart] Error creating dependency:', error)
+					},
 				},
-			},
-		)
-	}, [changeDependencyTypeMutation, refetchPlan])
+			)
+		},
+		[planData, createDependencyMutation],
+	)
 
-	const handleRemoveDependency = useCallback((fromId: string, toId: string) => {
-		setDependencies((prev) =>
-			prev.filter((d) => !(d.fromTaskId === fromId && d.toTaskId === toId)),
-		)
-		deleteDependencyMutation.mutate(
-			{ fromTaskId: fromId, toTaskId: toId },
-			{
-				onSuccess: (newPlan) => {
-					setAllTasks((prev) => prev.map((t) => {
-						const updated = newPlan.tasks.find((nt) => nt.id === t.id)
-						return updated ?? t
-					}))
-					setDependencies(newPlan.dependencies)
+	const handleChangeDependencyType = useCallback(
+		(fromId: string, toId: string, newType: string) => {
+			setDependencies((prev) =>
+				prev.map((d) =>
+					d.fromTaskId === fromId && d.toTaskId === toId
+						? { ...d, type: newType }
+						: d,
+				),
+			)
+			changeDependencyTypeMutation.mutate(
+				{ fromTaskId: fromId, toTaskId: toId, newType },
+				{
+					onSuccess: (newPlan) => {
+						setAllTasks((prev) =>
+							prev.map((t) => {
+								const updated = newPlan.tasks.find((nt) => nt.id === t.id)
+								return updated ?? t
+							}),
+						)
+						setDependencies(newPlan.dependencies)
+					},
+					onError: () => {
+						refetchPlan()
+					},
 				},
-				onError: () => {
-					refetchPlan()
+			)
+		},
+		[changeDependencyTypeMutation, refetchPlan],
+	)
+
+	const handleRemoveDependency = useCallback(
+		(fromId: string, toId: string) => {
+			setDependencies((prev) =>
+				prev.filter((d) => !(d.fromTaskId === fromId && d.toTaskId === toId)),
+			)
+			deleteDependencyMutation.mutate(
+				{ fromTaskId: fromId, toTaskId: toId },
+				{
+					onSuccess: (newPlan) => {
+						setAllTasks((prev) =>
+							prev.map((t) => {
+								const updated = newPlan.tasks.find((nt) => nt.id === t.id)
+								return updated ?? t
+							}),
+						)
+						setDependencies(newPlan.dependencies)
+					},
+					onError: () => {
+						refetchPlan()
+					},
 				},
-			},
-		)
-	}, [deleteDependencyMutation, refetchPlan])
+			)
+		},
+		[deleteDependencyMutation, refetchPlan],
+	)
 
-	const handleMoveTask = useCallback((taskId: string, newStartDate: string) => {
-		if (!planData) return
-		handleUpdateTask({ type: TaskCommandType.MoveTask, taskId: TaskId(taskId), newStartDate: LocalDate(newStartDate) })
-	}, [handleUpdateTask, planData])
-
-	const handleResizeTask = useCallback((taskId: string, newEndDate: string) => {
-		if (!planData) return
-		handleUpdateTask({ type: TaskCommandType.ResizeTask, taskId: TaskId(taskId), newEndDate: LocalDate(newEndDate) })
-	}, [handleUpdateTask, planData])
-
-	const handleResizeFromStart = useCallback((taskId: string, newStartDate: string) => {
-		if (!planData) return
-		setAllTasks((prev) => {
-			prevTasksRef.current = prev
-			return prev.map((t) => {
-				if (t.id !== taskId || !t.end) return t
-				return { ...t, start: new Date(newStartDate) }
+	const handleMoveTask = useCallback(
+		(taskId: string, newStartDate: string) => {
+			if (!planData) return
+			handleUpdateTask({
+				type: TaskCommandType.MoveTask,
+				taskId: TaskId(taskId),
+				newStartDate: LocalDate(newStartDate),
 			})
-		})
-		resizeFromStartMutation.mutate(
-			{ planId: planData.projectId, taskId, newPlannedStart: newStartDate },
-			{
-				onSuccess: (delta) => {
-					setAllTasks((prev) =>
-						prev.map((t) => {
-							const update = delta.updatedSchedules.find((u) => u.taskId === t.id)
-							return update ? { ...t, start: update.start, end: update.end } : t
-						}),
-					)
+		},
+		[handleUpdateTask, planData],
+	)
+
+	const handleResizeTask = useCallback(
+		(taskId: string, newEndDate: string) => {
+			if (!planData) return
+			handleUpdateTask({
+				type: TaskCommandType.ResizeTask,
+				taskId: TaskId(taskId),
+				newEndDate: LocalDate(newEndDate),
+			})
+		},
+		[handleUpdateTask, planData],
+	)
+
+	const handleResizeFromStart = useCallback(
+		(taskId: string, newStartDate: string) => {
+			if (!planData) return
+			setAllTasks((prev) => {
+				prevTasksRef.current = prev
+				return prev.map((t) => {
+					if (t.id !== taskId || !t.end) return t
+					return { ...t, start: new Date(newStartDate) }
+				})
+			})
+			resizeFromStartMutation.mutate(
+				{ planId: planData.projectId, taskId, newPlannedStart: newStartDate },
+				{
+					onSuccess: (delta) => {
+						setAllTasks((prev) =>
+							prev.map((t) => {
+								const update = delta.updatedSchedules.find(
+									(u) => u.taskId === t.id,
+								)
+								return update
+									? { ...t, start: update.start, end: update.end }
+									: t
+							}),
+						)
+					},
+					onError: () => {
+						setAllTasks(prevTasksRef.current)
+						setToastMessage('Не удалось изменить начало задачи')
+					},
 				},
-				onError: () => {
-					setAllTasks(prevTasksRef.current)
-					setToastMessage('Не удалось изменить начало задачи')
-				},
-			},
-		)
-	}, [planData, resizeFromStartMutation])
+			)
+		},
+		[planData, resizeFromStartMutation],
+	)
 
-	const handleDragEnd = useCallback((event: DragEndArg) => {
-		if (event.canceled) return
-		const { operation } = event
-		if (!operation.source || !operation.target) return
-		if (operation.target.id !== TIMELINE_DROP_ID) return
+	const handleDragEnd = useCallback(
+		(event: DragEndArg) => {
+			if (event.canceled) return
+			const { operation } = event
+			if (!operation.source || !operation.target) return
+			if (operation.target.id !== TIMELINE_DROP_ID) return
 
-		const taskId = String(operation.source.id)
-		const task = allTasks.find((t) => t.id === taskId)
-		if (!task || task.start || task.end) return // only pool tasks
+			const taskId = String(operation.source.id)
+			const task = allTasks.find((t) => t.id === taskId)
+			if (!task || task.start || task.end) return // only pool tasks
 
-		const nativeEvent = event.nativeEvent as PointerEvent | undefined
-		const droppableElement = operation.target.element
-		if (!nativeEvent || !droppableElement) return
+			const nativeEvent = event.nativeEvent as PointerEvent | undefined
+			const droppableElement = operation.target.element
+			if (!nativeEvent || !droppableElement) return
 
-		const rect = droppableElement.getBoundingClientRect()
-		const dropX = nativeEvent.clientX - rect.left
-		const dayOffset = Math.max(0, Math.round(dropX / DAY_COLUMN_WIDTH))
+			const rect = droppableElement.getBoundingClientRect()
+			const dropX = nativeEvent.clientX - rect.left
+			const dayOffset = Math.max(0, Math.round(dropX / DAY_COLUMN_WIDTH))
 
-		if (!planData) return
-		const { start: rangeStart } = getCalendarRange(allTasks.filter((t) => t.start && t.end))
-		const dropDate = addDays(rangeStart, dayOffset)
+			if (!planData) return
+			const { start: rangeStart } = getCalendarRange(
+				allTasks.filter((t) => t.start && t.end),
+			)
+			const dropDate = addDays(rangeStart, dayOffset)
 
-		handleUpdateTask({
-			type: TaskCommandType.AssignSchedule,
-			taskId: TaskId(taskId),
-			start: LocalDate(formatDateForInput(dropDate)),
-			duration: 1,
-		})
-	}, [allTasks, planData, handleUpdateTask])
+			handleUpdateTask({
+				type: TaskCommandType.AssignSchedule,
+				taskId: TaskId(taskId),
+				start: LocalDate(formatDateForInput(dropDate)),
+				duration: 1,
+			})
+		},
+		[allTasks, planData, handleUpdateTask],
+	)
 
 	const syncScroll = useCallback(
 		(source: 'left' | 'right') => () => {
@@ -463,8 +561,10 @@ export const GanttChart = () => {
 		: null
 	const affectedDepsCount = pendingDeleteTaskId
 		? dependencies.filter(
-				(d) => d.fromTaskId === pendingDeleteTaskId || d.toTaskId === pendingDeleteTaskId,
-		  ).length
+				(d) =>
+					d.fromTaskId === pendingDeleteTaskId ||
+					d.toTaskId === pendingDeleteTaskId,
+			).length
 		: 0
 
 	const handleConfirmDelete = () => {
@@ -476,7 +576,9 @@ export const GanttChart = () => {
 				onSuccess: () => {
 					setAllTasks((prev) => prev.filter((t) => t.id !== idToDelete))
 					setDependencies((prev) =>
-						prev.filter((d) => d.fromTaskId !== idToDelete && d.toTaskId !== idToDelete),
+						prev.filter(
+							(d) => d.fromTaskId !== idToDelete && d.toTaskId !== idToDelete,
+						),
 					)
 					setPendingDeleteTaskId(null)
 				},

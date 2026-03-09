@@ -58,8 +58,19 @@ export const GanttChart = () => { ... }
 - `useAssignTaskSchedule()` - Assign schedule to pool task
 - `usePlanFromEnd()` - Plan task backwards from end date
 
+**Helper Functions:**
+
+- `syncPlanState(newPlan: GanttProjectPlan)` — Synchronizes local state after successful mutations. Updates `tasks` and `dependencies` from the new plan returned by the server. Ensures client state matches server state after mutations.
+
+- `handleFieldUpdate(taskId: string, updates: Partial<GanttTask>, errorMessage: string)` — Unified pattern for optimistic field updates. Handles `UpdateTitle`, `UpdateDescription`, and `ChangeStatus` commands. Performs optimistic update, calls mutation, and rolls back to `prevTasksRef.current` on error.
+
+- `optimisticMutation(taskId: string, updateFn: (tasks: GanttTask[]) => GanttTask[], mutationFn: () => Promise<void>)` — Generic optimistic mutation with rollback. Saves previous state to `prevTasksRef.current` before applying update. Executes mutation, rolls back on error. Used by `MoveTask`, `ResizeTask`, and `AssignSchedule` commands.
+
 **Event Handlers:**
-- `handleUpdateTask(cmd: TaskCommand)` - Process task commands
+- `handleUpdateTask(cmd: TaskCommand)` - Process task commands using unified patterns:
+  - Field updates (`UpdateTitle`, `UpdateDescription`, `ChangeStatus`) → `handleFieldUpdate`
+  - Optimistic mutations (`MoveTask`, `ResizeTask`, `AssignSchedule`) → `optimisticMutation`
+  - Unknown commands → logged via `console.error` (no error thrown)
 - `handleCreateDependency(fromId, toId)` - Create task dependency
 - `handleRemoveDependency(fromId, toId)` - Remove task dependency (local only)
 - `handleConfirmDelete()` - Confirm task deletion
@@ -78,7 +89,7 @@ export const GanttChart = () => { ... }
 **Imports:**
 - React hooks: `useState`, `useRef`, `useCallback`, `useEffect`
 - Custom hooks: `useTimelineCalendar`, `useProjectTasks` (multiple)
-- Types: `GanttTask`, `GanttDependencyDto`, `TaskCommand`, `GanttProjectPlan`
+- Types: `GanttTask`, `GanttDependencyDto`, `TaskCommand`, `GanttProjectPlan`, `ProjectTaskStatus`
 - Utils: `getCalendarRange`, `getDaysInRange`, `groupDaysByMonth`
 - Child components: `GanttTaskList`, `GanttCalendarHeader`, `GanttCalendarGrid`, `ConfirmDeleteModal`
 
@@ -478,6 +489,63 @@ interface DependencyTypePopoverProps {
 
 The GanttChart component uses a command pattern for type-safe task operations. Commands are dispatched via `handleUpdateTask()`:
 
+### UpdateTitle
+
+**Purpose:** Update a task's title.
+
+**Command:**
+```typescript
+{
+    type: TaskCommandType.UpdateTitle,
+    taskId: string,
+    title: string
+}
+```
+
+**Trigger:** User edits task title in the task list
+
+**Handler:** Uses `handleFieldUpdate` with optimistic update + rollback on error.
+
+---
+
+### UpdateDescription
+
+**Purpose:** Update a task's description.
+
+**Command:**
+```typescript
+{
+    type: TaskCommandType.UpdateDescription,
+    taskId: string,
+    description: string
+}
+```
+
+**Trigger:** User edits task description
+
+**Handler:** Uses `handleFieldUpdate` with optimistic update + rollback on error.
+
+---
+
+### ChangeStatus
+
+**Purpose:** Change a task's status.
+
+**Command:**
+```typescript
+{
+    type: TaskCommandType.ChangeStatus,
+    taskId: string,
+    status: ProjectTaskStatus
+}
+```
+
+**Trigger:** User changes task status via dropdown or action
+
+**Handler:** Uses `handleFieldUpdate` with optimistic update + rollback on error.
+
+---
+
 ### MoveTask
 
 **Purpose:** Move a scheduled task to a new start date (maintaining duration).
@@ -493,7 +561,7 @@ The GanttChart component uses a command pattern for type-safe task operations. C
 
 **Trigger:** Drag task bar horizontally on timeline
 
-**Handler:** `changeStartMutation` with optimistic update + rollback
+**Handler:** Uses `optimisticMutation` with optimistic update + rollback on error. Saves previous state to `prevTasksRef.current` before applying update.
 
 ---
 
@@ -512,7 +580,7 @@ The GanttChart component uses a command pattern for type-safe task operations. C
 
 **Trigger:** Drag resize handle on right edge of task bar
 
-**Handler:** `changeEndMutation` with optimistic update + rollback
+**Handler:** Uses `optimisticMutation` with optimistic update + rollback on error. Saves previous state to `prevTasksRef.current` before applying update.
 
 ---
 
@@ -532,7 +600,7 @@ The GanttChart component uses a command pattern for type-safe task operations. C
 
 **Trigger:** Drop pool task onto timeline grid
 
-**Handler:** `assignScheduleMutation` with optimistic update + rollback
+**Handler:** Uses `optimisticMutation` with optimistic update + rollback on error. Saves previous state to `prevTasksRef.current` before applying update.
 
 ---
 
