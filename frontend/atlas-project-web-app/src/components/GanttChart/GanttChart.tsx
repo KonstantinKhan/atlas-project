@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { useTimelineCalendar } from '@/hooks/useTimelineCalendar'
 import {
 	useProjectPlan,
+	useCriticalPath,
 	useCreateProjectTask,
 	useChangeTaskStartDate,
 	useResizeTaskFromStart,
@@ -23,7 +24,11 @@ import {
 	getDaysInRange,
 	groupDaysByMonth,
 	formatDateForInput,
+	alignToMonday,
+	getWeeksInRange,
+	groupWeeksByMonth,
 } from '@/utils/ganttDateUtils'
+import { useTimelineCalendarStore, type ViewMode } from '@/store/timelineCalendarStore'
 import GanttTaskList from './GanttTaskList'
 import GanttCalendarHeader from './GanttCalendarHeader'
 import GanttCalendarGrid, { TIMELINE_DROP_ID } from './GanttCalendarGrid'
@@ -37,7 +42,9 @@ import type { DragEndEvent } from '@dnd-kit/react'
 
 type DragEndArg = Parameters<DragEndEvent>[0]
 
-const DAY_COLUMN_WIDTH = 40
+const DAY_WIDTH_DAILY = 40
+const DAY_WIDTH_WEEKLY = 8
+const WEEK_COLUMN_WIDTH = DAY_WIDTH_WEEKLY * 7
 const ROW_HEIGHT = 48
 const HEADER_HEIGHT = 60
 
@@ -48,6 +55,10 @@ function addDays(date: Date, days: number): Date {
 }
 
 export const GanttChart = () => {
+	const viewMode = useTimelineCalendarStore((s) => s.ui.viewMode)
+	const setViewMode = useTimelineCalendarStore((s) => s.setViewMode)
+	const dayWidth = viewMode === 'day' ? DAY_WIDTH_DAILY : DAY_WIDTH_WEEKLY
+
 	const {
 		calendar,
 		isLoading: calendarLoading,
@@ -77,6 +88,21 @@ export const GanttChart = () => {
 	const deleteTaskMutation = useDeleteProjectTask()
 	const assignScheduleMutation = useAssignTaskSchedule()
 	const planFromEndMutation = usePlanFromEnd()
+	const { data: criticalPathData } = useCriticalPath()
+
+	const criticalTaskIds = useMemo(() => {
+		if (!criticalPathData) return undefined
+		return new Set(criticalPathData.criticalTaskIds)
+	}, [criticalPathData])
+
+	const slackMap = useMemo(() => {
+		if (!criticalPathData) return undefined
+		const map = new Map<string, number>()
+		for (const task of criticalPathData.tasks) {
+			map.set(task.taskId, task.slack)
+		}
+		return map
+	}, [criticalPathData])
 
 	const [pendingDeleteTaskId, setPendingDeleteTaskId] = useState<string | null>(
 		null,
@@ -482,7 +508,8 @@ export const GanttChart = () => {
 
 			const rect = droppableElement.getBoundingClientRect()
 			const dropX = nativeEvent.clientX - rect.left
-			const dayOffset = Math.max(0, Math.round(dropX / DAY_COLUMN_WIDTH))
+			const snapDays = viewMode === 'week' ? 7 : 1
+		const dayOffset = Math.max(0, Math.round(dropX / (dayWidth * snapDays)) * snapDays)
 
 			if (!planData) return
 			const { start: rangeStart } = getCalendarRange(
@@ -552,9 +579,11 @@ export const GanttChart = () => {
 	if (!calendar || !planData) return null
 
 	const tasksWithDates = allTasks.filter((t) => t.start && t.end)
-	const { start: rangeStart, end: rangeEnd } = getCalendarRange(tasksWithDates)
+	const { start: rawRangeStart, end: rangeEnd } = getCalendarRange(tasksWithDates)
+	const rangeStart = viewMode === 'week' ? alignToMonday(rawRangeStart) : rawRangeStart
 	const days = getDaysInRange(rangeStart, rangeEnd)
-	const monthGroups = groupDaysByMonth(days)
+	const weeks = viewMode === 'week' ? getWeeksInRange(rangeStart, rangeEnd) : []
+	const monthGroups = viewMode === 'day' ? groupDaysByMonth(days) : groupWeeksByMonth(weeks)
 
 	const pendingDeleteTask = pendingDeleteTaskId
 		? allTasks.find((t) => t.id === pendingDeleteTaskId)
@@ -599,49 +628,73 @@ export const GanttChart = () => {
 					onCancel={() => setPendingDeleteTaskId(null)}
 				/>
 			)}
-			<div className="flex h-screen bg-white dark:bg-zinc-950 overflow-hidden">
-				<div
-					ref={leftRef}
-					onScroll={syncScroll('left')}
-					className="w-105 shrink-0 border-r border-gray-300 dark:border-zinc-700 overflow-y-auto"
-				>
-					<GanttTaskList
-						tasks={allTasks}
-						headerHeight={HEADER_HEIGHT}
-						rowHeight={ROW_HEIGHT}
-						onUpdateTask={handleUpdateTask}
-					/>
+			<div className="flex flex-col h-screen bg-white dark:bg-zinc-950 overflow-hidden">
+				{/* View mode toggle */}
+				<div className="flex items-center gap-2 px-4 py-2 border-b border-gray-200 dark:border-zinc-800 shrink-0">
+					<span className="text-xs text-gray-500 dark:text-zinc-400 mr-1">Масштаб:</span>
+					<button
+						className={`px-3 py-1 text-xs rounded ${viewMode === 'day' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300 font-semibold' : 'text-gray-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800'}`}
+						onClick={() => setViewMode('day')}
+					>
+						День
+					</button>
+					<button
+						className={`px-3 py-1 text-xs rounded ${viewMode === 'week' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300 font-semibold' : 'text-gray-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800'}`}
+						onClick={() => setViewMode('week')}
+					>
+						Неделя
+					</button>
 				</div>
 
-				<div
-					ref={rightRef}
-					onScroll={syncScroll('right')}
-					className="flex-1 overflow-auto"
-				>
-					<div className="sticky top-0 z-10 bg-white dark:bg-zinc-950">
-						<GanttCalendarHeader
-							days={days}
-							monthGroups={monthGroups}
-							dayWidth={DAY_COLUMN_WIDTH}
+				<div className="flex flex-1 overflow-hidden">
+					<div
+						ref={leftRef}
+						onScroll={syncScroll('left')}
+						className="w-105 shrink-0 border-r border-gray-300 dark:border-zinc-700 overflow-y-auto"
+					>
+						<GanttTaskList
+							tasks={allTasks}
 							headerHeight={HEADER_HEIGHT}
-							workCalendar={calendar}
+							rowHeight={ROW_HEIGHT}
+							onUpdateTask={handleUpdateTask}
 						/>
 					</div>
-					<GanttCalendarGrid
-						tasks={allTasks}
-						dependencies={dependencies}
-						days={days}
-						rangeStart={rangeStart}
-						dayWidth={DAY_COLUMN_WIDTH}
-						rowHeight={ROW_HEIGHT}
-						timelineCalendar={calendar}
-						onCreateDependency={handleCreateDependency}
-						onChangeDependencyType={handleChangeDependencyType}
-						onRemoveDependency={handleRemoveDependency}
-						onMoveTask={handleMoveTask}
-						onResizeTask={handleResizeTask}
-						onResizeFromStart={handleResizeFromStart}
-					/>
+
+					<div
+						ref={rightRef}
+						onScroll={syncScroll('right')}
+						className="flex-1 overflow-auto"
+					>
+						<div className="sticky top-0 z-10 bg-white dark:bg-zinc-950">
+							<GanttCalendarHeader
+								days={days}
+								weeks={weeks}
+								monthGroups={monthGroups}
+								dayWidth={dayWidth}
+								headerHeight={HEADER_HEIGHT}
+								workCalendar={calendar}
+								viewMode={viewMode}
+							/>
+						</div>
+						<GanttCalendarGrid
+							tasks={allTasks}
+							dependencies={dependencies}
+							days={days}
+							rangeStart={rangeStart}
+							dayWidth={dayWidth}
+							rowHeight={ROW_HEIGHT}
+							timelineCalendar={calendar}
+							viewMode={viewMode}
+							criticalTaskIds={criticalTaskIds}
+							slackMap={slackMap}
+							onCreateDependency={handleCreateDependency}
+							onChangeDependencyType={handleChangeDependencyType}
+							onRemoveDependency={handleRemoveDependency}
+							onMoveTask={handleMoveTask}
+							onResizeTask={handleResizeTask}
+							onResizeFromStart={handleResizeFromStart}
+						/>
+					</div>
 				</div>
 			</div>
 		</DragDropProvider>

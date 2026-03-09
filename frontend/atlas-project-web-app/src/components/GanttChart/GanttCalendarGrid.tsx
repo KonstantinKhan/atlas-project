@@ -5,6 +5,7 @@ import { GanttTask, GanttDependencyDto, TimelineCalendar } from '@/types'
 import GanttCalendarBackground from './GanttCalendarBackground'
 import GanttTaskLayer from './GanttTaskLayer'
 import { useDroppable } from '@dnd-kit/react'
+import type { ViewMode } from '@/store/timelineCalendarStore'
 
 export type LinkSide = 'start' | 'end'
 
@@ -16,6 +17,9 @@ interface GanttCalendarGridProps {
 	dayWidth: number
 	rowHeight: number
 	timelineCalendar: TimelineCalendar
+	viewMode?: ViewMode
+	criticalTaskIds?: Set<string>
+	slackMap?: Map<string, number>
 	onCreateDependency: (fromId: string, toId: string, type: string) => void
 	onChangeDependencyType: (fromId: string, toId: string, newType: string) => void
 	onRemoveDependency: (fromId: string, toId: string) => void
@@ -34,6 +38,9 @@ export default function GanttCalendarGrid({
 	dayWidth,
 	rowHeight,
 	timelineCalendar,
+	viewMode = 'day',
+	criticalTaskIds,
+	slackMap,
 	onCreateDependency,
 	onChangeDependencyType,
 	onRemoveDependency,
@@ -69,6 +76,7 @@ export default function GanttCalendarGrid({
 				totalRows={tasks.length}
 				dayWidth={dayWidth}
 				timelineCalendar={timelineCalendar}
+				viewMode={viewMode}
 			/>
 
 			<GanttTaskLayer
@@ -78,6 +86,9 @@ export default function GanttCalendarGrid({
 				rangeStart={rangeStart}
 				dayWidth={dayWidth}
 				rowHeight={rowHeight}
+				viewMode={viewMode}
+				criticalTaskIds={criticalTaskIds}
+				slackMap={slackMap}
 				onCreateDependency={onCreateDependency}
 				onChangeDependencyType={onChangeDependencyType}
 				onRemoveDependency={onRemoveDependency}

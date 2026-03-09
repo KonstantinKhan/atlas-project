@@ -6,6 +6,7 @@ import { getDayOffset } from '@/utils/ganttDateUtils'
 import GanttBar from './GanttBar'
 import DependencyActionPopover from './DependencyActionPopover'
 import type { LinkSide } from './GanttCalendarGrid'
+import type { ViewMode } from '@/store/timelineCalendarStore'
 
 interface DragState {
 	taskId: string
@@ -43,6 +44,9 @@ interface GanttTaskLayerProps {
 	rangeStart: Date
 	dayWidth: number
 	rowHeight: number
+	viewMode?: ViewMode
+	criticalTaskIds?: Set<string>
+	slackMap?: Map<string, number>
 	onCreateDependency: (fromId: string, toId: string, type: string) => void
 	onChangeDependencyType: (fromId: string, toId: string, newType: string) => void
 	onRemoveDependency: (fromId: string, toId: string) => void
@@ -82,6 +86,9 @@ export default function GanttTaskLayer({
 	rangeStart,
 	dayWidth,
 	rowHeight,
+	viewMode = 'day',
+	criticalTaskIds,
+	slackMap,
 	onCreateDependency,
 	onChangeDependencyType,
 	onRemoveDependency,
@@ -129,6 +136,9 @@ export default function GanttTaskLayer({
 		}
 	}
 
+	const snapDays = viewMode === 'week' ? 7 : 1
+	const snapPx = dayWidth * snapDays
+
 	const handleMouseUp = (e: React.MouseEvent) => {
 		if (linkingFrom) {
 			if (skipNextMouseUp.current) {
@@ -142,7 +152,7 @@ export default function GanttTaskLayer({
 		}
 
 		if (dragging) {
-			const dayDelta = Math.round((e.clientX - dragging.startX) / dayWidth)
+			const dayDelta = Math.round((e.clientX - dragging.startX) / snapPx) * snapDays
 			const newStart = addDays(dragging.origStart, dayDelta)
 			onMoveTask(dragging.taskId, formatDate(newStart))
 			setDragging(null)
@@ -150,7 +160,7 @@ export default function GanttTaskLayer({
 		}
 
 		if (resizing) {
-			const dayDelta = Math.round((e.clientX - resizing.startX) / dayWidth)
+			const dayDelta = Math.round((e.clientX - resizing.startX) / snapPx) * snapDays
 			const task = tasks.find((t) => t.id === resizing.taskId)
 			let newEnd = addDays(resizing.origEnd, dayDelta)
 			if (task?.start && newEnd <= task.start) {
@@ -162,7 +172,7 @@ export default function GanttTaskLayer({
 		}
 
 		if (resizingLeft) {
-			const dayDelta = Math.round((e.clientX - resizingLeft.startX) / dayWidth)
+			const dayDelta = Math.round((e.clientX - resizingLeft.startX) / snapPx) * snapDays
 			const task = tasks.find((t) => t.id === resizingLeft.taskId)
 			let newStart = addDays(resizingLeft.origStart, dayDelta)
 			if (task?.end && newStart >= task.end) {
@@ -217,12 +227,12 @@ export default function GanttTaskLayer({
 				let previewWidthPx: number | undefined = undefined
 
 				if (dragging && dragging.taskId === task.id) {
-					const dayDelta = Math.round((currentClientX - dragging.startX) / dayWidth)
+					const dayDelta = Math.round((currentClientX - dragging.startX) / snapPx) * snapDays
 					previewOffsetPx = dayDelta * dayWidth
 				}
 
 				if (resizing && resizing.taskId === task.id && task.start && task.end) {
-					const dayDelta = Math.round((currentClientX - resizing.startX) / dayWidth)
+					const dayDelta = Math.round((currentClientX - resizing.startX) / snapPx) * snapDays
 					const startOffset = getDayOffset(task.start, rangeStart)
 					const endOffset = getDayOffset(task.end, rangeStart)
 					const newEndOffset = Math.max(startOffset, endOffset + dayDelta)
@@ -230,7 +240,7 @@ export default function GanttTaskLayer({
 				}
 
 				if (resizingLeft && resizingLeft.taskId === task.id && task.start && task.end) {
-					const dayDelta = Math.round((currentClientX - resizingLeft.startX) / dayWidth)
+					const dayDelta = Math.round((currentClientX - resizingLeft.startX) / snapPx) * snapDays
 					const startOffset = getDayOffset(task.start, rangeStart)
 					const endOffset = getDayOffset(task.end, rangeStart)
 					const newStartOffset = Math.min(endOffset, startOffset + dayDelta)
@@ -250,6 +260,8 @@ export default function GanttTaskLayer({
 							dayWidth={dayWidth}
 							previewOffsetPx={previewOffsetPx}
 							previewWidthPx={previewWidthPx}
+							isCritical={criticalTaskIds?.has(task.id)}
+							slack={slackMap?.get(task.id)}
 							onLinkStart={!linkingFrom && !isDraggingOrResizing ? (id, side, e) => {
 								e.preventDefault()
 								setLinkingFrom({ taskId: id, side })
@@ -300,6 +312,19 @@ export default function GanttTaskLayer({
 					<filter id="dep-glow" x="-50%" y="-50%" width="200%" height="200%">
 						<feDropShadow dx="0" dy="0" stdDeviation="4" floodColor="#a5b4fc" floodOpacity="1" />
 					</filter>
+					<marker
+						id="dep-arrow-critical"
+						markerWidth="6"
+						markerHeight="6"
+						refX="6"
+						refY="3"
+						orient="auto"
+					>
+						<path d="M0,0 L6,3 L0,6 Z" fill="#ef4444" />
+					</marker>
+					<filter id="dep-glow-critical" x="-50%" y="-50%" width="200%" height="200%">
+						<feDropShadow dx="0" dy="0" stdDeviation="4" floodColor="#fca5a5" floodOpacity="1" />
+					</filter>
 				</defs>
 
 				{/* Permanent dependency arrows */}
@@ -314,11 +339,11 @@ export default function GanttTaskLayer({
 					// Drag/resize offsets
 					let dragPx = 0
 					if (dragging) {
-						dragPx = Math.round((currentClientX - dragging.startX) / dayWidth) * dayWidth
+						dragPx = Math.round((currentClientX - dragging.startX) / snapPx) * snapDays * dayWidth
 					}
 					let resizeDeltaPx = 0
 					if (resizing && pred.start) {
-						const dayDelta = Math.round((currentClientX - resizing.startX) / dayWidth)
+						const dayDelta = Math.round((currentClientX - resizing.startX) / snapPx) * snapDays
 						const endOff = getDayOffset(pred.end, rangeStart)
 						const startOff = getDayOffset(pred.start, rangeStart)
 						const newEndOff = Math.max(startOff, endOff + dayDelta)
@@ -326,7 +351,7 @@ export default function GanttTaskLayer({
 					}
 					let resizeLeftDeltaPx = 0
 					if (resizingLeft && pred.start && pred.end) {
-						const dayDelta = Math.round((currentClientX - resizingLeft.startX) / dayWidth)
+						const dayDelta = Math.round((currentClientX - resizingLeft.startX) / snapPx) * snapDays
 						const startOff = getDayOffset(pred.start, rangeStart)
 						const endOff = getDayOffset(pred.end, rangeStart)
 						const newStartOff = Math.min(endOff, startOff + dayDelta)
@@ -427,6 +452,11 @@ export default function GanttTaskLayer({
 
 					const depKey = `${depRelation.fromTaskId}-${depRelation.toTaskId}`
 					const isHovered = hoveredDep === depKey
+					const isCriticalArrow = criticalTaskIds?.has(depRelation.fromTaskId) && criticalTaskIds?.has(depRelation.toTaskId)
+					const arrowColor = isCriticalArrow ? '#ef4444' : '#6366f1'
+					const arrowHoverColor = isCriticalArrow ? '#f87171' : '#818cf8'
+					const arrowMarker = isCriticalArrow ? 'url(#dep-arrow-critical)' : 'url(#dep-arrow)'
+					const arrowGlow = isCriticalArrow ? 'url(#dep-glow-critical)' : 'url(#dep-glow)'
 
 					return [
 						<path
@@ -451,11 +481,11 @@ export default function GanttTaskLayer({
 							key={depKey}
 							d={d}
 							fill="none"
-							stroke={isHovered ? '#818cf8' : '#6366f1'}
+							stroke={isHovered ? arrowHoverColor : arrowColor}
 							strokeWidth={1.5}
 							strokeDasharray={strokeStyle}
-							markerEnd="url(#dep-arrow)"
-							filter={isHovered ? 'url(#dep-glow)' : undefined}
+							markerEnd={arrowMarker}
+							filter={isHovered ? arrowGlow : undefined}
 							style={{ pointerEvents: 'none' }}
 						/>,
 					]

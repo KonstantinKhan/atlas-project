@@ -1,6 +1,8 @@
 package com.khan366kos.atlas.project.backend.mappers
 
 import com.khan366kos.atlas.project.backend.common.models.ProjectDate
+import com.khan366kos.atlas.project.backend.common.models.projectPlan.CpmTaskResult
+import com.khan366kos.atlas.project.backend.common.models.projectPlan.CriticalPathResult
 import com.khan366kos.atlas.project.backend.common.models.projectPlan.ProjectPlan
 import com.khan366kos.atlas.project.backend.common.models.taskSchedule.ScheduleDelta
 import com.khan366kos.atlas.project.backend.common.models.taskSchedule.TaskSchedule
@@ -12,6 +14,8 @@ import com.khan366kos.atlas.project.backend.transport.ScheduleDeltaDto
 import com.khan366kos.atlas.project.backend.transport.ScheduleUpdateDto
 import com.khan366kos.atlas.project.backend.transport.enums.DependencyTypeDto
 import com.khan366kos.atlas.project.backend.transport.enums.ProjectTaskStatus
+import com.khan366kos.atlas.project.backend.transport.cpm.CpmTaskDto
+import com.khan366kos.atlas.project.backend.transport.cpm.CriticalPathDto
 import com.khan366kos.atlas.project.backend.transport.ganttProjectPlan.GanttProjectPlanDto
 import com.khan366kos.atlas.project.backend.transport.timelineCalendar.TimelineCalendarDto
 
@@ -58,3 +62,18 @@ fun ProjectPlan.toGanttDto() = GanttProjectPlanDto(
     }
 )
 
+fun CriticalPathResult.toDto() = CriticalPathDto(
+    tasks = tasks.values.map { it.toDto() },
+    criticalTaskIds = criticalTaskIds.map { it.value },
+    projectEnd = projectEnd,
+)
+
+fun CpmTaskResult.toDto() = CpmTaskDto(
+    taskId = taskId.value,
+    es = es,
+    ef = ef,
+    ls = ls,
+    lf = lf,
+    slack = slack,
+    isCritical = isCritical,
+)

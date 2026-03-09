@@ -6,6 +6,8 @@ import {
 	GanttProjectPlan,
 	ScheduleDeltaSchema,
 	ScheduleDelta,
+	CriticalPathSchema,
+	CriticalPath,
 } from '@/types'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
@@ -154,6 +156,14 @@ export async function changeDependencyType(
 	})
 	if (!res.ok) throw new Error('Failed to change dependency type')
 	return GanttProjectPlanSchema.parse(await res.json())
+}
+
+export async function getCriticalPath(): Promise<CriticalPath> {
+	const response = await fetch(`${API_BASE_URL}/critical-path`, {
+		headers: { Accept: 'application/json' },
+	})
+	if (!response.ok) throw new Error('Failed to fetch critical path')
+	return CriticalPathSchema.parse(await response.json())
 }
 
 export async function createDependency(

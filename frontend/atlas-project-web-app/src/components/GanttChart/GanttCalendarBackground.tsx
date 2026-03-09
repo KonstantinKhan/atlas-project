@@ -3,6 +3,7 @@
 import { isNonWorkingDay, isToday } from '@/utils/ganttDateUtils'
 import { TimelineCalendar } from '@/types'
 import { ganttDayCell } from './GanttChart.styles'
+import type { ViewMode } from '@/store/timelineCalendarStore'
 
 interface GanttCalendarBackgroundProps {
 	days: Date[]
@@ -10,6 +11,7 @@ interface GanttCalendarBackgroundProps {
 	totalRows: number
 	dayWidth: number
 	timelineCalendar: TimelineCalendar
+	viewMode?: ViewMode
 }
 
 export default function GanttCalendarBackground({
@@ -18,12 +20,45 @@ export default function GanttCalendarBackground({
 	totalRows,
 	dayWidth,
 	timelineCalendar,
+	viewMode = 'day',
 }: GanttCalendarBackgroundProps) {
+	const totalHeight = totalRows * rowHeight
+
+	if (viewMode === 'week') {
+		const weekWidth = dayWidth * 7
+		const weekCount = Math.ceil(days.length / 7)
+		return (
+			<div
+				style={{
+					width: days.length * dayWidth,
+					height: totalHeight,
+					position: 'absolute',
+					top: 0,
+					left: 0,
+				}}
+			>
+				{Array.from({ length: weekCount }, (_, i) => (
+					<div
+						key={i}
+						style={{
+							width: weekWidth,
+							height: totalHeight,
+							position: 'absolute',
+							left: i * weekWidth,
+							top: 0,
+						}}
+						className={`border-r border-gray-200 dark:border-zinc-800 ${i % 2 === 1 ? 'bg-gray-50/50 dark:bg-zinc-900/30' : ''}`}
+					/>
+				))}
+			</div>
+		)
+	}
+
 	return (
 		<div
 			style={{
 				width: days.length * dayWidth,
-				height: totalRows * rowHeight,
+				height: totalHeight,
 				position: 'absolute',
 				top: 0,
 				left: 0,
@@ -39,7 +74,7 @@ export default function GanttCalendarBackground({
 						style={{
 							width: dayWidth,
 							minWidth: dayWidth,
-							height: rowHeight * totalRows,
+							height: totalHeight,
 							position: 'absolute',
 							left: days.indexOf(day) * dayWidth,
 							top: 0,

@@ -14,6 +14,8 @@ import kotlinx.datetime.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNotSame
+import kotlin.test.assertTrue
 
 class ProjectPlanTest {
 
@@ -250,5 +252,99 @@ class ProjectPlanTest {
         val schedB = plan.schedules()[schedId("B")]!!
         assertEquals(LocalDate(2025, 3, 7), (schedB.start as ProjectDate.Set).date)
         assertEquals(LocalDate(2025, 3, 10), (schedB.end as ProjectDate.Set).date) // dur=2: Fri+Mon
+    }
+
+    // --- validateNoCycles ---
+
+    @Test
+    fun validateNoCycles_validGraph_returnsTrue() {
+        val plan = buildPlan(
+            tasks = listOf(
+                ProjectTask(id = taskId("A"), duration = Duration(1)),
+                ProjectTask(id = taskId("B"), duration = Duration(1)),
+            ),
+            schedules = listOf(
+                TaskSchedule(id = schedId("A"), start = ProjectDate.Set(LocalDate(2025, 3, 3)), end = ProjectDate.Set(LocalDate(2025, 3, 3))),
+                TaskSchedule(id = schedId("B"), start = ProjectDate.Set(LocalDate(2025, 3, 4)), end = ProjectDate.Set(LocalDate(2025, 3, 4))),
+            ),
+            dependencies = setOf(
+                TaskDependency(predecessor = taskId("A"), successor = taskId("B"), type = DependencyType.FS),
+            ),
+        )
+
+        assertTrue(plan.validateNoCycles())
+    }
+
+    // --- snapshot ---
+
+    @Test
+    fun snapshot_createsIndependentCopy() {
+        val plan = buildPlan(
+            tasks = listOf(
+                ProjectTask(id = taskId("A"), duration = Duration(3)),
+                ProjectTask(id = taskId("B"), duration = Duration(2)),
+            ),
+            schedules = listOf(
+                TaskSchedule(id = schedId("A"), start = ProjectDate.Set(LocalDate(2025, 3, 3)), end = ProjectDate.Set(LocalDate(2025, 3, 5))),
+                TaskSchedule(id = schedId("B"), start = ProjectDate.Set(LocalDate(2025, 3, 6)), end = ProjectDate.Set(LocalDate(2025, 3, 7))),
+            ),
+            dependencies = setOf(
+                TaskDependency(predecessor = taskId("A"), successor = taskId("B"), type = DependencyType.FS),
+            ),
+        )
+
+        val snap = plan.snapshot()
+
+        // Mutate the original plan
+        plan.changeTaskStartDate(taskId("A"), LocalDate(2025, 3, 10), calendar)
+
+        // Snapshot should be unaffected
+        val snapSchedA = snap.schedules()[schedId("A")]!!
+        assertEquals(LocalDate(2025, 3, 3), (snapSchedA.start as ProjectDate.Set).date)
+        assertEquals(LocalDate(2025, 3, 5), (snapSchedA.end as ProjectDate.Set).date)
+
+        // Original should be changed
+        val origSchedA = plan.schedules()[schedId("A")]!!
+        assertEquals(LocalDate(2025, 3, 10), (origSchedA.start as ProjectDate.Set).date)
+    }
+
+    // --- recalculateAll (regression) ---
+
+    @Test
+    fun recalculateAll_chain_sameResult() {
+        // A -> B -> C, all FS, duration 1
+        val plan = buildPlan(
+            tasks = listOf(
+                ProjectTask(id = taskId("A"), duration = Duration(1)),
+                ProjectTask(id = taskId("B"), duration = Duration(1)),
+                ProjectTask(id = taskId("C"), duration = Duration(1)),
+            ),
+            schedules = listOf(
+                TaskSchedule(id = schedId("A"), start = ProjectDate.Set(LocalDate(2025, 3, 3)), end = ProjectDate.Set(LocalDate(2025, 3, 3))),
+                TaskSchedule(id = schedId("B"), start = ProjectDate.Set(LocalDate(2025, 3, 3)), end = ProjectDate.Set(LocalDate(2025, 3, 3))),
+                TaskSchedule(id = schedId("C"), start = ProjectDate.Set(LocalDate(2025, 3, 3)), end = ProjectDate.Set(LocalDate(2025, 3, 3))),
+            ),
+            dependencies = setOf(
+                TaskDependency(predecessor = taskId("A"), successor = taskId("B"), type = DependencyType.FS),
+                TaskDependency(predecessor = taskId("B"), successor = taskId("C"), type = DependencyType.FS),
+            ),
+        )
+
+        val delta = plan.recalculateAll(calendar)
+
+        // B and C should be recalculated (A is root, skipped)
+        assertEquals(2, delta.updatedSchedule.size)
+
+        val schedB = plan.schedules()[schedId("B")]!!
+        val schedC = plan.schedules()[schedId("C")]!!
+
+        // FS lag=0: B starts after A end (Mar 3), dur=1 => start=Mar 3, end=Mar 3
+        // Actually FS lag=0: constrainedStart = addWorkingDays(predEnd=Mar3, Duration(2)) ... let me check
+        // From calculateConstrainedStart: FS lag=0 => n = 0+2 = 2, addWorkingDays(Mar3, Duration(2)) = Mar 4
+        assertEquals(LocalDate(2025, 3, 4), (schedB.start as ProjectDate.Set).date)
+        assertEquals(LocalDate(2025, 3, 4), (schedB.end as ProjectDate.Set).date)
+
+        assertEquals(LocalDate(2025, 3, 5), (schedC.start as ProjectDate.Set).date)
+        assertEquals(LocalDate(2025, 3, 5), (schedC.end as ProjectDate.Set).date)
     }
 }

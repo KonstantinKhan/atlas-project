@@ -10,6 +10,8 @@ interface GanttBarProps {
 	dayWidth: number
 	previewOffsetPx?: number
 	previewWidthPx?: number
+	isCritical?: boolean
+	slack?: number
 	onLinkStart?: (taskId: string, side: 'start' | 'end', e: React.MouseEvent) => void
 	onDragStart?: (taskId: string, e: React.MouseEvent) => void
 	onResizeStartLeft?: (taskId: string, e: React.MouseEvent) => void
@@ -22,6 +24,8 @@ export default function GanttBar({
 	dayWidth,
 	previewOffsetPx = 0,
 	previewWidthPx,
+	isCritical,
+	slack,
 	onLinkStart,
 	onDragStart,
 	onResizeStartLeft,
@@ -38,7 +42,8 @@ export default function GanttBar({
 
 	return (
 		<div
-			className={ganttBar({ status: task.status })}
+			className={`${ganttBar({ status: task.status })}${isCritical ? ' ring-2 ring-red-500 ring-offset-1' : ''}`}
+			title={isCritical ? 'Критическая задача' : slack !== undefined ? `Запас: ${slack} дн.` : undefined}
 			style={{
 				left,
 				width,

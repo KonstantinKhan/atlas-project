@@ -18,3 +18,6 @@ export { GanttProjectPlanSchema } from './schemas/gantt-project-plan.schema'
 
 export type { ScheduleDelta } from './schemas/schedule-delta.schema'
 export { ScheduleDeltaSchema } from './schemas/schedule-delta.schema'
+
+export type { CriticalPath, CpmTask } from './schemas/critical-path.schema'
+export { CriticalPathSchema } from './schemas/critical-path.schema'

@@ -142,3 +142,64 @@ export function formatDateForInput(date: Date): string {
 	const d = String(date.getDate()).padStart(2, '0')
 	return `${y}-${m}-${d}`
 }
+
+export function alignToMonday(date: Date): Date {
+	const result = new Date(date)
+	const day = result.getDay()
+	const diff = day === 0 ? -6 : 1 - day
+	result.setDate(result.getDate() + diff)
+	return result
+}
+
+export function getWeeksInRange(start: Date, end: Date): Date[] {
+	const weeks: Date[] = []
+	const current = alignToMonday(new Date(start))
+	while (current <= end) {
+		weeks.push(new Date(current))
+		current.setDate(current.getDate() + 7)
+	}
+	return weeks
+}
+
+export function groupWeeksByMonth(
+	weeks: Date[],
+): { month: string; year: number; count: number }[] {
+	if (weeks.length === 0) return []
+
+	const formatter = new Intl.DateTimeFormat('ru-RU', { month: 'long' })
+	const groups: { month: string; year: number; count: number }[] = []
+
+	let currentMonth = weeks[0].getMonth()
+	let currentYear = weeks[0].getFullYear()
+	let count = 0
+
+	for (const week of weeks) {
+		if (week.getMonth() === currentMonth && week.getFullYear() === currentYear) {
+			count++
+		} else {
+			groups.push({
+				month: formatter.format(new Date(currentYear, currentMonth, 1)),
+				year: currentYear,
+				count,
+			})
+			currentMonth = week.getMonth()
+			currentYear = week.getFullYear()
+			count = 1
+		}
+	}
+
+	groups.push({
+		month: formatter.format(new Date(currentYear, currentMonth, 1)),
+		year: currentYear,
+		count,
+	})
+
+	return groups
+}
+
+export function getWeekLabel(date: Date): string {
+	const d = date.getDate()
+	const formatter = new Intl.DateTimeFormat('ru-RU', { month: 'short' })
+	const month = formatter.format(date)
+	return `${d} ${month}`
+}

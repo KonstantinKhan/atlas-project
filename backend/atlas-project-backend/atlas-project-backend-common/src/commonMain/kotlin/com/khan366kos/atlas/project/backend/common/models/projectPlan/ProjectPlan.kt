@@ -226,6 +226,22 @@ data class ProjectPlan(
         return false
     }
 
+    fun validateNoCycles(): Boolean {
+        return try {
+            topologicalSort(tasks.keys, dependencies)
+            true
+        } catch (_: IllegalStateException) {
+            false
+        }
+    }
+
+    fun snapshot(): ProjectPlan = ProjectPlan(
+        id = id,
+        tasks = tasks.toMutableMap(),
+        schedules = schedules.mapValues { (_, v) -> v.copy() }.toMutableMap(),
+        dependencies = dependencies.toMutableSet(),
+    )
+
     private fun calculateLag(
         predecessorId: TaskId,
         successorId: TaskId,
@@ -440,41 +456,39 @@ data class ProjectPlan(
     }
 
     fun recalculateAll(calendar: TimelineCalendar): ScheduleDelta {
-        val tasksWithPredecessors = dependencies.map { it.successor }.toSet()
-        val rootIds = tasks.keys.filter { it !in tasksWithPredecessors }
+        val scheduledIds = schedules.keys
+            .filter { schedules[it]?.start is ProjectDate.Set && schedules[it]?.end is ProjectDate.Set }
+            .map { TaskId(it.value) }
+            .toSet()
 
-        val queue = ArrayDeque<TaskId>()
-        val visited = mutableSetOf<TaskId>()
-        rootIds.forEach { queue.add(it); visited.add(it) }
-
+        val sortedIds = topologicalSort(scheduledIds, dependencies)
         val updatedSchedules = mutableListOf<TaskSchedule>()
-        while (queue.isNotEmpty()) {
-            val currentId = queue.removeFirst()
-            for (dep in dependencies.filter { it.predecessor == currentId }) {
-                val successorId = dep.successor
-                if (successorId in visited) continue
-                val successorSchedule = schedules[TaskScheduleId(successorId.value)] ?: continue
-                val successorDuration = actualDuration(successorSchedule, calendar)
-                    ?: tasks[successorId]?.duration ?: continue
-                val allPreds = dependencies.filter { it.successor == successorId }
-                val constrainedStart = allPreds.mapNotNull { pd ->
-                    val predSched = schedules[TaskScheduleId(pd.predecessor.value)]
-                        ?.takeIf { it.start is ProjectDate.Set && it.end is ProjectDate.Set }
-                        ?: return@mapNotNull null
-                    calculateConstrainedStart(pd, predSched, successorDuration, calendar)
-                }.maxOrNull() ?: continue
-                val constrainedEnd = calendar.addWorkingDays(constrainedStart, successorDuration)
-                val sched = TaskSchedule(
-                    id = TaskScheduleId(successorId.value),
-                    start = ProjectDate.Set(constrainedStart),
-                    end = ProjectDate.Set(constrainedEnd),
-                )
-                schedules[sched.id] = sched
-                updatedSchedules.add(sched)
-                visited.add(successorId)
-                queue.add(successorId)
-            }
+
+        for (currentId in sortedIds) {
+            val allPreds = dependencies.filter { it.successor == currentId }
+            if (allPreds.isEmpty()) continue
+
+            val currentSchedule = schedules[TaskScheduleId(currentId.value)] ?: continue
+            val duration = actualDuration(currentSchedule, calendar)
+                ?: tasks[currentId]?.duration ?: continue
+
+            val constrainedStart = allPreds.mapNotNull { pd ->
+                val predSched = schedules[TaskScheduleId(pd.predecessor.value)]
+                    ?.takeIf { it.start is ProjectDate.Set && it.end is ProjectDate.Set }
+                    ?: return@mapNotNull null
+                calculateConstrainedStart(pd, predSched, duration, calendar)
+            }.maxOrNull() ?: continue
+
+            val constrainedEnd = calendar.addWorkingDays(constrainedStart, duration)
+            val sched = TaskSchedule(
+                id = TaskScheduleId(currentId.value),
+                start = ProjectDate.Set(constrainedStart),
+                end = ProjectDate.Set(constrainedEnd),
+            )
+            schedules[sched.id] = sched
+            updatedSchedules.add(sched)
         }
+
         return ScheduleDelta(updatedSchedules)
     }
 
@@ -483,26 +497,7 @@ data class ProjectPlan(
         predSchedule: TaskSchedule,
         successorDuration: Duration,
         calendar: TimelineCalendar,
-    ): LocalDate {
-        val predStart = (predSchedule.start as ProjectDate.Set).date
-        val predEnd = (predSchedule.end as ProjectDate.Set).date
-        val lag = dep.lag.asInt()
-        return when (dep.type) {
-            DependencyType.FS -> {
-                // lag=0 → встык (next working day), lag=1 → 1 day gap, lag=-1 → same day as predEnd, lag=-2 → 1 day before predEnd
-                val n = lag + 2
-                if (n > 0) calendar.addWorkingDays(predEnd, Duration(n))
-                else calendar.subtractWorkingDays(predEnd, Duration(-lag))
-            }
-            DependencyType.SS -> calendar.addWorkingDays(predStart, Duration(lag))
-            DependencyType.FF -> {
-                val constrainedEnd = calendar.addWorkingDays(predEnd, Duration(lag))
-                calendar.subtractWorkingDays(constrainedEnd, successorDuration)
-            }
-            DependencyType.SF -> {
-                val constrainedEnd = calendar.addWorkingDays(predStart, Duration(lag))
-                calendar.subtractWorkingDays(constrainedEnd, successorDuration)
-            }
-        }
-    }
+    ): LocalDate = com.khan366kos.atlas.project.backend.common.models.projectPlan.calculateConstrainedStart(
+        dep, predSchedule, successorDuration, calendar
+    )
 }

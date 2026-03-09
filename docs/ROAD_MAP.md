@@ -246,15 +246,16 @@ _(Project & Portfolio Management)_
 ---
 # 📍 Где ты сейчас
 
-> _Последнее обновление: 2026-03-03_
+> _Последнее обновление: 2026-03-09_
 
 | Этап | Прогресс | Комментарий |
 |------|----------|-------------|
-| 0. Архитектурный фундамент | ~80% | Все модели готовы, pipeline работает. Нет Move/Resize |
-| 1.1 Task Pool | ~75% | Создание и переименование работают. Нет удаления |
-| 1.2 Gantt-планирование | ~50% | Даты через пикеры, пересчёт через календарь. Нет drag/resize/назначения из пула/планирования назад |
-| 1.3 Зависимости | ~80% | FS/SS/FF/SF с каскадом, фиксированный лаг, clamping. SVG-стрелки с hover-glow и попапом удаления. Нет смены типа через UI |
+| 0. Архитектурный фундамент | ✅ 100% | Все модели, pipeline, тесты |
+| 1.1 Task Pool | ✅ 100% | CRUD: создание, переименование, удаление |
+| 1.2 Gantt-планирование | ✅ 100% | Drag, resize, assign, plan-from-end, календарь |
+| 1.3 Зависимости | ✅ 100% | FS/SS/FF/SF, каскад, смена типа, удаление |
 | 2–6 | 0% | Не начаты |
 
 Подробный статус реализации: [IMPLEMENTATION_STATUS.md](project/IMPLEMENTATION_STATUS.md)
-План реализации: [IMPLEMENTATION_PLAN.md](project/IMPLEMENTATION_PLAN.md)
+План реализации — Этап 1: [IMPLEMENTATION_PLAN.md](project/IMPLEMENTATION_PLAN.md)
+План реализации — Этап 2: [IMPLEMENTATION_PLAN_STAGE2.md](project/IMPLEMENTATION_PLAN_STAGE2.md)

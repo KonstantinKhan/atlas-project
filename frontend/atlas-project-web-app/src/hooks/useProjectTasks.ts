@@ -13,10 +13,12 @@ import {
 	changeDependencyType,
 	assignTaskSchedule,
 	planTaskFromEnd,
+	getCriticalPath,
 } from '@/services/projectTasksApi'
-import { Task, GanttProjectPlan, ScheduleDelta } from '@/types'
+import { Task, GanttProjectPlan, ScheduleDelta, CriticalPath } from '@/types'
 
 const QUERY_KEY = ['projectTasks']
+const CRITICAL_PATH_KEY = ['criticalPath']
 
 export function useProjectTasks() {
 	return useQuery<Task[]>({
@@ -32,6 +34,7 @@ export function useUpdateProjectTask() {
 			updateProjectTask(id, updates),
 		onSuccess: (updatedTask: Task) => {
 			queryClient.invalidateQueries({ queryKey: QUERY_KEY })
+			queryClient.invalidateQueries({ queryKey: CRITICAL_PATH_KEY })
 			queryClient.setQueryData<GanttProjectPlan>(['projectPlan'], (old) => {
 				if (!old) return old
 				return {
@@ -54,6 +57,14 @@ export function useProjectPlan() {
 	})
 }
 
+export function useCriticalPath() {
+	return useQuery<CriticalPath>({
+		queryKey: CRITICAL_PATH_KEY,
+		queryFn: getCriticalPath,
+		staleTime: 5000,
+	})
+}
+
 export function useChangeTaskStartDate() {
 	const queryClient = useQueryClient()
 	return useMutation({
@@ -67,6 +78,7 @@ export function useChangeTaskStartDate() {
 			newPlannedStart: string
 		}) => changeTaskStartDate(planId, taskId, newPlannedStart),
 		onSuccess: (delta: ScheduleDelta) => {
+			queryClient.invalidateQueries({ queryKey: CRITICAL_PATH_KEY })
 			queryClient.setQueryData<GanttProjectPlan>(['projectPlan'], (old) => {
 				if (!old) return old
 				return {
@@ -94,6 +106,7 @@ export function useResizeTaskFromStart() {
 			newPlannedStart: string
 		}) => resizeTaskFromStart(planId, taskId, newPlannedStart),
 		onSuccess: (delta: ScheduleDelta) => {
+			queryClient.invalidateQueries({ queryKey: CRITICAL_PATH_KEY })
 			queryClient.setQueryData<GanttProjectPlan>(['projectPlan'], (old) => {
 				if (!old) return old
 				return {
@@ -121,6 +134,7 @@ export function useChangeTaskEndDate() {
 			newPlannedEnd: string
 		}) => changeTaskEndDate(planId, taskId, newPlannedEnd),
 		onSuccess: (delta: ScheduleDelta) => {
+			queryClient.invalidateQueries({ queryKey: CRITICAL_PATH_KEY })
 			queryClient.setQueryData<GanttProjectPlan>(['projectPlan'], (old) => {
 				if (!old) return old
 				return {
@@ -142,6 +156,7 @@ export function useCreateProjectTask() {
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: QUERY_KEY })
 			queryClient.invalidateQueries({ queryKey: ['projectPlan'] })
+			queryClient.invalidateQueries({ queryKey: CRITICAL_PATH_KEY })
 		},
 	})
 }
@@ -151,6 +166,7 @@ export function useDeleteProjectTask() {
 	return useMutation({
 		mutationFn: ({ id }: { id: string }) => deleteProjectTask(id),
 		onSuccess: (_, { id }) => {
+			queryClient.invalidateQueries({ queryKey: CRITICAL_PATH_KEY })
 			queryClient.setQueryData<GanttProjectPlan>(['projectPlan'], (old) => {
 				if (!old) return old
 				return {
@@ -170,6 +186,7 @@ export function useAssignTaskSchedule() {
 	return useMutation<GanttProjectPlan, Error, { taskId: string; start: string; duration: number }>({
 		mutationFn: ({ taskId, start, duration }) => assignTaskSchedule(taskId, start, duration),
 		onSuccess: (newPlan: GanttProjectPlan) => {
+			queryClient.invalidateQueries({ queryKey: CRITICAL_PATH_KEY })
 			queryClient.setQueryData<GanttProjectPlan>(['projectPlan'], () => newPlan)
 		},
 	})
@@ -180,6 +197,7 @@ export function usePlanFromEnd() {
 	return useMutation<GanttProjectPlan, Error, { taskId: string; newPlannedEnd: string }>({
 		mutationFn: ({ taskId, newPlannedEnd }) => planTaskFromEnd(taskId, newPlannedEnd),
 		onSuccess: (newPlan: GanttProjectPlan) => {
+			queryClient.invalidateQueries({ queryKey: CRITICAL_PATH_KEY })
 			queryClient.setQueryData<GanttProjectPlan>(['projectPlan'], () => newPlan)
 		},
 	})
@@ -190,6 +208,7 @@ export function useDeleteDependency() {
 	return useMutation<GanttProjectPlan, Error, { fromTaskId: string; toTaskId: string }>({
 		mutationFn: ({ fromTaskId, toTaskId }) => deleteDependency(fromTaskId, toTaskId),
 		onSuccess: (newPlan: GanttProjectPlan) => {
+			queryClient.invalidateQueries({ queryKey: CRITICAL_PATH_KEY })
 			queryClient.setQueryData<GanttProjectPlan>(['projectPlan'], () => newPlan)
 		},
 	})
@@ -205,6 +224,7 @@ export function useChangeDependencyType() {
 		mutationFn: ({ fromTaskId, toTaskId, newType }) =>
 			changeDependencyType(fromTaskId, toTaskId, newType),
 		onSuccess: (newPlan: GanttProjectPlan) => {
+			queryClient.invalidateQueries({ queryKey: CRITICAL_PATH_KEY })
 			queryClient.setQueryData<GanttProjectPlan>(['projectPlan'], () => newPlan)
 		},
 	})
@@ -221,6 +241,7 @@ export function useCreateDependency() {
 		mutationFn: ({ planId, fromTaskId, toTaskId, type = 'FS' }) =>
 			createDependency(planId, fromTaskId, toTaskId, type),
 		onSuccess: (newPlan: GanttProjectPlan) => {
+			queryClient.invalidateQueries({ queryKey: CRITICAL_PATH_KEY })
 			queryClient.setQueryData<GanttProjectPlan>(['projectPlan'], () => newPlan)
 		},
 	})
