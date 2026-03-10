@@ -1,6 +1,6 @@
 # Статус реализации
 
-> _Последнее обновление: 2026-03-06 (Фаза D завершена)_
+> _Последнее обновление: 2026-03-10 (Этап 2 завершён, UX-улучшения)_
 
 Документ сопоставляет дорожную карту ([ROAD_MAP.md](../ROAD_MAP.md)) с фактическим состоянием кода.
 
@@ -198,6 +198,109 @@ UI → UX Command → API → Domain → DB → DTO → UI
 
 ---
 
+## Фаза G: Граф задач ✅ (завершена 2026-03-09)
+
+| Задача | Статус | Комментарий |
+|--------|--------|-------------|
+| G1: `topologicalSort()` — алгоритм Кана | ✅ | `TopologicalSort.kt` — BFS-based, обнаруживает циклы |
+| G2: `validateNoCycles()` | ✅ | Обёртка над `topologicalSort()` с try/catch |
+| G3: Рефакторинг `recalculateAll()` | ✅ | Заменён ad-hoc BFS на `topologicalSort()` |
+| G4: `snapshot()` — глубокая копия | ✅ | Глубокая копия mutable maps/sets для what-if |
+| G5: Unit-тесты графовых операций | ✅ | Линейная цепочка, ромб, множественные корни, цикл |
+
+### Изменения в коде (Фаза G)
+- **Новый:** `TopologicalSort.kt` — алгоритм Кана
+- **Изменить:** `ProjectPlan.kt` — `recalculateAll()` на топосортировке, `snapshot()`, `validateNoCycles()`
+- **Новый:** `TopologicalSortTest.kt`
+
+---
+
+## Фаза H: Критический путь (CPM) ✅ (завершена 2026-03-09)
+
+| Задача | Статус | Комментарий |
+|--------|--------|-------------|
+| H1: Forward pass (ES/EF) | ✅ | `CriticalPathAnalysis.kt` |
+| H2: Backward pass (LS/LF) + slack | ✅ | slack = workingDaysBetween(ES, LS) |
+| H3: DTOs | ✅ | `CpmTaskDto`, `CriticalPathDto` |
+| H4: Маппер | ✅ | `CriticalPathResult.toDto()` |
+| H5: `GET /critical-path` | ✅ | On-demand CPM вычисление |
+| H6: Unit-тесты CPM | ✅ | Forward, backward, slack, critical chain |
+| H7: `useCriticalPath()` hook | ✅ | С invalidation при изменении плана |
+| H8: Подсветка критических баров | ✅ | `ring-2 ring-red-500` |
+| H9: Красные стрелки | ✅ | Стрелки между критическими задачами |
+| H10: Tooltip со slack | ✅ | «Запас: N дн.» / «Критическая задача» |
+
+### Изменения в коде (Фаза H)
+- **Новый:** `CriticalPathAnalysis.kt` — forward/backward pass
+- **Новый:** `CriticalPathDto.kt` — DTO для API
+- **Изменить:** `DomainToTransport.kt` — маппер `CriticalPathResult.toDto()`
+- **Новый:** `CriticalPath.kt` (routes) — `GET /critical-path`
+- **Изменить:** `Routing.kt` — регистрация `criticalPath()`
+- **Новый:** `CriticalPathAnalysisTest.kt`
+- **Изменить:** `projectTasksApi.ts` — `getCriticalPath()`
+- **Изменить:** `useProjectTasks.ts` — `useCriticalPath()`
+- **Изменить:** `GanttBar.tsx`, `GanttChart.tsx`, `GanttTaskLayer.tsx` — визуализация CPM
+
+---
+
+## Фаза I: Аналитические виды ✅ (завершена 2026-03-10)
+
+| Задача | Статус | Комментарий |
+|--------|--------|-------------|
+| I1: Блокирующая цепочка | ✅ | BFS назад по predecessors, топологическая сортировка подграфа |
+| I2: Доступные задачи | ✅ | Фильтр: запланирована, не DONE, start ≤ today, все preds DONE |
+| I3: What-if (start + end) | ✅ | `snapshot()` + `changeTaskStartDate` / `changeTaskEndDate`, сравнение дельт |
+| I4: DTOs для аналитики | ✅ | `BlockerChainDto`, `AvailableTasksDto`, `WhatIfDto` |
+| I5: 4 GET-эндпоинта | ✅ | `/analysis/blocker-chain/{id}`, `/analysis/available-tasks`, `/analysis/what-if`, `/analysis/what-if-end` |
+| I6: Unit-тесты (12 шт.) | ✅ | blockerChain (3), availableTasks (4), whatIf (3), whatIfEnd (2) |
+| I7: Frontend hooks + API | ✅ | `useBlockerChain`, `useAvailableTasks`, `useWhatIf`, `useWhatIfEnd` |
+| I8: AnalysisPanel | ✅ | Правый сайдбар (320px), 3 таба: Блокеры / Доступные / Что-если (start + end) |
+
+### Изменения в коде (Фаза I)
+- **Новый:** `AnalysisQueries.kt` — `blockerChain()`, `availableTasks()`, `whatIf()`, `whatIfEnd()`
+- **Новый:** `BlockerChainDto.kt`, `AvailableTasksDto.kt`, `WhatIfDto.kt`
+- **Изменить:** `DomainToTransport.kt` — 6 маппер-функций
+- **Новый:** `Analysis.kt` (routes) — 4 GET-эндпоинта
+- **Изменить:** `Routing.kt` — регистрация `analysis()`
+- **Новый:** `AnalysisQueriesTest.kt`
+- **Новый:** `analysis.schema.ts` — Zod-схемы
+- **Изменить:** `types/index.ts`, `projectTasksApi.ts`, `useProjectTasks.ts`
+- **Изменить:** `timelineCalendarStore.ts` — состояние панели аналитики
+- **Новый:** `AnalysisPanel.tsx` — правый сайдбар
+- **Изменить:** `GanttChart.tsx` — кнопка-тоггл, рендер панели
+
+---
+
+## UX-улучшения (2026-03-10)
+
+| Функция | Статус | Комментарий |
+|---------|--------|-------------|
+| Scroll-to-today | ✅ | При загрузке графика сегодняшний день по центру |
+| Drag-to-reorder задач | ✅ | Перетаскивание задач за grip-handle для смены порядка |
+
+### Изменения в коде (UX-улучшения)
+
+**Scroll-to-today:**
+- `GanttChart.tsx` — `hasScrolledToToday` ref, useEffect с `getDayOffset()`, сброс при смене viewMode
+
+**Drag-to-reorder:**
+- **Backend:**
+  - `ProjectTask.kt` — добавлено `val sortOrder: Int = 0`
+  - `ProjectTasksTable.kt` — добавлен `sort_order` столбец
+  - `IAtlasProjectTaskRepo.kt` — добавлен `reorderTasks(orderedIds)`
+  - `AtlasProjectTaskRepoPostgres.kt` — `orderBy(sortOrder)`, `reorderTasks()`, `sortOrder` в inserts/mapper
+  - **Новый:** `ReorderTasks.kt` (routes) — `POST /reorder-tasks`
+  - `Routing.kt` — регистрация `reorderTasks()`
+  - **Новый:** `V5__add_sort_order.sql` — миграция
+- **Frontend:**
+  - `projectTasksApi.ts` — `reorderTasks(orderedIds)`
+  - `useProjectTasks.ts` — `useReorderTasks()` mutation hook
+  - `GanttTaskList.tsx` — `SortableTaskRow` с `useSortable` из `@dnd-kit/react/sortable`
+  - `GanttTaskRow.tsx` — `dragHandleRef` prop + `GripVertical` иконка (вместо `useDraggable`)
+  - `GanttChart.tsx` — `handleReorder` с оптимистичным обновлением, `isSortableOperation` в `handleDragEnd`
+
+---
+
 ## Оставшийся технический долг
 
 | Проблема | Серьёзность | Комментарий |
@@ -206,11 +309,9 @@ UI → UX Command → API → Domain → DB → DTO → UI
 
 ---
 
-## Этапы 2–6
+## Этапы 3–6
 
-Не начаты. Предпосылки для начала Этапа 2:
-- Завершить Этап 1 (все три подэтапа)
-- Покрыть доменную модель тестами
+Не начаты. Следующий этап — **3. Ресурсное планирование**.
 
 ---
 

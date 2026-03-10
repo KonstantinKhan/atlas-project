@@ -9,5 +9,6 @@ object ProjectTasksTable : Table("project_tasks") {
     val description = text("description").default("")
     val durationDays = integer("duration_days")
     val status = varchar("status", 50).default("EMPTY")
+    val sortOrder = integer("sort_order").default(0)
     override val primaryKey = PrimaryKey(id)
 }

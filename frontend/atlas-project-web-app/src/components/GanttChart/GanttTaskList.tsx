@@ -5,12 +5,44 @@ import { Plus } from 'lucide-react'
 import { GanttTask, TaskCommand } from '@/types'
 import { TaskCommandType } from '@/types/types/TaskCommandType'
 import GanttTaskRow from './GanttTaskRow'
+import { useSortable } from '@dnd-kit/react/sortable'
 
 interface GanttTaskListProps {
 	tasks: GanttTask[]
 	headerHeight: number
 	rowHeight: number
 	onUpdateTask: (cmd: TaskCommand) => void
+	onReorder: (orderedIds: string[]) => void
+}
+
+function SortableTaskRow({
+	task,
+	index,
+	rowHeight,
+	onUpdateTask,
+}: {
+	task: GanttTask
+	index: number
+	rowHeight: number
+	onUpdateTask: (cmd: TaskCommand) => void
+}) {
+	const { ref, handleRef, isDragging } = useSortable({
+		id: task.id,
+		index,
+		group: 'task-list',
+		data: { type: 'reorder', taskId: task.id },
+	})
+
+	return (
+		<div ref={ref} style={{ opacity: isDragging ? 0.5 : 1 }}>
+			<GanttTaskRow
+				task={task}
+				rowHeight={rowHeight}
+				onUpdateTask={onUpdateTask}
+				dragHandleRef={handleRef}
+			/>
+		</div>
+	)
 }
 
 export default function GanttTaskList({
@@ -18,6 +50,7 @@ export default function GanttTaskList({
 	headerHeight,
 	rowHeight,
 	onUpdateTask,
+	onReorder,
 }: GanttTaskListProps) {
 	const [isCreating, setIsCreating] = useState(false)
 	const [newTaskTitle, setNewTaskTitle] = useState('')
@@ -62,10 +95,11 @@ export default function GanttTaskList({
 				</div>
 			</div>
 
-			{tasks.map((task) => (
-				<GanttTaskRow
+			{tasks.map((task, index) => (
+				<SortableTaskRow
 					key={task.id}
 					task={task}
+					index={index}
 					rowHeight={rowHeight}
 					onUpdateTask={onUpdateTask}
 				/>

@@ -30,11 +30,11 @@
 
 | ID | Задача | Слой | Размер | Статус |
 |----|--------|------|--------|--------|
-| G1 | `topologicalSort()` — алгоритм Кана | Backend | S | Done |
-| G2 | `validateNoCycles()` — валидация всего графа | Backend | S | Done |
-| G3 | Рефакторинг `recalculateAll()` на topologicalSort | Backend | S | Done |
-| G4 | `snapshot()` — глубокая копия ProjectPlan для what-if | Backend | S | Done |
-| G5 | Unit-тесты графовых операций | Backend | M | Done |
+| G1 | `topologicalSort()` — алгоритм Кана | Backend | S | ✅ Done |
+| G2 | `validateNoCycles()` — валидация всего графа | Backend | S | ✅ Done |
+| G3 | Рефакторинг `recalculateAll()` на topologicalSort | Backend | S | ✅ Done |
+| G4 | `snapshot()` — глубокая копия ProjectPlan для what-if | Backend | S | ✅ Done |
+| G5 | Unit-тесты графовых операций | Backend | M | ✅ Done |
 
 ### Детали
 
@@ -81,16 +81,16 @@ for (taskId in sortedIds) { ... }
 
 | ID | Задача | Слой | Размер | Статус |
 |----|--------|------|--------|--------|
-| H1 | `CriticalPathAnalysis` — forward pass (ES/EF) | Backend | M | Done |
-| H2 | `CriticalPathAnalysis` — backward pass (LS/LF) + slack | Backend | M | Done |
-| H3 | DTO: `CpmTaskDto`, `CriticalPathDto` | Backend | S | Done |
-| H4 | Маппер: `CriticalPathResult.toDto()` | Backend | S | Done |
-| H5 | Эндпоинт: `GET /critical-path` | Backend | S | Done |
-| H6 | Unit-тесты CPM (forward, backward, slack, critical chain) | Backend | L | Done |
-| H7 | Frontend: `useCriticalPath()` hook + API | Frontend | S | Done |
-| H8 | Frontend: подсветка критических баров (ring-red) | Frontend | M | Done |
-| H9 | Frontend: красные стрелки на критическом пути | Frontend | S | Done |
-| H10 | Frontend: tooltip со slack на hover бара | Frontend | S | Done |
+| H1 | `CriticalPathAnalysis` — forward pass (ES/EF) | Backend | M | ✅ Done |
+| H2 | `CriticalPathAnalysis` — backward pass (LS/LF) + slack | Backend | M | ✅ Done |
+| H3 | DTO: `CpmTaskDto`, `CriticalPathDto` | Backend | S | ✅ Done |
+| H4 | Маппер: `CriticalPathResult.toDto()` | Backend | S | ✅ Done |
+| H5 | Эндпоинт: `GET /critical-path` | Backend | S | ✅ Done |
+| H6 | Unit-тесты CPM (forward, backward, slack, critical chain) | Backend | L | ✅ Done |
+| H7 | Frontend: `useCriticalPath()` hook + API | Frontend | S | ✅ Done |
+| H8 | Frontend: подсветка критических баров (ring-red) | Frontend | M | ✅ Done |
+| H9 | Frontend: красные стрелки на критическом пути | Frontend | S | ✅ Done |
+| H10 | Frontend: tooltip со slack на hover бара | Frontend | S | ✅ Done |
 
 ### Детали
 
@@ -204,14 +204,14 @@ get("/critical-path") {
 
 | ID | Задача | Слой | Размер | Статус |
 |----|--------|------|--------|--------|
-| I1 | «Что блокирует задачу X» — BFS по predecessors | Backend | S | |
-| I2 | «Какие задачи можно начать сейчас» — фильтр | Backend | S | |
-| I3 | «Что будет если сдвинуть задачу» — what-if через snapshot | Backend | M | |
-| I4 | DTOs для аналитики | Backend | S | |
-| I5 | Эндпоинты: 3 GET-маршрута | Backend | S | |
-| I6 | Unit-тесты аналитики | Backend | M | |
-| I7 | Frontend: hooks + API для 3 запросов | Frontend | S | |
-| I8 | Frontend: панель аналитики (AnalysisPanel) | Frontend | L | |
+| I1 | «Что блокирует задачу X» — BFS по predecessors | Backend | S | ✅ Done |
+| I2 | «Какие задачи можно начать сейчас» — фильтр | Backend | S | ✅ Done |
+| I3 | «Что будет если сдвинуть задачу» — what-if через snapshot (start + end) | Backend | M | ✅ Done |
+| I4 | DTOs для аналитики | Backend | S | ✅ Done |
+| I5 | Эндпоинты: 4 GET-маршрута (blocker-chain, available-tasks, what-if, what-if-end) | Backend | S | ✅ Done |
+| I6 | Unit-тесты аналитики (12 тестов) | Backend | M | ✅ Done |
+| I7 | Frontend: hooks + API для 4 запросов | Frontend | S | ✅ Done |
+| I8 | Frontend: панель аналитики (AnalysisPanel) с 3 табами | Frontend | L | ✅ Done |
 
 ### Детали
 

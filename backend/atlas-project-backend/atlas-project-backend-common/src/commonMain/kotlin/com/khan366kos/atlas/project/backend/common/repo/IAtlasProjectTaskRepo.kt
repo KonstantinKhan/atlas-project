@@ -24,4 +24,6 @@ interface IAtlasProjectTaskRepo {
     suspend fun deleteDependency(predecessorId: String, successorId: String): Int
 
     suspend fun deleteTask(id: String): Int
+
+    suspend fun reorderTasks(orderedIds: List<String>)
 }

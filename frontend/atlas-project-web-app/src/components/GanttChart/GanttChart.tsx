@@ -16,12 +16,14 @@ import {
 	useDeleteProjectTask,
 	useAssignTaskSchedule,
 	usePlanFromEnd,
+	useReorderTasks,
 } from '@/hooks/useProjectTasks'
 import { GanttTask, GanttDependencyDto, TaskCommand } from '@/types'
 import { ProjectTaskStatus } from '@/types/generated/enums/project-task-status.enum'
 import {
 	getCalendarRange,
 	getDaysInRange,
+	getDayOffset,
 	groupDaysByMonth,
 	formatDateForInput,
 	alignToMonday,
@@ -33,12 +35,15 @@ import GanttTaskList from './GanttTaskList'
 import GanttCalendarHeader from './GanttCalendarHeader'
 import GanttCalendarGrid, { TIMELINE_DROP_ID } from './GanttCalendarGrid'
 import ConfirmDeleteModal from './ConfirmDeleteModal'
+import AnalysisPanel from './AnalysisPanel'
 import Toast from './Toast'
 import { TaskCommandType } from '@/types/types/TaskCommandType'
 import { TaskId } from '@/utils/types/TaskId'
 import { LocalDate } from '@/utils/types/LocalDate'
+import { BarChart3 } from 'lucide-react'
 import { DragDropProvider } from '@dnd-kit/react'
 import type { DragEndEvent } from '@dnd-kit/react'
+import { isSortableOperation } from '@dnd-kit/react/sortable'
 
 type DragEndArg = Parameters<DragEndEvent>[0]
 
@@ -57,6 +62,8 @@ function addDays(date: Date, days: number): Date {
 export const GanttChart = () => {
 	const viewMode = useTimelineCalendarStore((s) => s.ui.viewMode)
 	const setViewMode = useTimelineCalendarStore((s) => s.setViewMode)
+	const isAnalysisPanelOpen = useTimelineCalendarStore((s) => s.ui.isAnalysisPanelOpen)
+	const setAnalysisPanelOpen = useTimelineCalendarStore((s) => s.setAnalysisPanelOpen)
 	const dayWidth = viewMode === 'day' ? DAY_WIDTH_DAILY : DAY_WIDTH_WEEKLY
 
 	const {
@@ -88,6 +95,7 @@ export const GanttChart = () => {
 	const deleteTaskMutation = useDeleteProjectTask()
 	const assignScheduleMutation = useAssignTaskSchedule()
 	const planFromEndMutation = usePlanFromEnd()
+	const reorderTasksMutation = useReorderTasks()
 	const { data: criticalPathData } = useCriticalPath()
 
 	const criticalTaskIds = useMemo(() => {
@@ -111,6 +119,7 @@ export const GanttChart = () => {
 	const leftRef = useRef<HTMLDivElement>(null)
 	const rightRef = useRef<HTMLDivElement>(null)
 	const isSyncing = useRef(false)
+	const hasScrolledToToday = useRef(false)
 
 	useEffect(() => {
 		if (planData) {
@@ -491,11 +500,48 @@ export const GanttChart = () => {
 		[planData, resizeFromStartMutation],
 	)
 
+	const handleReorder = useCallback(
+		(orderedIds: string[]) => {
+			setAllTasks((prev) => {
+				prevTasksRef.current = prev
+				const idToTask = new Map(prev.map((t) => [t.id, t]))
+				return orderedIds.map((id) => idToTask.get(id)).filter(Boolean) as GanttTask[]
+			})
+			reorderTasksMutation.mutate(
+				{ orderedIds },
+				{
+					onError: () => {
+						setAllTasks(prevTasksRef.current)
+						setToastMessage('Не удалось изменить порядок задач')
+					},
+				},
+			)
+		},
+		[reorderTasksMutation],
+	)
+
 	const handleDragEnd = useCallback(
 		(event: DragEndArg) => {
 			if (event.canceled) return
 			const { operation } = event
 			if (!operation.source || !operation.target) return
+
+			// Handle sortable reorder
+			if (isSortableOperation(operation)) {
+				const sourceData = operation.source.data as { type?: string; taskId?: string } | undefined
+				if (sourceData?.type === 'reorder') {
+					const sourceIndex = operation.source.initialIndex
+					const targetIndex = operation.source.index
+					if (sourceIndex != null && targetIndex != null && sourceIndex !== targetIndex) {
+						const newOrder = [...allTasks]
+						const [moved] = newOrder.splice(sourceIndex, 1)
+						newOrder.splice(targetIndex, 0, moved)
+						handleReorder(newOrder.map((t) => t.id))
+					}
+					return
+				}
+			}
+
 			if (operation.target.id !== TIMELINE_DROP_ID) return
 
 			const taskId = String(operation.source.id)
@@ -524,7 +570,7 @@ export const GanttChart = () => {
 				duration: 1,
 			})
 		},
-		[allTasks, planData, handleUpdateTask],
+		[allTasks, planData, handleUpdateTask, handleReorder],
 	)
 
 	const syncScroll = useCallback(
@@ -542,6 +588,31 @@ export const GanttChart = () => {
 		},
 		[],
 	)
+
+	// Reset scroll-to-today when view mode changes
+	useEffect(() => {
+		hasScrolledToToday.current = false
+	}, [viewMode])
+
+	// Scroll to today on initial load
+	useEffect(() => {
+		if (hasScrolledToToday.current) return
+		if (!planData || allTasks.length === 0) return
+		const container = rightRef.current
+		if (!container) return
+
+		const tasksWithDates = allTasks.filter((t) => t.start && t.end)
+		if (tasksWithDates.length === 0) return
+
+		const { start: rawStart } = getCalendarRange(tasksWithDates)
+		const rs = viewMode === 'week' ? alignToMonday(rawStart) : rawStart
+		const todayOffset = getDayOffset(new Date(), rs)
+		const todayPx = todayOffset * dayWidth
+		const centerPx = todayPx - container.clientWidth / 2
+
+		container.scrollLeft = Math.max(0, centerPx)
+		hasScrolledToToday.current = true
+	}, [planData, allTasks, dayWidth, viewMode])
 
 	if (calendarLoading || planLoading) {
 		return (
@@ -644,6 +715,16 @@ export const GanttChart = () => {
 					>
 						Неделя
 					</button>
+
+					<div className="ml-auto">
+						<button
+							className={`flex items-center gap-1 px-3 py-1 text-xs rounded ${isAnalysisPanelOpen ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300 font-semibold' : 'text-gray-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800'}`}
+							onClick={() => setAnalysisPanelOpen(!isAnalysisPanelOpen)}
+						>
+							<BarChart3 size={14} />
+							Аналитика
+						</button>
+					</div>
 				</div>
 
 				<div className="flex flex-1 overflow-hidden">
@@ -657,6 +738,7 @@ export const GanttChart = () => {
 							headerHeight={HEADER_HEIGHT}
 							rowHeight={ROW_HEIGHT}
 							onUpdateTask={handleUpdateTask}
+							onReorder={handleReorder}
 						/>
 					</div>
 
@@ -695,6 +777,15 @@ export const GanttChart = () => {
 							onResizeFromStart={handleResizeFromStart}
 						/>
 					</div>
+
+					{isAnalysisPanelOpen && (
+						<div className="w-80 shrink-0 border-l border-gray-300 dark:border-zinc-700 overflow-y-auto bg-white dark:bg-zinc-950">
+							<AnalysisPanel
+								tasks={allTasks}
+								onClose={() => setAnalysisPanelOpen(false)}
+							/>
+						</div>
+					)}
 				</div>
 			</div>
 		</DragDropProvider>

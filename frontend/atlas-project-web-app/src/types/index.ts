@@ -21,3 +21,10 @@ export { ScheduleDeltaSchema } from './schemas/schedule-delta.schema'
 
 export type { CriticalPath, CpmTask } from './schemas/critical-path.schema'
 export { CriticalPathSchema } from './schemas/critical-path.schema'
+
+export type { BlockerChain, BlockerInfo } from './schemas/analysis.schema'
+export { BlockerChainSchema } from './schemas/analysis.schema'
+export type { AvailableTasks } from './schemas/analysis.schema'
+export { AvailableTasksSchema } from './schemas/analysis.schema'
+export type { WhatIfResult } from './schemas/analysis.schema'
+export { WhatIfSchema } from './schemas/analysis.schema'

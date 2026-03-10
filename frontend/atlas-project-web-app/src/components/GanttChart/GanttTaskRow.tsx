@@ -8,9 +8,8 @@ import { LocalDate } from '@/utils/types/LocalDate'
 import { formatDateForInput } from '@/utils/ganttDateUtils'
 import { Calendar } from 'primereact/calendar'
 import { addLocale } from 'primereact/api'
-import { Trash2 } from 'lucide-react'
+import { GripVertical, Trash2 } from 'lucide-react'
 import { ProjectTaskStatus } from '@/types/generated/enums/project-task-status.enum'
-import { useDraggable } from '@dnd-kit/react'
 
 addLocale('ru', {
 	firstDayOfWeek: 1,
@@ -27,6 +26,7 @@ interface GanttTaskRowProps {
 	task: GanttTask
 	rowHeight: number
 	onUpdateTask: (cmd: TaskCommand) => void
+	dragHandleRef: (element: Element | null) => void
 }
 
 const statusColors: Record<ProjectTaskStatus, string> = {
@@ -49,6 +49,7 @@ export default function GanttTaskRow({
 	task,
 	rowHeight,
 	onUpdateTask,
+	dragHandleRef,
 }: GanttTaskRowProps) {
 	const [isEditing, setIsEditing] = useState(false)
 	const [editTitle, setEditTitle] = useState(task.title)
@@ -56,17 +57,9 @@ export default function GanttTaskRow({
 	const [showStatusMenu, setShowStatusMenu] = useState(false)
 	const startCalRef = useRef<Calendar>(null)
 	const endCalRef = useRef<Calendar>(null)
-	const elementRef = useRef<HTMLDivElement>(null)
 	const statusMenuRef = useRef<HTMLDivElement>(null)
 
 	const isPoolTask = !task.start && !task.end
-
-	const { ref: dragRef, isDragging } = useDraggable({
-		id: task.id,
-		element: elementRef,
-		data: { taskId: task.id },
-		disabled: !isPoolTask,
-	})
 
 	const formatDate = (date?: Date) => {
 		if (!date) return '—'
@@ -111,15 +104,17 @@ export default function GanttTaskRow({
 
 	return (
 		<div
-			ref={(node) => {
-				elementRef.current = node
-				dragRef(node)
-			}}
-			className={`group flex items-center gap-2 px-3 border-b border-gray-200 dark:border-zinc-800 ${
-				isDragging ? 'opacity-50' : ''
-			} ${isPoolTask ? 'cursor-grab active:cursor-grabbing' : ''}`}
+			className="group flex items-center gap-2 px-3 border-b border-gray-200 dark:border-zinc-800"
 			style={{ height: rowHeight }}
 		>
+			{/* Drag handle */}
+			<div
+				ref={dragHandleRef}
+				className="shrink-0 cursor-grab active:cursor-grabbing text-gray-300 dark:text-zinc-600 hover:text-gray-500 dark:hover:text-zinc-400 touch-none"
+			>
+				<GripVertical size={14} />
+			</div>
+
 			{/* E1: Status dot with dropdown */}
 			<div className="relative shrink-0">
 				<div

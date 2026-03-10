@@ -12,4 +12,5 @@ data class ProjectTask(
     val description: Description = Description.NONE,
     val duration: Duration = Duration.ZERO,
     val status: ProjectTaskStatus = ProjectTaskStatus.EMPTY,
+    val sortOrder: Int = 0,
 )

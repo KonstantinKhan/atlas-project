@@ -91,6 +91,10 @@ class AtlasProjectTaskRepoInMemory(private val database: Database) : IAtlasProje
     override suspend fun deleteTask(id: String): Int = newSuspendedTransaction(db = database) {
         ProjectTasksTable.deleteWhere { ProjectTasksTable.id eq id }
     }
+
+    override suspend fun reorderTasks(orderedIds: List<String>) {
+        TODO("Not yet implemented - in-memory repo does not support reordering")
+    }
 }
 
 private fun ResultRow.toProjectTask() = ProjectTask(

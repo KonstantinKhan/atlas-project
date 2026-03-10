@@ -1,9 +1,15 @@
 package com.khan366kos.atlas.project.backend.mappers
 
 import com.khan366kos.atlas.project.backend.common.models.ProjectDate
+import com.khan366kos.atlas.project.backend.common.models.projectPlan.AvailableTaskInfo
+import com.khan366kos.atlas.project.backend.common.models.projectPlan.AvailableTasksResult
+import com.khan366kos.atlas.project.backend.common.models.projectPlan.BlockerChainResult
+import com.khan366kos.atlas.project.backend.common.models.projectPlan.BlockerInfo
 import com.khan366kos.atlas.project.backend.common.models.projectPlan.CpmTaskResult
 import com.khan366kos.atlas.project.backend.common.models.projectPlan.CriticalPathResult
 import com.khan366kos.atlas.project.backend.common.models.projectPlan.ProjectPlan
+import com.khan366kos.atlas.project.backend.common.models.projectPlan.TaskImpact
+import com.khan366kos.atlas.project.backend.common.models.projectPlan.WhatIfResult
 import com.khan366kos.atlas.project.backend.common.models.taskSchedule.ScheduleDelta
 import com.khan366kos.atlas.project.backend.common.models.taskSchedule.TaskSchedule
 import com.khan366kos.atlas.project.backend.common.models.taskSchedule.TaskScheduleId
@@ -12,6 +18,12 @@ import com.khan366kos.atlas.project.backend.transport.GanttDependencyDto
 import com.khan366kos.atlas.project.backend.transport.GanttTaskDto
 import com.khan366kos.atlas.project.backend.transport.ScheduleDeltaDto
 import com.khan366kos.atlas.project.backend.transport.ScheduleUpdateDto
+import com.khan366kos.atlas.project.backend.transport.analysis.AvailableTaskInfoDto
+import com.khan366kos.atlas.project.backend.transport.analysis.AvailableTasksDto
+import com.khan366kos.atlas.project.backend.transport.analysis.BlockerChainDto
+import com.khan366kos.atlas.project.backend.transport.analysis.BlockerInfoDto
+import com.khan366kos.atlas.project.backend.transport.analysis.TaskImpactDto
+import com.khan366kos.atlas.project.backend.transport.analysis.WhatIfDto
 import com.khan366kos.atlas.project.backend.transport.enums.DependencyTypeDto
 import com.khan366kos.atlas.project.backend.transport.enums.ProjectTaskStatus
 import com.khan366kos.atlas.project.backend.transport.cpm.CpmTaskDto
@@ -76,4 +88,47 @@ fun CpmTaskResult.toDto() = CpmTaskDto(
     lf = lf,
     slack = slack,
     isCritical = isCritical,
+)
+
+fun BlockerChainResult.toDto() = BlockerChainDto(
+    targetTaskId = targetTaskId.value,
+    blockers = blockers.map { it.toDto() },
+)
+
+fun BlockerInfo.toDto() = BlockerInfoDto(
+    taskId = taskId.value,
+    title = title,
+    status = status.value,
+    start = start,
+    end = end,
+    depth = depth,
+)
+
+fun AvailableTasksResult.toDto() = AvailableTasksDto(
+    tasks = tasks.map { it.toDto() },
+    asOfDate = asOfDate,
+)
+
+fun AvailableTaskInfo.toDto() = AvailableTaskInfoDto(
+    taskId = taskId.value,
+    title = title,
+    status = status.value,
+    start = start,
+    end = end,
+)
+
+fun WhatIfResult.toDto() = WhatIfDto(
+    movedTaskId = movedTaskId.value,
+    impacts = impacts.map { it.toDto() },
+)
+
+fun TaskImpact.toDto() = TaskImpactDto(
+    taskId = taskId.value,
+    title = title,
+    oldStart = oldStart,
+    oldEnd = oldEnd,
+    newStart = newStart,
+    newEnd = newEnd,
+    deltaStartDays = deltaStartDays,
+    deltaEndDays = deltaEndDays,
 )

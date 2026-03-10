@@ -14,11 +14,19 @@ import {
 	assignTaskSchedule,
 	planTaskFromEnd,
 	getCriticalPath,
+	getBlockerChain,
+	getAvailableTasks,
+	getWhatIf,
+	getWhatIfEnd,
+	reorderTasks,
 } from '@/services/projectTasksApi'
-import { Task, GanttProjectPlan, ScheduleDelta, CriticalPath } from '@/types'
+import { Task, GanttProjectPlan, ScheduleDelta, CriticalPath, BlockerChain, AvailableTasks, WhatIfResult } from '@/types'
 
 const QUERY_KEY = ['projectTasks']
 const CRITICAL_PATH_KEY = ['criticalPath']
+const BLOCKER_CHAIN_KEY = ['blockerChain']
+const AVAILABLE_TASKS_KEY = ['availableTasks']
+const WHAT_IF_KEY = ['whatIf']
 
 export function useProjectTasks() {
 	return useQuery<Task[]>({
@@ -242,6 +250,49 @@ export function useCreateDependency() {
 			createDependency(planId, fromTaskId, toTaskId, type),
 		onSuccess: (newPlan: GanttProjectPlan) => {
 			queryClient.invalidateQueries({ queryKey: CRITICAL_PATH_KEY })
+			queryClient.setQueryData<GanttProjectPlan>(['projectPlan'], () => newPlan)
+		},
+	})
+}
+
+export function useBlockerChain(taskId: string | null) {
+	return useQuery<BlockerChain>({
+		queryKey: [...BLOCKER_CHAIN_KEY, taskId],
+		queryFn: () => getBlockerChain(taskId!),
+		enabled: !!taskId,
+	})
+}
+
+export function useAvailableTasks() {
+	const today = new Date().toISOString().slice(0, 10)
+	return useQuery<AvailableTasks>({
+		queryKey: [...AVAILABLE_TASKS_KEY, today],
+		queryFn: () => getAvailableTasks(today),
+		staleTime: 60_000,
+	})
+}
+
+export function useWhatIf(taskId: string | null, newStart: string | null) {
+	return useQuery<WhatIfResult>({
+		queryKey: [...WHAT_IF_KEY, taskId, newStart],
+		queryFn: () => getWhatIf(taskId!, newStart!),
+		enabled: !!taskId && !!newStart,
+	})
+}
+
+export function useWhatIfEnd(taskId: string | null, newEnd: string | null) {
+	return useQuery<WhatIfResult>({
+		queryKey: [...WHAT_IF_KEY, 'end', taskId, newEnd],
+		queryFn: () => getWhatIfEnd(taskId!, newEnd!),
+		enabled: !!taskId && !!newEnd,
+	})
+}
+
+export function useReorderTasks() {
+	const queryClient = useQueryClient()
+	return useMutation<GanttProjectPlan, Error, { orderedIds: string[] }>({
+		mutationFn: ({ orderedIds }) => reorderTasks(orderedIds),
+		onSuccess: (newPlan: GanttProjectPlan) => {
 			queryClient.setQueryData<GanttProjectPlan>(['projectPlan'], () => newPlan)
 		},
 	})

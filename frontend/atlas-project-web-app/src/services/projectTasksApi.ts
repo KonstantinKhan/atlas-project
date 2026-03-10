@@ -8,6 +8,12 @@ import {
 	ScheduleDelta,
 	CriticalPathSchema,
 	CriticalPath,
+	BlockerChainSchema,
+	BlockerChain,
+	AvailableTasksSchema,
+	AvailableTasks,
+	WhatIfSchema,
+	WhatIfResult,
 } from '@/types'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
@@ -164,6 +170,50 @@ export async function getCriticalPath(): Promise<CriticalPath> {
 	})
 	if (!response.ok) throw new Error('Failed to fetch critical path')
 	return CriticalPathSchema.parse(await response.json())
+}
+
+export async function getBlockerChain(taskId: string): Promise<BlockerChain> {
+	const response = await fetch(`${API_BASE_URL}/analysis/blocker-chain/${encodeURIComponent(taskId)}`, {
+		headers: { Accept: 'application/json' },
+	})
+	if (!response.ok) throw new Error('Failed to fetch blocker chain')
+	return BlockerChainSchema.parse(await response.json())
+}
+
+export async function getAvailableTasks(today: string): Promise<AvailableTasks> {
+	const response = await fetch(`${API_BASE_URL}/analysis/available-tasks?today=${encodeURIComponent(today)}`, {
+		headers: { Accept: 'application/json' },
+	})
+	if (!response.ok) throw new Error('Failed to fetch available tasks')
+	return AvailableTasksSchema.parse(await response.json())
+}
+
+export async function getWhatIf(taskId: string, newStart: string): Promise<WhatIfResult> {
+	const response = await fetch(
+		`${API_BASE_URL}/analysis/what-if?taskId=${encodeURIComponent(taskId)}&newStart=${encodeURIComponent(newStart)}`,
+		{ headers: { Accept: 'application/json' } },
+	)
+	if (!response.ok) throw new Error('Failed to fetch what-if simulation')
+	return WhatIfSchema.parse(await response.json())
+}
+
+export async function getWhatIfEnd(taskId: string, newEnd: string): Promise<WhatIfResult> {
+	const response = await fetch(
+		`${API_BASE_URL}/analysis/what-if-end?taskId=${encodeURIComponent(taskId)}&newEnd=${encodeURIComponent(newEnd)}`,
+		{ headers: { Accept: 'application/json' } },
+	)
+	if (!response.ok) throw new Error('Failed to fetch what-if-end simulation')
+	return WhatIfSchema.parse(await response.json())
+}
+
+export async function reorderTasks(orderedIds: string[]): Promise<GanttProjectPlan> {
+	const res = await fetch(`${API_BASE_URL}/reorder-tasks`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ orderedIds }),
+	})
+	if (!res.ok) throw new Error('Failed to reorder tasks')
+	return GanttProjectPlanSchema.parse(await res.json())
 }
 
 export async function createDependency(

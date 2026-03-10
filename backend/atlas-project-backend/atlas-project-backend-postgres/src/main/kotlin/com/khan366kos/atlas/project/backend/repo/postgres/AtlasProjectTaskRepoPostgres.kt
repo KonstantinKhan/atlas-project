@@ -67,6 +67,7 @@ class AtlasProjectTaskRepoPostgres(private val database: Database) : IAtlasProje
 
         val tasks = ProjectTasksTable.selectAll()
             .where { ProjectTasksTable.projectPlanId eq planUuid }
+            .orderBy(ProjectTasksTable.sortOrder)
             .map { it.toProjectTask() }
 
         val taskUuids = tasks.map { UUID.fromString(it.id.value) }
@@ -122,7 +123,9 @@ class AtlasProjectTaskRepoPostgres(private val database: Database) : IAtlasProje
     }
 
     override suspend fun tasks(): List<ProjectTask> = newSuspendedTransaction(db = database) {
-        ProjectTasksTable.selectAll().map { it.toProjectTask() }
+        ProjectTasksTable.selectAll()
+            .orderBy(ProjectTasksTable.sortOrder)
+            .map { it.toProjectTask() }
     }
 
     override suspend fun getTask(id: String): ProjectTask? = newSuspendedTransaction(db = database) {
@@ -142,6 +145,7 @@ class AtlasProjectTaskRepoPostgres(private val database: Database) : IAtlasProje
             it[description] = task.description.value
             it[durationDays] = task.duration.value.toIntOrNull() ?: 0
             it[status] = task.status.name
+            it[sortOrder] = task.sortOrder
         }
         TaskSchedulesTable.insert {
             it[taskId] = taskUuid
@@ -163,6 +167,7 @@ class AtlasProjectTaskRepoPostgres(private val database: Database) : IAtlasProje
                 it[description] = task.description.value
                 it[durationDays] = task.duration.asInt()
                 it[status] = task.status.name
+                it[sortOrder] = task.sortOrder
             }
             task.copy(id = TaskId(taskUuid.toString()))
         }
@@ -225,6 +230,14 @@ class AtlasProjectTaskRepoPostgres(private val database: Database) : IAtlasProje
             }
             1
         }
+
+    override suspend fun reorderTasks(orderedIds: List<String>): Unit = newSuspendedTransaction(db = database) {
+        orderedIds.forEachIndexed { index, id ->
+            ProjectTasksTable.update({ ProjectTasksTable.id eq UUID.fromString(id) }) {
+                it[sortOrder] = index
+            }
+        }
+    }
 }
 
 private fun ResultRow.toProjectTask() = ProjectTask(
@@ -233,4 +246,5 @@ private fun ResultRow.toProjectTask() = ProjectTask(
     description = Description(this[ProjectTasksTable.description]),
     duration = Duration(this[ProjectTasksTable.durationDays]),
     status = ProjectTaskStatus.valueOf(this[ProjectTasksTable.status]),
+    sortOrder = this[ProjectTasksTable.sortOrder],
 )
