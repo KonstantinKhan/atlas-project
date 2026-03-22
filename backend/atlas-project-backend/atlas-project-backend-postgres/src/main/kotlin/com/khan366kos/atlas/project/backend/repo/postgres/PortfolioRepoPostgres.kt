@@ -8,6 +8,7 @@ import com.khan366kos.atlas.project.backend.common.project.ProjectName
 import com.khan366kos.atlas.project.backend.common.repo.IPortfolioRepo
 import com.khan366kos.atlas.project.backend.repo.postgres.table.PortfoliosTable
 import com.khan366kos.atlas.project.backend.repo.postgres.table.ProjectPlansTable
+import com.khan366kos.atlas.project.backend.repo.postgres.table.ProjectsTable
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.Database
@@ -59,15 +60,15 @@ class PortfolioRepoPostgres(private val database: Database) : IPortfolioRepo {
     }
 
     override suspend fun listProjects(portfolioId: String): List<Project> = newSuspendedTransaction(db = database) {
-        ProjectPlansTable.selectAll()
-            .where { ProjectPlansTable.portfolioId eq UUID.fromString(portfolioId) }
-            .orderBy(ProjectPlansTable.priority)
+        ProjectsTable.selectAll()
+            .where { ProjectsTable.portfolioId eq UUID.fromString(portfolioId) }
+            .orderBy(ProjectsTable.priority)
             .map { it.toProject() }
     }
 
     override suspend fun getProject(id: String): Project? = newSuspendedTransaction(db = database) {
-        ProjectPlansTable.selectAll()
-            .where { ProjectPlansTable.id eq UUID.fromString(id) }
+        ProjectsTable.selectAll()
+            .where { ProjectsTable.id eq UUID.fromString(id) }
             .singleOrNull()
             ?.toProject()
     }
@@ -76,11 +77,15 @@ class PortfolioRepoPostgres(private val database: Database) : IPortfolioRepo {
     override suspend fun createProject(portfolioId: String, name: String, priority: Int): Project =
         newSuspendedTransaction(db = database) {
             val newId = Uuid.random().toJavaUuid()
+            ProjectsTable.insert {
+                it[id] = newId
+                it[ProjectsTable.name] = name
+                it[ProjectsTable.portfolioId] = UUID.fromString(portfolioId)
+                it[ProjectsTable.priority] = priority
+            }
             ProjectPlansTable.insert {
                 it[id] = newId
-                it[ProjectPlansTable.name] = name
-                it[ProjectPlansTable.portfolioId] = UUID.fromString(portfolioId)
-                it[ProjectPlansTable.priority] = priority
+                it[projectId] = newId
             }
             Project(
                 id = ProjectId(newId.toString()),
@@ -92,20 +97,20 @@ class PortfolioRepoPostgres(private val database: Database) : IPortfolioRepo {
 
     override suspend fun updateProject(projectId: String, name: String?, priority: Int?): Int =
         newSuspendedTransaction(db = database) {
-            ProjectPlansTable.update({ ProjectPlansTable.id eq UUID.fromString(projectId) }) {
-                if (name != null) it[ProjectPlansTable.name] = name
-                if (priority != null) it[ProjectPlansTable.priority] = priority
+            ProjectsTable.update({ ProjectsTable.id eq UUID.fromString(projectId) }) {
+                if (name != null) it[ProjectsTable.name] = name
+                if (priority != null) it[ProjectsTable.priority] = priority
             }
         }
 
     override suspend fun deleteProject(projectId: String): Int = newSuspendedTransaction(db = database) {
-        ProjectPlansTable.deleteWhere { ProjectPlansTable.id eq UUID.fromString(projectId) }
+        ProjectsTable.deleteWhere { ProjectsTable.id eq UUID.fromString(projectId) }
     }
 
     override suspend fun reorderProjects(portfolioId: String, orderedProjectIds: List<String>): Int =
         newSuspendedTransaction(db = database) {
             orderedProjectIds.forEachIndexed { index, id ->
-                ProjectPlansTable.update({ ProjectPlansTable.id eq UUID.fromString(id) }) {
+                ProjectsTable.update({ ProjectsTable.id eq UUID.fromString(id) }) {
                     it[priority] = index
                 }
             }
@@ -113,14 +118,14 @@ class PortfolioRepoPostgres(private val database: Database) : IPortfolioRepo {
         }
 
     override suspend fun listAllProjects(): List<Project> = newSuspendedTransaction(db = database) {
-        ProjectPlansTable.selectAll().map { it.toProject() }
+        ProjectsTable.selectAll().map { it.toProject() }
     }
 
     private fun ResultRow.toProject() = Project(
-        id = ProjectId(this[ProjectPlansTable.id].toString()),
-        name = ProjectName(this[ProjectPlansTable.name]),
-        portfolioId = PortfolioId(this[ProjectPlansTable.portfolioId].toString()),
-        priority = this[ProjectPlansTable.priority],
+        id = ProjectId(this[ProjectsTable.id].toString()),
+        name = ProjectName(this[ProjectsTable.name]),
+        portfolioId = PortfolioId(this[ProjectsTable.portfolioId].toString()),
+        priority = this[ProjectsTable.priority],
     )
 
     private fun ResultRow.toPortfolio() = Portfolio(

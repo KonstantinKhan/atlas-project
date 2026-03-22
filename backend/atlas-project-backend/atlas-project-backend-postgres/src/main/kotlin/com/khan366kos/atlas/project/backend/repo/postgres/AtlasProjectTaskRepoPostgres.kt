@@ -5,6 +5,7 @@ import com.khan366kos.atlas.project.backend.common.models.ProjectDate
 import com.khan366kos.atlas.project.backend.common.models.TaskDependency
 import com.khan366kos.atlas.project.backend.common.models.projectPlan.ProjectPlan
 import com.khan366kos.atlas.project.backend.common.models.projectPlan.ProjectPlanId
+import com.khan366kos.atlas.project.backend.common.project.ProjectId
 import com.khan366kos.atlas.project.backend.common.models.simple.Duration
 import com.khan366kos.atlas.project.backend.common.models.task.ProjectTask
 import com.khan366kos.atlas.project.backend.common.models.task.enums.ProjectTaskStatus
@@ -97,6 +98,7 @@ class AtlasProjectTaskRepoPostgres(private val database: Database) : IAtlasProje
 
         ProjectPlan(
             id = ProjectPlanId(planId),
+            projectId = ProjectId(planRow[ProjectPlansTable.projectId].toString()),
             tasks = tasks.associateBy { it.id }.toMutableMap(),
             schedules = schedules,
             dependencies = dependencies,
