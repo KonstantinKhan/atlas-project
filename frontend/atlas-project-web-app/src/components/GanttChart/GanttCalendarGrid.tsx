@@ -20,12 +20,14 @@ interface GanttCalendarGridProps {
 	viewMode?: ViewMode
 	criticalTaskIds?: Set<string>
 	slackMap?: Map<string, number>
+	assignmentsByTask?: Map<string, Array<{ resourceName: string; resourceId: string }>>
 	onCreateDependency: (fromId: string, toId: string, type: string) => void
 	onChangeDependencyType: (fromId: string, toId: string, newType: string) => void
 	onRemoveDependency: (fromId: string, toId: string) => void
 	onMoveTask: (taskId: string, newStartDate: string) => void
 	onResizeTask: (taskId: string, newEndDate: string) => void
 	onResizeFromStart: (taskId: string, newStartDate: string) => void
+	onAssignmentClick?: (taskId: string, e: React.MouseEvent) => void
 }
 
 export const TIMELINE_DROP_ID = 'timeline-grid'
@@ -41,12 +43,14 @@ export default function GanttCalendarGrid({
 	viewMode = 'day',
 	criticalTaskIds,
 	slackMap,
+	assignmentsByTask,
 	onCreateDependency,
 	onChangeDependencyType,
 	onRemoveDependency,
 	onMoveTask,
 	onResizeTask,
 	onResizeFromStart,
+	onAssignmentClick,
 }: GanttCalendarGridProps) {
 	const gridRef = useRef<HTMLDivElement>(null)
 	const [linkingFrom, setLinkingFrom] = useState<{ taskId: string; side: LinkSide } | null>(null)
@@ -89,12 +93,14 @@ export default function GanttCalendarGrid({
 				viewMode={viewMode}
 				criticalTaskIds={criticalTaskIds}
 				slackMap={slackMap}
+				assignmentsByTask={assignmentsByTask}
 				onCreateDependency={onCreateDependency}
 				onChangeDependencyType={onChangeDependencyType}
 				onRemoveDependency={onRemoveDependency}
 				onMoveTask={onMoveTask}
 				onResizeTask={onResizeTask}
 				onResizeFromStart={onResizeFromStart}
+				onAssignmentClick={onAssignmentClick}
 				linkingFrom={linkingFrom}
 				setLinkingFrom={setLinkingFrom}
 				mousePos={mousePos}

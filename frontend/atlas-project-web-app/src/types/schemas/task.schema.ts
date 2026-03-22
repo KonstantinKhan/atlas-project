@@ -36,6 +36,14 @@ export const GanttTaskSchema = z.object({
 	start: z.string().transform((v) => new Date(v)).nullable().optional(),
 	end: z.string().transform((v) => new Date(v)).nullable().optional(),
 	status: projectTaskStatus,
+	baselineStart: optionalDate,
+	baselineEnd: optionalDate,
+	actualStart: optionalDate,
+	actualEnd: optionalDate,
+	baselineEffortHours: z.number().nullable().optional(),
+	additionalEffortHours: z.number().nullable().optional(),
+	allocatedEffortHours: z.number().nullable().optional(),
+	effortCoveragePercent: z.number().nullable().optional(),
 })
 
 export const TaskListSchema = z.array(TaskSchema)

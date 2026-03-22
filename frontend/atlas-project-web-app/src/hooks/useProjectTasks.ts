@@ -19,31 +19,27 @@ import {
 	getWhatIf,
 	getWhatIfEnd,
 	reorderTasks,
+	saveBaseline,
 } from '@/services/projectTasksApi'
 import { Task, GanttProjectPlan, ScheduleDelta, CriticalPath, BlockerChain, AvailableTasks, WhatIfResult } from '@/types'
 
-const QUERY_KEY = ['projectTasks']
-const CRITICAL_PATH_KEY = ['criticalPath']
-const BLOCKER_CHAIN_KEY = ['blockerChain']
-const AVAILABLE_TASKS_KEY = ['availableTasks']
-const WHAT_IF_KEY = ['whatIf']
-
-export function useProjectTasks() {
+export function useProjectTasks(projectId: string) {
 	return useQuery<Task[]>({
-		queryKey: QUERY_KEY,
-		queryFn: getProjectTasks,
+		queryKey: ['projectTasks', projectId],
+		queryFn: () => getProjectTasks(projectId),
+		enabled: !!projectId,
 	})
 }
 
-export function useUpdateProjectTask() {
+export function useUpdateProjectTask(projectId: string) {
 	const queryClient = useQueryClient()
 	return useMutation({
 		mutationFn: ({ id, updates }: { id: string; updates: object }) =>
-			updateProjectTask(id, updates),
+			updateProjectTask(projectId, id, updates),
 		onSuccess: (updatedTask: Task) => {
-			queryClient.invalidateQueries({ queryKey: QUERY_KEY })
-			queryClient.invalidateQueries({ queryKey: CRITICAL_PATH_KEY })
-			queryClient.setQueryData<GanttProjectPlan>(['projectPlan'], (old) => {
+			queryClient.invalidateQueries({ queryKey: ['projectTasks', projectId] })
+			queryClient.invalidateQueries({ queryKey: ['criticalPath', projectId] })
+			queryClient.setQueryData<GanttProjectPlan>(['projectPlan', projectId], (old) => {
 				if (!old) return old
 				return {
 					...old,
@@ -58,22 +54,24 @@ export function useUpdateProjectTask() {
 	})
 }
 
-export function useProjectPlan() {
+export function useProjectPlan(projectId: string) {
 	return useQuery<GanttProjectPlan>({
-		queryKey: ['projectPlan'],
-		queryFn: getProjectPlan,
+		queryKey: ['projectPlan', projectId],
+		queryFn: () => getProjectPlan(projectId),
+		enabled: !!projectId,
 	})
 }
 
-export function useCriticalPath() {
+export function useCriticalPath(projectId: string) {
 	return useQuery<CriticalPath>({
-		queryKey: CRITICAL_PATH_KEY,
-		queryFn: getCriticalPath,
+		queryKey: ['criticalPath', projectId],
+		queryFn: () => getCriticalPath(projectId),
 		staleTime: 5000,
+		enabled: !!projectId,
 	})
 }
 
-export function useChangeTaskStartDate() {
+export function useChangeTaskStartDate(projectId: string) {
 	const queryClient = useQueryClient()
 	return useMutation({
 		mutationFn: ({
@@ -84,10 +82,10 @@ export function useChangeTaskStartDate() {
 			planId: string
 			taskId: string
 			newPlannedStart: string
-		}) => changeTaskStartDate(planId, taskId, newPlannedStart),
+		}) => changeTaskStartDate(projectId, planId, taskId, newPlannedStart),
 		onSuccess: (delta: ScheduleDelta) => {
-			queryClient.invalidateQueries({ queryKey: CRITICAL_PATH_KEY })
-			queryClient.setQueryData<GanttProjectPlan>(['projectPlan'], (old) => {
+			queryClient.invalidateQueries({ queryKey: ['criticalPath', projectId] })
+			queryClient.setQueryData<GanttProjectPlan>(['projectPlan', projectId], (old) => {
 				if (!old) return old
 				return {
 					...old,
@@ -101,7 +99,7 @@ export function useChangeTaskStartDate() {
 	})
 }
 
-export function useResizeTaskFromStart() {
+export function useResizeTaskFromStart(projectId: string) {
 	const queryClient = useQueryClient()
 	return useMutation({
 		mutationFn: ({
@@ -112,10 +110,10 @@ export function useResizeTaskFromStart() {
 			planId: string
 			taskId: string
 			newPlannedStart: string
-		}) => resizeTaskFromStart(planId, taskId, newPlannedStart),
+		}) => resizeTaskFromStart(projectId, planId, taskId, newPlannedStart),
 		onSuccess: (delta: ScheduleDelta) => {
-			queryClient.invalidateQueries({ queryKey: CRITICAL_PATH_KEY })
-			queryClient.setQueryData<GanttProjectPlan>(['projectPlan'], (old) => {
+			queryClient.invalidateQueries({ queryKey: ['criticalPath', projectId] })
+			queryClient.setQueryData<GanttProjectPlan>(['projectPlan', projectId], (old) => {
 				if (!old) return old
 				return {
 					...old,
@@ -129,7 +127,7 @@ export function useResizeTaskFromStart() {
 	})
 }
 
-export function useChangeTaskEndDate() {
+export function useChangeTaskEndDate(projectId: string) {
 	const queryClient = useQueryClient()
 	return useMutation({
 		mutationFn: ({
@@ -140,10 +138,10 @@ export function useChangeTaskEndDate() {
 			planId: string
 			taskId: string
 			newPlannedEnd: string
-		}) => changeTaskEndDate(planId, taskId, newPlannedEnd),
+		}) => changeTaskEndDate(projectId, planId, taskId, newPlannedEnd),
 		onSuccess: (delta: ScheduleDelta) => {
-			queryClient.invalidateQueries({ queryKey: CRITICAL_PATH_KEY })
-			queryClient.setQueryData<GanttProjectPlan>(['projectPlan'], (old) => {
+			queryClient.invalidateQueries({ queryKey: ['criticalPath', projectId] })
+			queryClient.setQueryData<GanttProjectPlan>(['projectPlan', projectId], (old) => {
 				if (!old) return old
 				return {
 					...old,
@@ -157,25 +155,25 @@ export function useChangeTaskEndDate() {
 	})
 }
 
-export function useCreateProjectTask() {
+export function useCreateProjectTask(projectId: string) {
 	const queryClient = useQueryClient()
 	return useMutation({
-		mutationFn: ({ title }: { title: string }) => createProjectTask(title),
+		mutationFn: ({ title }: { title: string }) => createProjectTask(projectId, title),
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: QUERY_KEY })
-			queryClient.invalidateQueries({ queryKey: ['projectPlan'] })
-			queryClient.invalidateQueries({ queryKey: CRITICAL_PATH_KEY })
+			queryClient.invalidateQueries({ queryKey: ['projectTasks', projectId] })
+			queryClient.invalidateQueries({ queryKey: ['projectPlan', projectId] })
+			queryClient.invalidateQueries({ queryKey: ['criticalPath', projectId] })
 		},
 	})
 }
 
-export function useDeleteProjectTask() {
+export function useDeleteProjectTask(projectId: string) {
 	const queryClient = useQueryClient()
 	return useMutation({
-		mutationFn: ({ id }: { id: string }) => deleteProjectTask(id),
+		mutationFn: ({ id }: { id: string }) => deleteProjectTask(projectId, id),
 		onSuccess: (_, { id }) => {
-			queryClient.invalidateQueries({ queryKey: CRITICAL_PATH_KEY })
-			queryClient.setQueryData<GanttProjectPlan>(['projectPlan'], (old) => {
+			queryClient.invalidateQueries({ queryKey: ['criticalPath', projectId] })
+			queryClient.setQueryData<GanttProjectPlan>(['projectPlan', projectId], (old) => {
 				if (!old) return old
 				return {
 					...old,
@@ -189,40 +187,40 @@ export function useDeleteProjectTask() {
 	})
 }
 
-export function useAssignTaskSchedule() {
+export function useAssignTaskSchedule(projectId: string) {
 	const queryClient = useQueryClient()
 	return useMutation<GanttProjectPlan, Error, { taskId: string; start: string; duration: number }>({
-		mutationFn: ({ taskId, start, duration }) => assignTaskSchedule(taskId, start, duration),
+		mutationFn: ({ taskId, start, duration }) => assignTaskSchedule(projectId, taskId, start, duration),
 		onSuccess: (newPlan: GanttProjectPlan) => {
-			queryClient.invalidateQueries({ queryKey: CRITICAL_PATH_KEY })
-			queryClient.setQueryData<GanttProjectPlan>(['projectPlan'], () => newPlan)
+			queryClient.invalidateQueries({ queryKey: ['criticalPath', projectId] })
+			queryClient.setQueryData<GanttProjectPlan>(['projectPlan', projectId], () => newPlan)
 		},
 	})
 }
 
-export function usePlanFromEnd() {
+export function usePlanFromEnd(projectId: string) {
 	const queryClient = useQueryClient()
 	return useMutation<GanttProjectPlan, Error, { taskId: string; newPlannedEnd: string }>({
-		mutationFn: ({ taskId, newPlannedEnd }) => planTaskFromEnd(taskId, newPlannedEnd),
+		mutationFn: ({ taskId, newPlannedEnd }) => planTaskFromEnd(projectId, taskId, newPlannedEnd),
 		onSuccess: (newPlan: GanttProjectPlan) => {
-			queryClient.invalidateQueries({ queryKey: CRITICAL_PATH_KEY })
-			queryClient.setQueryData<GanttProjectPlan>(['projectPlan'], () => newPlan)
+			queryClient.invalidateQueries({ queryKey: ['criticalPath', projectId] })
+			queryClient.setQueryData<GanttProjectPlan>(['projectPlan', projectId], () => newPlan)
 		},
 	})
 }
 
-export function useDeleteDependency() {
+export function useDeleteDependency(projectId: string) {
 	const queryClient = useQueryClient()
 	return useMutation<GanttProjectPlan, Error, { fromTaskId: string; toTaskId: string }>({
-		mutationFn: ({ fromTaskId, toTaskId }) => deleteDependency(fromTaskId, toTaskId),
+		mutationFn: ({ fromTaskId, toTaskId }) => deleteDependency(projectId, fromTaskId, toTaskId),
 		onSuccess: (newPlan: GanttProjectPlan) => {
-			queryClient.invalidateQueries({ queryKey: CRITICAL_PATH_KEY })
-			queryClient.setQueryData<GanttProjectPlan>(['projectPlan'], () => newPlan)
+			queryClient.invalidateQueries({ queryKey: ['criticalPath', projectId] })
+			queryClient.setQueryData<GanttProjectPlan>(['projectPlan', projectId], () => newPlan)
 		},
 	})
 }
 
-export function useChangeDependencyType() {
+export function useChangeDependencyType(projectId: string) {
 	const queryClient = useQueryClient()
 	return useMutation<GanttProjectPlan, Error, {
 		fromTaskId: string
@@ -230,15 +228,15 @@ export function useChangeDependencyType() {
 		newType: string
 	}>({
 		mutationFn: ({ fromTaskId, toTaskId, newType }) =>
-			changeDependencyType(fromTaskId, toTaskId, newType),
+			changeDependencyType(projectId, fromTaskId, toTaskId, newType),
 		onSuccess: (newPlan: GanttProjectPlan) => {
-			queryClient.invalidateQueries({ queryKey: CRITICAL_PATH_KEY })
-			queryClient.setQueryData<GanttProjectPlan>(['projectPlan'], () => newPlan)
+			queryClient.invalidateQueries({ queryKey: ['criticalPath', projectId] })
+			queryClient.setQueryData<GanttProjectPlan>(['projectPlan', projectId], () => newPlan)
 		},
 	})
 }
 
-export function useCreateDependency() {
+export function useCreateDependency(projectId: string) {
 	const queryClient = useQueryClient()
 	return useMutation<GanttProjectPlan, Error, {
 		planId: string
@@ -247,53 +245,64 @@ export function useCreateDependency() {
 		type?: string
 	}>({
 		mutationFn: ({ planId, fromTaskId, toTaskId, type = 'FS' }) =>
-			createDependency(planId, fromTaskId, toTaskId, type),
+			createDependency(projectId, planId, fromTaskId, toTaskId, type),
 		onSuccess: (newPlan: GanttProjectPlan) => {
-			queryClient.invalidateQueries({ queryKey: CRITICAL_PATH_KEY })
-			queryClient.setQueryData<GanttProjectPlan>(['projectPlan'], () => newPlan)
+			queryClient.invalidateQueries({ queryKey: ['criticalPath', projectId] })
+			queryClient.setQueryData<GanttProjectPlan>(['projectPlan', projectId], () => newPlan)
 		},
 	})
 }
 
-export function useBlockerChain(taskId: string | null) {
+export function useBlockerChain(projectId: string, taskId: string | null) {
 	return useQuery<BlockerChain>({
-		queryKey: [...BLOCKER_CHAIN_KEY, taskId],
-		queryFn: () => getBlockerChain(taskId!),
-		enabled: !!taskId,
+		queryKey: ['blockerChain', projectId, taskId],
+		queryFn: () => getBlockerChain(projectId, taskId!),
+		enabled: !!projectId && !!taskId,
 	})
 }
 
-export function useAvailableTasks() {
+export function useAvailableTasks(projectId: string) {
 	const today = new Date().toISOString().slice(0, 10)
 	return useQuery<AvailableTasks>({
-		queryKey: [...AVAILABLE_TASKS_KEY, today],
-		queryFn: () => getAvailableTasks(today),
+		queryKey: ['availableTasks', projectId, today],
+		queryFn: () => getAvailableTasks(projectId, today),
 		staleTime: 60_000,
+		enabled: !!projectId,
 	})
 }
 
-export function useWhatIf(taskId: string | null, newStart: string | null) {
+export function useWhatIf(projectId: string, taskId: string | null, newStart: string | null) {
 	return useQuery<WhatIfResult>({
-		queryKey: [...WHAT_IF_KEY, taskId, newStart],
-		queryFn: () => getWhatIf(taskId!, newStart!),
-		enabled: !!taskId && !!newStart,
+		queryKey: ['whatIf', projectId, taskId, newStart],
+		queryFn: () => getWhatIf(projectId, taskId!, newStart!),
+		enabled: !!projectId && !!taskId && !!newStart,
 	})
 }
 
-export function useWhatIfEnd(taskId: string | null, newEnd: string | null) {
+export function useWhatIfEnd(projectId: string, taskId: string | null, newEnd: string | null) {
 	return useQuery<WhatIfResult>({
-		queryKey: [...WHAT_IF_KEY, 'end', taskId, newEnd],
-		queryFn: () => getWhatIfEnd(taskId!, newEnd!),
-		enabled: !!taskId && !!newEnd,
+		queryKey: ['whatIf', 'end', projectId, taskId, newEnd],
+		queryFn: () => getWhatIfEnd(projectId, taskId!, newEnd!),
+		enabled: !!projectId && !!taskId && !!newEnd,
 	})
 }
 
-export function useReorderTasks() {
+export function useReorderTasks(projectId: string) {
 	const queryClient = useQueryClient()
 	return useMutation<GanttProjectPlan, Error, { orderedIds: string[] }>({
-		mutationFn: ({ orderedIds }) => reorderTasks(orderedIds),
+		mutationFn: ({ orderedIds }) => reorderTasks(projectId, orderedIds),
 		onSuccess: (newPlan: GanttProjectPlan) => {
-			queryClient.setQueryData<GanttProjectPlan>(['projectPlan'], () => newPlan)
+			queryClient.setQueryData<GanttProjectPlan>(['projectPlan', projectId], () => newPlan)
+		},
+	})
+}
+
+export function useSaveBaseline(projectId: string) {
+	const queryClient = useQueryClient()
+	return useMutation({
+		mutationFn: (taskIds?: string[]) => saveBaseline(projectId, taskIds),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ['projectPlan', projectId] })
 		},
 	})
 }

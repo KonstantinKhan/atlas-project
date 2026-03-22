@@ -18,8 +18,12 @@ import {
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
 
-export async function getProjectTasks(): Promise<Task[]> {
-	const response = await fetch(`${API_BASE_URL}/project-tasks`, {
+function projectUrl(projectId: string, path: string): string {
+	return `${API_BASE_URL}/projects/${projectId}${path}`
+}
+
+export async function getProjectTasks(projectId: string): Promise<Task[]> {
+	const response = await fetch(projectUrl(projectId, '/project-tasks'), {
 		headers: {
 			Accept: 'application/json',
 		},
@@ -29,10 +33,11 @@ export async function getProjectTasks(): Promise<Task[]> {
 }
 
 export async function updateProjectTask(
+	projectId: string,
 	id: string,
 	updates: object,
 ): Promise<Task> {
-	const res = await fetch(`${API_BASE_URL}/project-tasks/${id}`, {
+	const res = await fetch(projectUrl(projectId, `/project-tasks/${id}`), {
 		method: 'PATCH',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify(updates),
@@ -41,8 +46,8 @@ export async function updateProjectTask(
 	return TaskSchema.parse(await res.json())
 }
 
-export async function getProjectPlan(): Promise<GanttProjectPlan> {
-	const response = await fetch(`${API_BASE_URL}/project-plan`, {
+export async function getProjectPlan(projectId: string): Promise<GanttProjectPlan> {
+	const response = await fetch(projectUrl(projectId, '/plan'), {
 		headers: {
 			Accept: 'application/json',
 		},
@@ -52,11 +57,12 @@ export async function getProjectPlan(): Promise<GanttProjectPlan> {
 }
 
 export async function changeTaskStartDate(
+	projectId: string,
 	planId: string,
 	taskId: string,
 	newPlannedStart: string,
 ): Promise<ScheduleDelta> {
-	const res = await fetch(`${API_BASE_URL}/change-start`, {
+	const res = await fetch(projectUrl(projectId, '/change-start'), {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify({ planId, taskId, newPlannedStart }),
@@ -66,11 +72,12 @@ export async function changeTaskStartDate(
 }
 
 export async function resizeTaskFromStart(
+	projectId: string,
 	planId: string,
 	taskId: string,
 	newPlannedStart: string,
 ): Promise<ScheduleDelta> {
-	const res = await fetch(`${API_BASE_URL}/resize-from-start`, {
+	const res = await fetch(projectUrl(projectId, '/resize-from-start'), {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify({ planId, taskId, newPlannedStart }),
@@ -80,11 +87,12 @@ export async function resizeTaskFromStart(
 }
 
 export async function changeTaskEndDate(
+	projectId: string,
 	planId: string,
 	taskId: string,
 	newPlannedEnd: string,
 ): Promise<ScheduleDelta> {
-	const res = await fetch(`${API_BASE_URL}/change-end`, {
+	const res = await fetch(projectUrl(projectId, '/change-end'), {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify({ planId, taskId, newPlannedEnd }),
@@ -93,8 +101,8 @@ export async function changeTaskEndDate(
 	return ScheduleDeltaSchema.parse(await res.json())
 }
 
-export async function createProjectTask(title: string): Promise<Task> {
-	const response = await fetch(`${API_BASE_URL}/project-tasks/create-in-pool`, {
+export async function createProjectTask(projectId: string, title: string): Promise<Task> {
+	const response = await fetch(projectUrl(projectId, '/project-tasks/create-in-pool'), {
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/json',
@@ -106,17 +114,18 @@ export async function createProjectTask(title: string): Promise<Task> {
 	return TaskSchema.parse(await response.json())
 }
 
-export async function deleteProjectTask(id: string): Promise<void> {
-	const res = await fetch(`${API_BASE_URL}/project-tasks/${id}`, { method: 'DELETE' })
+export async function deleteProjectTask(projectId: string, id: string): Promise<void> {
+	const res = await fetch(projectUrl(projectId, `/project-tasks/${id}`), { method: 'DELETE' })
 	if (!res.ok) throw new Error('Failed to delete project task')
 }
 
 export async function assignTaskSchedule(
+	projectId: string,
 	taskId: string,
 	start: string,
 	duration: number,
 ): Promise<GanttProjectPlan> {
-	const res = await fetch(`${API_BASE_URL}/project-tasks/${taskId}/schedule`, {
+	const res = await fetch(projectUrl(projectId, `/project-tasks/${taskId}/schedule`), {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify({ start, duration }),
@@ -126,10 +135,11 @@ export async function assignTaskSchedule(
 }
 
 export async function planTaskFromEnd(
+	projectId: string,
 	taskId: string,
 	newPlannedEnd: string,
 ): Promise<GanttProjectPlan> {
-	const res = await fetch(`${API_BASE_URL}/plan-from-end`, {
+	const res = await fetch(projectUrl(projectId, '/plan-from-end'), {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify({ taskId, newPlannedEnd }),
@@ -139,11 +149,12 @@ export async function planTaskFromEnd(
 }
 
 export async function deleteDependency(
+	projectId: string,
 	fromTaskId: string,
 	toTaskId: string,
 ): Promise<GanttProjectPlan> {
 	const res = await fetch(
-		`${API_BASE_URL}/dependencies?from=${encodeURIComponent(fromTaskId)}&to=${encodeURIComponent(toTaskId)}`,
+		projectUrl(projectId, `/dependencies?from=${encodeURIComponent(fromTaskId)}&to=${encodeURIComponent(toTaskId)}`),
 		{ method: 'DELETE' },
 	)
 	if (!res.ok) throw new Error('Failed to delete dependency')
@@ -151,11 +162,12 @@ export async function deleteDependency(
 }
 
 export async function changeDependencyType(
+	projectId: string,
 	fromTaskId: string,
 	toTaskId: string,
 	newType: string,
 ): Promise<GanttProjectPlan> {
-	const res = await fetch(`${API_BASE_URL}/dependencies`, {
+	const res = await fetch(projectUrl(projectId, '/dependencies'), {
 		method: 'PATCH',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify({ fromTaskId, toTaskId, newType }),
@@ -164,50 +176,50 @@ export async function changeDependencyType(
 	return GanttProjectPlanSchema.parse(await res.json())
 }
 
-export async function getCriticalPath(): Promise<CriticalPath> {
-	const response = await fetch(`${API_BASE_URL}/critical-path`, {
+export async function getCriticalPath(projectId: string): Promise<CriticalPath> {
+	const response = await fetch(projectUrl(projectId, '/critical-path'), {
 		headers: { Accept: 'application/json' },
 	})
 	if (!response.ok) throw new Error('Failed to fetch critical path')
 	return CriticalPathSchema.parse(await response.json())
 }
 
-export async function getBlockerChain(taskId: string): Promise<BlockerChain> {
-	const response = await fetch(`${API_BASE_URL}/analysis/blocker-chain/${encodeURIComponent(taskId)}`, {
+export async function getBlockerChain(projectId: string, taskId: string): Promise<BlockerChain> {
+	const response = await fetch(projectUrl(projectId, `/analysis/blocker-chain/${encodeURIComponent(taskId)}`), {
 		headers: { Accept: 'application/json' },
 	})
 	if (!response.ok) throw new Error('Failed to fetch blocker chain')
 	return BlockerChainSchema.parse(await response.json())
 }
 
-export async function getAvailableTasks(today: string): Promise<AvailableTasks> {
-	const response = await fetch(`${API_BASE_URL}/analysis/available-tasks?today=${encodeURIComponent(today)}`, {
+export async function getAvailableTasks(projectId: string, today: string): Promise<AvailableTasks> {
+	const response = await fetch(projectUrl(projectId, `/analysis/available-tasks?today=${encodeURIComponent(today)}`), {
 		headers: { Accept: 'application/json' },
 	})
 	if (!response.ok) throw new Error('Failed to fetch available tasks')
 	return AvailableTasksSchema.parse(await response.json())
 }
 
-export async function getWhatIf(taskId: string, newStart: string): Promise<WhatIfResult> {
+export async function getWhatIf(projectId: string, taskId: string, newStart: string): Promise<WhatIfResult> {
 	const response = await fetch(
-		`${API_BASE_URL}/analysis/what-if?taskId=${encodeURIComponent(taskId)}&newStart=${encodeURIComponent(newStart)}`,
+		projectUrl(projectId, `/analysis/what-if?taskId=${encodeURIComponent(taskId)}&newStart=${encodeURIComponent(newStart)}`),
 		{ headers: { Accept: 'application/json' } },
 	)
 	if (!response.ok) throw new Error('Failed to fetch what-if simulation')
 	return WhatIfSchema.parse(await response.json())
 }
 
-export async function getWhatIfEnd(taskId: string, newEnd: string): Promise<WhatIfResult> {
+export async function getWhatIfEnd(projectId: string, taskId: string, newEnd: string): Promise<WhatIfResult> {
 	const response = await fetch(
-		`${API_BASE_URL}/analysis/what-if-end?taskId=${encodeURIComponent(taskId)}&newEnd=${encodeURIComponent(newEnd)}`,
+		projectUrl(projectId, `/analysis/what-if-end?taskId=${encodeURIComponent(taskId)}&newEnd=${encodeURIComponent(newEnd)}`),
 		{ headers: { Accept: 'application/json' } },
 	)
 	if (!response.ok) throw new Error('Failed to fetch what-if-end simulation')
 	return WhatIfSchema.parse(await response.json())
 }
 
-export async function reorderTasks(orderedIds: string[]): Promise<GanttProjectPlan> {
-	const res = await fetch(`${API_BASE_URL}/reorder-tasks`, {
+export async function reorderTasks(projectId: string, orderedIds: string[]): Promise<GanttProjectPlan> {
+	const res = await fetch(projectUrl(projectId, '/reorder-tasks'), {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify({ orderedIds }),
@@ -216,13 +228,23 @@ export async function reorderTasks(orderedIds: string[]): Promise<GanttProjectPl
 	return GanttProjectPlanSchema.parse(await res.json())
 }
 
+export async function saveBaseline(projectId: string, taskIds?: string[]): Promise<void> {
+	const res = await fetch(projectUrl(projectId, '/save-baseline'), {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ taskIds: taskIds ?? null }),
+	})
+	if (!res.ok) throw new Error('Failed to save baseline')
+}
+
 export async function createDependency(
+	projectId: string,
 	planId: string,
 	fromTaskId: string,
 	toTaskId: string,
 	type: string = 'FS',
 ): Promise<GanttProjectPlan> {
-	const response = await fetch(`${API_BASE_URL}/dependencies`, {
+	const response = await fetch(projectUrl(projectId, '/dependencies'), {
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/json',

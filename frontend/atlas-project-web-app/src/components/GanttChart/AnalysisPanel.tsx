@@ -6,6 +6,7 @@ import { useBlockerChain, useAvailableTasks, useWhatIf, useWhatIfEnd } from '@/h
 import type { GanttTask } from '@/types'
 
 interface AnalysisPanelProps {
+	projectId: string
 	tasks: GanttTask[]
 	onClose: () => void
 }
@@ -16,7 +17,7 @@ const TAB_CONFIG: { key: AnalysisTab; label: string }[] = [
 	{ key: 'whatif', label: 'Что-если' },
 ]
 
-export default function AnalysisPanel({ tasks, onClose }: AnalysisPanelProps) {
+export default function AnalysisPanel({ projectId, tasks, onClose }: AnalysisPanelProps) {
 	const activeTab = useTimelineCalendarStore((s) => s.ui.analysisPanelTab)
 	const setTab = useTimelineCalendarStore((s) => s.setAnalysisPanelTab)
 	const selectedTaskId = useTimelineCalendarStore((s) => s.ui.selectedAnalysisTaskId)
@@ -66,14 +67,16 @@ export default function AnalysisPanel({ tasks, onClose }: AnalysisPanelProps) {
 			<div className="flex-1 overflow-y-auto p-3">
 				{activeTab === 'blockers' && (
 					<BlockersTab
+						projectId={projectId}
 						scheduledTasks={scheduledTasks}
 						selectedTaskId={selectedTaskId}
 						onSelectTask={setSelectedTaskId}
 					/>
 				)}
-				{activeTab === 'available' && <AvailableTab />}
+				{activeTab === 'available' && <AvailableTab projectId={projectId} />}
 				{activeTab === 'whatif' && (
 					<WhatIfTab
+						projectId={projectId}
 						scheduledTasks={scheduledTasks}
 						selectedTaskId={selectedTaskId}
 						onSelectTask={setSelectedTaskId}
@@ -137,15 +140,17 @@ function StatusBadge({ status }: { status: string }) {
 // --- Blockers Tab ---
 
 function BlockersTab({
+	projectId,
 	scheduledTasks,
 	selectedTaskId,
 	onSelectTask,
 }: {
+	projectId: string
 	scheduledTasks: GanttTask[]
 	selectedTaskId: string | null
 	onSelectTask: (id: string | null) => void
 }) {
-	const { data, isLoading } = useBlockerChain(selectedTaskId)
+	const { data, isLoading } = useBlockerChain(projectId, selectedTaskId)
 
 	return (
 		<>
@@ -190,8 +195,8 @@ function BlockersTab({
 
 // --- Available Tab ---
 
-function AvailableTab() {
-	const { data, isLoading } = useAvailableTasks()
+function AvailableTab({ projectId }: { projectId: string }) {
+	const { data, isLoading } = useAvailableTasks(projectId)
 
 	if (isLoading) return <p className="text-xs text-gray-400">Загрузка...</p>
 
@@ -222,6 +227,7 @@ function AvailableTab() {
 // --- What-If Tab ---
 
 function WhatIfTab({
+	projectId,
 	scheduledTasks,
 	selectedTaskId,
 	onSelectTask,
@@ -232,6 +238,7 @@ function WhatIfTab({
 	newEnd,
 	onNewEndChange,
 }: {
+	projectId: string
 	scheduledTasks: GanttTask[]
 	selectedTaskId: string | null
 	onSelectTask: (id: string | null) => void
@@ -243,10 +250,12 @@ function WhatIfTab({
 	onNewEndChange: (date: string | null) => void
 }) {
 	const startQuery = useWhatIf(
+		projectId,
 		mode === 'start' ? selectedTaskId : null,
 		mode === 'start' ? newStart : null,
 	)
 	const endQuery = useWhatIfEnd(
+		projectId,
 		mode === 'end' ? selectedTaskId : null,
 		mode === 'end' ? newEnd : null,
 	)

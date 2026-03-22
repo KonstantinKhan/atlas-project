@@ -1,6 +1,6 @@
 # Статус реализации
 
-> _Последнее обновление: 2026-03-10 (Этап 2 завершён, UX-улучшения)_
+> _Последнее обновление: 2026-03-15 (Этап 4 в процессе — мультипроектность)_
 
 Документ сопоставляет дорожную карту ([ROAD_MAP.md](../ROAD_MAP.md)) с фактическим состоянием кода.
 
@@ -309,14 +309,143 @@ UI → UX Command → API → Domain → DB → DTO → UI
 
 ---
 
-## Этапы 3–6
+## Фаза J: Ресурсы (3.1) ✅ (завершена 2026-03-15)
 
-Не начаты. Следующий этап — **3. Ресурсное планирование**.
+| Задача | Статус | Комментарий |
+|--------|--------|-------------|
+| J1: Доменные модели | ✅ | `Resource`, `ResourceId`, `ResourceName`, `ResourceType`, `ResourceCalendarOverride` |
+| J2: Миграция V6 | ✅ | `V6__create_resources.sql` — таблицы `resources` + `resource_calendar_overrides` |
+| J3: Репозиторий | ✅ | `IResourceRepo` + `ResourceRepoPostgres` + `ResourceRepoInMemory` |
+| J4: DTOs | ✅ | `ResourceDto`, `CreateResourceCommandDto`, `UpdateResourceCommandDto`, `ResourceCalendarOverrideDto` |
+| J5: API-эндпоинты | ✅ | 7 эндпоинтов: CRUD `/resources` + `/resources/{id}/calendar-overrides` |
+| J6: Frontend | ✅ | `/resources` страница, `ResourcesPage`, `CreateResourceDialog`, `ResourceCalendarOverridesEditor` |
+| J7: Тесты | ❌ | Не написаны |
+
+### Изменения в коде (Фаза J)
+- **Новые:** `Resource.kt`, `ResourceId.kt`, `ResourceName.kt`, `ResourceType.kt`, `ResourceCalendarOverride.kt`
+- **Новые:** `ResourcesTable.kt`, `ResourceCalendarOverridesTable.kt`
+- **Новые:** `IResourceRepo.kt`, `ResourceRepoPostgres.kt`, `ResourceRepoInMemory.kt`
+- **Новые:** `ResourceDto.kt`, `Resources.kt` (routes)
+- **Изменить:** `Routing.kt` — регистрация `resources()`
+- **Изменить:** `AppConfig.kt` — добавлен `IResourceRepo`
+- **Новые (frontend):** `resource.schema.ts`, `resourcesApi.ts`, `useResources.ts`, `ResourcesPage.tsx`, `CreateResourceDialog.tsx`, `ResourceCalendarOverridesEditor.tsx`, `src/app/resources/page.tsx`
+
+---
+
+## Фаза K: Назначения (3.2) ✅ (завершена 2026-03-15)
+
+| Задача | Статус | Комментарий |
+|--------|--------|-------------|
+| K1: Доменные модели | ✅ | `TaskAssignment` (hoursPerDay, plannedEffortHours), `AssignmentDayOverride`, `ResourceLoadCalculator`, `ResourceDayLoad`, `ResourceLoadResult`, `OverloadReport` |
+| K2: Миграция V7+V8 | ✅ | `V7__create_assignments.sql`, `V8__assignment_enhancements.sql` (plannedEffortHours + day overrides) |
+| K3: Репозиторий | ✅ | 6 методов назначений + 4 метода day overrides в `IResourceRepo` |
+| K4: API-эндпоинты | ✅ | `/assignments` CRUD, `/assignments/{id}/day-overrides` CRUD, `/resource-load` (GET, GET/{resourceId}) |
+| K5: Frontend | ✅ | `AssignmentEditor` (попап), `DayOverrideEditor` (клик по ячейке дня), `ResourceLoadPage` (гистограмма нагрузки), индикаторы на `GanttBar` + `GanttTaskRow` |
+| K6: Тесты | ❌ | Не написаны |
+
+### Изменения в коде (Фаза K)
+- **Новые:** `TaskAssignment.kt`, `AssignmentId.kt`, `AssignmentDayOverride.kt`, `ResourceLoadCalculator.kt`
+- **Новые:** `TaskAssignmentsTable.kt`, `AssignmentDayOverridesTable.kt`
+- **Новые:** `AssignmentDto.kt` (DTOs: assignment, day override, load report), `Assignments.kt` (routes)
+- **Изменить:** `DomainToTransport.kt` — маппинг назначений, нагрузки, day overrides
+- **Изменить:** `Routing.kt` — регистрация `assignments()`
+- **Изменить:** `GanttBar.tsx`, `GanttTaskLayer.tsx`, `GanttCalendarGrid.tsx`, `GanttTaskRow.tsx`, `GanttTaskList.tsx`, `GanttChart.tsx` — индикаторы назначений, попап AssignmentEditor
+- **Новые (frontend):** `assignment.schema.ts`, `assignmentsApi.ts`, `useAssignments.ts`, `AssignmentEditor.tsx`, `DayOverrideEditor.tsx`, `ResourceLoadPage.tsx`, `src/app/resource-load/page.tsx`
+
+### Модель назначений
+- `hoursPerDay` — дефолтная ставка (ч/день) на всю длительность задачи
+- `plannedEffortHours` — плановая трудоёмкость (опционально); если задана, рассчитывается `effortDeficit`
+- `AssignmentDayOverride` — точечная корректировка часов на конкретный день (override > default)
+- `ResourceLoadCalculator` использует: `dayOverride[date]?.hours ?? assignment.hoursPerDay`
+
+---
+
+## Фаза L: Выравнивание (3.3) ✅ (завершена 2026-03-15)
+
+| Задача | Статус | Комментарий |
+|--------|--------|-------------|
+| L1: Движок выравнивания | ✅ | `ResourceLevelingEngine` — serial leveling: snapshot, CPM slack, сдвиг наименее критичных задач |
+| L2: API-эндпоинты | ✅ | `POST /leveling/preview`, `POST /leveling/apply` |
+| L3: Frontend | ✅ | Кнопка «Выровнять» на `/resource-load`, `LevelingPreviewDialog` (таблица сдвигов, resolved/remaining) |
+| L4: Тесты | ❌ | Не написаны |
+
+### Изменения в коде (Фаза L)
+- **Новый:** `ResourceLevelingEngine.kt` — serial leveling алгоритм
+- **Новый:** `LevelingResultDto.kt`
+- **Новый:** `Leveling.kt` (routes) — preview + apply
+- **Изменить:** `DomainToTransport.kt` — `LevelingResult.toDto()`
+- **Изменить:** `Routing.kt` — регистрация `leveling()`
+- **Новые (frontend):** `LevelingPreviewDialog.tsx`
+- **Изменить:** `assignmentsApi.ts` — `previewLeveling()`, `applyLeveling()`
+- **Изменить:** `useAssignments.ts` — `useLevelingPreview()`, `useApplyLeveling()`
+
+---
+
+## Фаза M: Доменные модели + Миграция БД (4.1) ✅ (завершена 2026-03-15)
+
+| Задача | Статус | Комментарий |
+|--------|--------|-------------|
+| M1: Доменные модели | ✅ | `Portfolio`, `PortfolioId`; `ProjectPlan` расширен: `name`, `portfolioId`, `priority` |
+| M2: Миграция V9 | ✅ | Таблица `portfolios`; `project_plans` + metadata; ресурсы глобальные (убран `project_plan_id`) |
+| M3: Репозиторий портфелей | ✅ | `IPortfolioRepo` + `PortfolioRepoPostgres` + `PortfolioRepoInMemory` |
+| M4: Рефакторинг `.single()` | ✅ | `projectPlan(planId)`, `createTask(planId, ...)`, `addDependency(planId, ...)` |
+| M5: Глобальные ресурсы | ✅ | `listResources()` / `createResource(resource)` без `planId` |
+
+### Изменения в коде (Фаза M)
+- **Новые:** `Portfolio.kt`, `PortfolioId.kt`, `IPortfolioRepo.kt`, `PortfolioRepoPostgres.kt`, `PortfolioRepoInMemory.kt`, `PortfoliosTable.kt`
+- **Изменить:** `ProjectPlan.kt` — name, portfolioId, priority + snapshot()
+- **Изменить:** `IAtlasProjectTaskRepo.kt` — planId параметр
+- **Изменить:** `IResourceRepo.kt` — убран planId из ресурсных методов
+- **Изменить:** `AtlasProjectTaskRepoPostgres.kt` — убраны `.single()`, чтение новых колонок
+- **Изменить:** `ResourceRepoPostgres.kt`, `ResourcesTable.kt` — убран projectPlanId
+- **Изменить:** `ProjectPlansTable.kt` — name, portfolioId, priority
+- **Изменить:** `AppConfig.kt`, `Databases.kt` — добавлен portfolioRepo
+- **Новый:** `V9__create_portfolios_and_global_resources.sql`
+
+---
+
+## Фаза N: Backend API (4.1) ✅ (завершена 2026-03-15)
+
+| Задача | Статус | Комментарий |
+|--------|--------|-------------|
+| N1: Проектные эндпоинты | ✅ | Все маршруты под `/projects/{projectId}/` |
+| N2: Портфельные эндпоинты | ✅ | CRUD `/portfolios`, проекты `/portfolios/{id}/projects` |
+| N3: Глобальные ресурсы | ✅ | `/resources` без project scope |
+| N4: Тесты | ✅ | `RoutingTest.kt` обновлён |
+
+### Изменения в коде (Фаза N)
+- **Новый:** `Portfolios.kt` (routes) — CRUD портфелей + проектов
+- **Изменить:** `Routing.kt` (old) — все маршруты в `route("/projects/{projectId}")`
+- **Изменить:** `Routing.kt` (plugins/) — project-scoped + global разделение
+- **Изменить:** `ProjectPlan.kt`, `CriticalPath.kt`, `Analysis.kt`, `ReorderTasks.kt`, `Assignments.kt`, `Leveling.kt` — `Routing` → `Route`, извлечение `projectId`
+- **Изменить:** `Resources.kt` — убран `taskRepo`, глобальный scope
+- **Изменить:** `RoutingTest.kt` — новые URL-ы, новые сигнатуры
+
+---
+
+## Фаза O: Frontend (4.1) ❌ (не начата)
+
+Навигация по портфелям/проектам, миграция API-вызовов фронтенда.
+
+## Фаза P: Межпроектные конфликты (4.2) ❌ (не начата)
+
+Кросс-проектная нагрузка ресурсов, выравнивание по приоритетам проектов.
+
+Подробный план: [IMPLEMENTATION_PLAN_STAGE4.md](IMPLEMENTATION_PLAN_STAGE4.md)
+
+---
+
+## Этапы 5–6
+
+Не начаты.
 
 ---
 
 ## Связанные документы
 
 - [Дорожная карта](../ROAD_MAP.md)
-- [План реализации](IMPLEMENTATION_PLAN.md)
+- [План реализации — Этап 1](IMPLEMENTATION_PLAN.md)
+- [План реализации — Этап 2](IMPLEMENTATION_PLAN_STAGE2.md)
+- [План реализации — Этап 3](IMPLEMENTATION_PLAN_STAGE3.md)
+- [План реализации — Этап 4](IMPLEMENTATION_PLAN_STAGE4.md)
 - [Обсуждение команды](TEAM_DISCUSSION.md)

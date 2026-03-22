@@ -6,15 +6,21 @@
 
 ## Purpose
 
-The backend is a **Kotlin multiplatform project** providing REST API services for project task management. It implements a Gantt chart backend with task scheduling, dependency management, and work calendar support.
+The backend is a **Kotlin multiplatform project** providing REST API services for project task management. It implements a Gantt chart backend with task scheduling, dependency management, work calendar support, resource management, and resource leveling.
 
 ## Boundaries
 
 ### Included
 - Ktor HTTP server with REST API endpoints
-- Domain models for tasks, schedules, and dependencies
+- Domain models for tasks, schedules, dependencies, resources, and assignments
 - Repository pattern with multiple implementations
 - Work calendar service for working day calculations
+- Resource management (create, update, delete resources)
+- Task assignments (assign resources to tasks)
+- Resource load calculation and overload detection
+- Resource leveling engine for automatic overload resolution
+- Critical path analysis
+- Project analysis (blocker chain, what-if scenarios)
 - Data transfer objects (DTOs) for API communication
 - Domain↔Transport mapping layer
 
@@ -33,6 +39,12 @@ The backend is a **Kotlin multiplatform project** providing REST API services fo
 | **Work Calendar** | Defines working days, weekends, and holidays |
 | **Schedule Delta** | Changes to schedules after task modifications |
 | **Project Plan** | Collection of tasks with schedules and dependencies |
+| **Resource** | A person or role with capacity (hours/day) available for work |
+| **Task Assignment** | Link between a resource and task with hours/day allocation |
+| **Resource Load** | Calculation of assigned vs. available hours per day |
+| **Resource Leveling** | Automatic rescheduling to resolve resource overloads |
+| **Critical Path** | Longest path through the project network (zero slack tasks) |
+| **Blocker Chain** | Chain of blocking tasks preventing a task from starting earlier |
 
 ## Architecture
 
@@ -114,21 +126,76 @@ ktor-app
 
 ### API Endpoints
 
+#### Task Management
+
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/work-calendar` | GET | Get work calendar |
 | `/project-plan` | GET | Get complete project plan |
 | `/change-start` | POST | Change task start date |
 | `/change-end` | POST | Change task end date |
+| `/resize-from-start` | POST | Resize task from start (keep end fixed) |
+| `/plan-from-end` | POST | Plan task backwards from end date |
 | `/dependencies` | POST | Create task dependency |
+| `/dependencies` | PATCH | Change dependency type |
+| `/dependencies` | DELETE | Remove dependency |
 | `/dependencies/recalculate` | POST | Recalculate dependent tasks |
 | `/project-tasks` | POST | Create new task |
+| `/project-tasks/create-in-pool` | POST | Create task without schedule |
 | `/project-tasks/:id` | PATCH | Update task |
+| `/project-tasks/:id` | DELETE | Delete task |
+| `/project-tasks/:id/schedule` | POST | Assign schedule to pool task |
+
+#### Resource Management
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/resources` | GET | List all resources |
+| `/resources` | POST | Create new resource |
+| `/resources/:id` | PATCH | Update resource |
+| `/resources/:id` | DELETE | Delete resource |
+| `/resources/:id/calendar-overrides` | GET/POST/DELETE | Manage calendar overrides |
+
+#### Assignment Management
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/assignments` | GET | List all assignments |
+| `/assignments` | POST | Create assignment |
+| `/assignments/:id` | PATCH | Update assignment |
+| `/assignments/:id` | DELETE | Delete assignment |
+| `/assignments/:id/day-overrides` | GET/POST/DELETE | Manage day overrides |
+
+#### Resource Load & Leveling
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/resource-load` | GET | Get resource overload report |
+| `/resource-load/:resourceId` | GET | Get single resource load |
+| `/leveling/preview` | POST | Preview leveling result |
+| `/leveling/apply` | POST | Apply leveling changes |
+
+#### Analysis
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/critical-path` | GET | Critical path analysis |
+| `/analysis/blocker-chain/:taskId` | GET | Blocker chain for task |
+| `/analysis/available-tasks` | GET | Available tasks from date |
+| `/analysis/what-if` | GET | What-if analysis (start change) |
+| `/analysis/what-if-end` | GET | What-if analysis (end change) |
 
 ### Domain Models
 
+#### Task Models
 - `ProjectTask` - Task entity
 - `TaskSchedule` - Task schedule with dates
 - `TaskDependency` - Dependency between tasks
 - `ProjectPlan` - Complete project plan
 - `TimelineCalendar` - Work calendar
+
+#### Resource Models
+- `Resource` - Person or role with capacity
+- `TaskAssignment` - Resource-to-task assignment
+- `ResourceCalendarOverride` - Daily capacity override
+- `AssignmentDayOverride` - Assignment-specific day override

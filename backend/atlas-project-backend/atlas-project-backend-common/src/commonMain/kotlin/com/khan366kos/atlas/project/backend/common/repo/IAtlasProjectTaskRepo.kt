@@ -10,15 +10,15 @@ interface IAtlasProjectTaskRepo {
 
     suspend fun updateSchedule(schedule: TaskSchedule): Int
 
-    suspend fun projectPlan(): ProjectPlan
+    suspend fun projectPlan(planId: String): ProjectPlan
 
     suspend fun tasks(): List<ProjectTask>
     suspend fun getTask(id: String): ProjectTask?
-    suspend fun createTask(task: ProjectTask): ProjectTask
-    suspend fun createTaskWithoutSchedule(task: ProjectTask): ProjectTask
+    suspend fun createTask(planId: String, task: ProjectTask): ProjectTask
+    suspend fun createTaskWithoutSchedule(planId: String, task: ProjectTask): ProjectTask
     suspend fun updateTask(task: ProjectTask): ProjectTask
 
-    suspend fun addDependency(predecessorId: String, successorId: String, type: String, lagDays: Int): Int
+    suspend fun addDependency(planId: String, predecessorId: String, successorId: String, type: String, lagDays: Int): Int
     suspend fun updateDependencyLag(predecessorId: String, successorId: String, lag: Int): Int
     suspend fun updateDependency(predecessorId: String, successorId: String, type: String, lagDays: Int): Int
     suspend fun deleteDependency(predecessorId: String, successorId: String): Int
@@ -26,4 +26,6 @@ interface IAtlasProjectTaskRepo {
     suspend fun deleteTask(id: String): Int
 
     suspend fun reorderTasks(orderedIds: List<String>)
+
+    suspend fun saveBaseline(planId: String)
 }

@@ -14,6 +14,8 @@ Custom React hooks that encapsulate API calls using TanStack React Query. They p
 |------|---------|
 | `useProjectTasks.ts` | Task CRUD operation hooks |
 | `useTimelineCalendar.ts` | Work calendar fetch hook |
+| `useResources.ts` | Resource CRUD and calendar override hooks |
+| `useAssignments.ts` | Assignment, day override, and leveling hooks |
 
 ---
 
@@ -519,6 +521,393 @@ if (!calendar) return null
 
 // Use calendar for date calculations
 const isWorkingDay = calendar.isWorkingDay(date)
+```
+
+---
+
+## useResources.ts
+
+### Purpose
+
+Provides React Query hooks for resource management including fetching, creating, updating, deleting resources, and managing calendar overrides.
+
+### Exports
+
+```typescript
+// Query Hooks
+export function useResources()
+export function useCalendarOverrides(resourceId: string | null)
+
+// Mutation Hooks
+export function useCreateResource()
+export function useUpdateResource()
+export function useDeleteResource()
+export function useSetCalendarOverride()
+export function useDeleteCalendarOverride()
+```
+
+### useResources
+
+**Purpose:** Fetch the list of all resources.
+
+**Returns:**
+```typescript
+{
+    data: Resource[] | undefined
+    isLoading: boolean
+    error: Error | null
+    refetch: () => void
+}
+```
+
+**Query Key:** `['resources']`
+
+**API Call:** `GET /resources`
+
+---
+
+### useCalendarOverrides
+
+**Purpose:** Fetch calendar overrides for a specific resource.
+
+**Parameters:**
+- `resourceId: string | null` - Resource ID (query disabled if null)
+
+**Returns:**
+```typescript
+{
+    data: ResourceCalendarOverride[] | undefined
+    isLoading: boolean
+    error: Error | null
+    refetch: () => void
+}
+```
+
+**Query Key:** `['calendarOverrides', resourceId]`
+
+**API Call:** `GET /resources/:id/calendar-overrides`
+
+---
+
+### useCreateResource
+
+**Purpose:** Create a new resource.
+
+**Returns:**
+```typescript
+UseMutationResult<Resource, Error, {
+    name: string
+    type: string
+    capacityHoursPerDay: number
+}>
+```
+
+**API Call:** `POST /resources`
+
+**Invalidates:** `['resources']`
+
+---
+
+### useUpdateResource
+
+**Purpose:** Update an existing resource.
+
+**Returns:**
+```typescript
+UseMutationResult<Resource, Error, {
+    id: string
+    updates: { name?: string; type?: string; capacityHoursPerDay?: number }
+}>
+```
+
+**API Call:** `PATCH /resources/:id`
+
+**Invalidates:** `['resources']`
+
+---
+
+### useDeleteResource
+
+**Purpose:** Delete a resource.
+
+**Returns:**
+```typescript
+UseMutationResult<void, Error, { id: string }>
+```
+
+**API Call:** `DELETE /resources/:id`
+
+**Invalidates:** `['resources']`
+
+---
+
+### useSetCalendarOverride
+
+**Purpose:** Set a calendar override for a resource on a specific date.
+
+**Returns:**
+```typescript
+UseMutationResult<ResourceCalendarOverride, Error, {
+    resourceId: string
+    date: string
+    availableHours: number
+}>
+```
+
+**API Call:** `POST /resources/:id/calendar-overrides`
+
+**Invalidates:** `['calendarOverrides', resourceId]`
+
+---
+
+### useDeleteCalendarOverride
+
+**Purpose:** Delete a calendar override for a resource on a specific date.
+
+**Returns:**
+```typescript
+UseMutationResult<void, Error, {
+    resourceId: string
+    date: string
+}>
+```
+
+**API Call:** `DELETE /resources/:id/calendar-overrides/:date`
+
+**Invalidates:** `['calendarOverrides', resourceId]`
+
+---
+
+## useAssignments.ts
+
+### Purpose
+
+Provides React Query hooks for task assignments, day overrides, and resource leveling operations.
+
+### Exports
+
+```typescript
+// Query Hooks
+export function useAssignments()
+export function useDayOverrides(assignmentId: string | null)
+export function useResourceLoad(from: string | null, to: string | null)
+
+// Mutation Hooks
+export function useCreateAssignment()
+export function useUpdateAssignment()
+export function useDeleteAssignment()
+export function useSetDayOverride()
+export function useDeleteDayOverride()
+export function useLevelingPreview()
+export function useApplyLeveling()
+```
+
+### useAssignments
+
+**Purpose:** Fetch all task assignments.
+
+**Returns:**
+```typescript
+{
+    data: TaskAssignment[] | undefined
+    isLoading: boolean
+    error: Error | null
+    refetch: () => void
+}
+```
+
+**Query Key:** `['assignments']`
+
+**API Call:** `GET /assignments`
+
+---
+
+### useDayOverrides
+
+**Purpose:** Fetch day overrides for a specific assignment.
+
+**Parameters:**
+- `assignmentId: string | null` - Assignment ID (query disabled if null)
+
+**Returns:**
+```typescript
+{
+    data: AssignmentDayOverride[] | undefined
+    isLoading: boolean
+    error: Error | null
+    refetch: () => void
+}
+```
+
+**Query Key:** `['dayOverrides', assignmentId]`
+
+**API Call:** `GET /assignments/:id/day-overrides`
+
+---
+
+### useResourceLoad
+
+**Purpose:** Fetch resource load report for a date range.
+
+**Parameters:**
+- `from: string | null` - Start date (ISO string)
+- `to: string | null` - End date (ISO string)
+
+**Returns:**
+```typescript
+{
+    data: OverloadReport | undefined
+    isLoading: boolean
+    error: Error | null
+    refetch: () => void
+}
+```
+
+**Query Key:** `['resourceLoad', from, to]`
+
+**API Call:** `GET /resource-load?from=:from&to=:to`
+
+---
+
+### useCreateAssignment
+
+**Purpose:** Create a new task assignment.
+
+**Returns:**
+```typescript
+UseMutationResult<TaskAssignment, Error, {
+    taskId: string
+    resourceId: string
+    hoursPerDay?: number
+}>
+```
+
+**API Call:** `POST /assignments`
+
+**Invalidates:** `['assignments']`, `['resourceLoad']`
+
+---
+
+### useUpdateAssignment
+
+**Purpose:** Update an existing assignment.
+
+**Returns:**
+```typescript
+UseMutationResult<TaskAssignment, Error, {
+    id: string
+    hoursPerDay?: number
+    plannedEffortHours?: number | null
+}>
+```
+
+**API Call:** `PATCH /assignments/:id`
+
+**Invalidates:** `['assignments']`, `['resourceLoad']`
+
+---
+
+### useDeleteAssignment
+
+**Purpose:** Delete an assignment.
+
+**Returns:**
+```typescript
+UseMutationResult<void, Error, { id: string }>
+```
+
+**API Call:** `DELETE /assignments/:id`
+
+**Invalidates:** `['assignments']`, `['resourceLoad']`
+
+---
+
+### useSetDayOverride
+
+**Purpose:** Set a day override for an assignment.
+
+**Returns:**
+```typescript
+UseMutationResult<AssignmentDayOverride, Error, {
+    assignmentId: string
+    date: string
+    hours: number
+}>
+```
+
+**API Call:** `POST /assignments/:id/day-overrides`
+
+**Invalidates:** `['dayOverrides']`, `['resourceLoad']`
+
+---
+
+### useDeleteDayOverride
+
+**Purpose:** Delete a day override for an assignment.
+
+**Returns:**
+```typescript
+UseMutationResult<void, Error, {
+    assignmentId: string
+    date: string
+}>
+```
+
+**API Call:** `DELETE /assignments/:id/day-overrides/:date`
+
+**Invalidates:** `['dayOverrides']`, `['resourceLoad']`
+
+---
+
+### useLevelingPreview
+
+**Purpose:** Preview resource leveling result without applying changes.
+
+**Returns:**
+```typescript
+UseMutationResult<LevelingResult, Error, void>
+```
+
+**API Call:** `POST /leveling/preview`
+
+**Usage Example:**
+```typescript
+const levelingMutation = useLevelingPreview()
+
+levelingMutation.mutate(undefined, {
+    onSuccess: (result) => {
+        console.log('Resolved overloads:', result.resolvedOverloads)
+        console.log('Remaining overloads:', result.remainingOverloads)
+        console.log('Schedule changes:', result.updatedSchedules)
+    }
+})
+```
+
+---
+
+### useApplyLeveling
+
+**Purpose:** Apply resource leveling changes to the project schedule.
+
+**Returns:**
+```typescript
+UseMutationResult<LevelingResult, Error, void>
+```
+
+**API Call:** `POST /leveling/apply`
+
+**Invalidates:** `['projectPlan']`, `['resourceLoad']`, `['criticalPath']`
+
+**Usage Example:**
+```typescript
+const applyMutation = useApplyLeveling()
+
+applyMutation.mutate(undefined, {
+    onSuccess: (result) => {
+        console.log('Leveling applied successfully')
+        console.log('Tasks rescheduled:', result.updatedSchedules.length)
+    }
+})
 ```
 
 ---

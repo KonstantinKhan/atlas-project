@@ -47,12 +47,14 @@ interface GanttTaskLayerProps {
 	viewMode?: ViewMode
 	criticalTaskIds?: Set<string>
 	slackMap?: Map<string, number>
+	assignmentsByTask?: Map<string, Array<{ resourceName: string; resourceId: string }>>
 	onCreateDependency: (fromId: string, toId: string, type: string) => void
 	onChangeDependencyType: (fromId: string, toId: string, newType: string) => void
 	onRemoveDependency: (fromId: string, toId: string) => void
 	onMoveTask: (taskId: string, newStartDate: string) => void
 	onResizeTask: (taskId: string, newEndDate: string) => void
 	onResizeFromStart: (taskId: string, newStartDate: string) => void
+	onAssignmentClick?: (taskId: string, e: React.MouseEvent) => void
 	linkingFrom: LinkingFrom | null
 	setLinkingFrom: (v: LinkingFrom | null) => void
 	mousePos: { x: number; y: number }
@@ -89,12 +91,14 @@ export default function GanttTaskLayer({
 	viewMode = 'day',
 	criticalTaskIds,
 	slackMap,
+	assignmentsByTask,
 	onCreateDependency,
 	onChangeDependencyType,
 	onRemoveDependency,
 	onMoveTask,
 	onResizeTask,
 	onResizeFromStart,
+	onAssignmentClick,
 	linkingFrom,
 	setLinkingFrom,
 	mousePos,
@@ -254,6 +258,40 @@ export default function GanttTaskLayer({
 						className="relative"
 						style={{ height: rowHeight }}
 					>
+						{/* Baseline shadow bar */}
+						{task.start && task.end && task.baselineStart && task.baselineEnd && (
+							<div
+								className="absolute bg-gray-400/25 dark:bg-zinc-500/25 rounded-sm pointer-events-none"
+								style={{
+									left: getDayOffset(task.baselineStart, rangeStart) * dayWidth,
+									width: (getDayOffset(task.baselineEnd, rangeStart) - getDayOffset(task.baselineStart, rangeStart) + 1) * dayWidth,
+									top: rowHeight - 10,
+									height: 6,
+								}}
+							/>
+						)}
+						{/* Actual start marker */}
+						{task.start && task.end && task.actualStart && (
+							<div
+								className="absolute w-2 h-2 bg-emerald-500 rotate-45 pointer-events-none z-10"
+								style={{
+									left: getDayOffset(task.actualStart, rangeStart) * dayWidth + dayWidth / 2 - 4,
+									top: rowHeight / 2 - 4,
+								}}
+								title={`Факт. начало: ${formatDate(task.actualStart)}`}
+							/>
+						)}
+						{/* Actual end marker */}
+						{task.start && task.end && task.actualEnd && (
+							<div
+								className="absolute w-2 h-2 border-2 border-emerald-500 rotate-45 pointer-events-none z-10"
+								style={{
+									left: getDayOffset(task.actualEnd, rangeStart) * dayWidth + dayWidth / 2 - 4,
+									top: rowHeight / 2 - 4,
+								}}
+								title={`Факт. окончание: ${formatDate(task.actualEnd)}`}
+							/>
+						)}
 						<GanttBar
 							task={task}
 							rangeStart={rangeStart}
@@ -262,6 +300,8 @@ export default function GanttTaskLayer({
 							previewWidthPx={previewWidthPx}
 							isCritical={criticalTaskIds?.has(task.id)}
 							slack={slackMap?.get(task.id)}
+							assignments={assignmentsByTask?.get(task.id)}
+							onAssignmentClick={onAssignmentClick}
 							onLinkStart={!linkingFrom && !isDraggingOrResizing ? (id, side, e) => {
 								e.preventDefault()
 								setLinkingFrom({ taskId: id, side })

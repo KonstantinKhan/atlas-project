@@ -11,4 +11,5 @@ export const TaskCommandType = {
 	AssignSchedule: 'assignSchedule',
 	MoveTask: 'moveTask',
 	ResizeTask: 'resizeTask',
+	UpdateFields: 'updateFields',
 } as const

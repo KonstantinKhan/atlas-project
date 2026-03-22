@@ -11,5 +11,13 @@ data class GanttTaskDto(
     val description: String,
     val start: LocalDate? = null,
     val end: LocalDate? = null,
-    val status: ProjectTaskStatus
+    val status: ProjectTaskStatus,
+    val baselineStart: LocalDate? = null,
+    val baselineEnd: LocalDate? = null,
+    val actualStart: LocalDate? = null,
+    val actualEnd: LocalDate? = null,
+    val baselineEffortHours: Double? = null,
+    val additionalEffortHours: Double? = null,
+    val allocatedEffortHours: Double? = null,
+    val effortCoveragePercent: Double? = null,
 )

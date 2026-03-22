@@ -246,7 +246,7 @@ _(Project & Portfolio Management)_
 ---
 # 📍 Где ты сейчас
 
-> _Последнее обновление: 2026-03-10_
+> _Последнее обновление: 2026-03-15_
 
 | Этап | Прогресс | Комментарий |
 |------|----------|-------------|
@@ -257,8 +257,15 @@ _(Project & Portfolio Management)_
 | 2.1 Граф задач | ✅ 100% | Топосортировка, snapshot, валидация циклов |
 | 2.2 Критический путь (CPM) | ✅ 100% | ES/EF/LS/LF/slack, подсветка, стрелки |
 | 2.3 Аналитические срезы | ✅ 100% | Блокеры, доступные задачи, what-if (start + end) |
-| 3–6 | 0% | Не начаты |
+| 3.1 Ресурсы | ✅ 100% | CRUD, тип (PERSON/ROLE), capacity, календарь доступности (overrides) |
+| 3.2 Назначения | ✅ 100% | N:M task↔resource, hoursPerDay, plannedEffortHours, day overrides, расчёт нагрузки, дефицит усилий |
+| 3.3 Выравнивание | ✅ 100% | Serial leveling, preview/apply, учёт зависимостей и slack |
+| 4.1 Портфель | 🔧 50% | Backend: домен, миграция V9, API /projects/{id}/ + /portfolios. Frontend: не начат |
+| 4.2 Межпроектные конфликты | 0% | Не начат |
+| 4.3 Сценарное планирование | — | Отложен |
+| 5–6 | 0% | Не начаты |
 
 Подробный статус реализации: [IMPLEMENTATION_STATUS.md](project/IMPLEMENTATION_STATUS.md)
 План реализации — Этап 1: [IMPLEMENTATION_PLAN.md](project/IMPLEMENTATION_PLAN.md)
 План реализации — Этап 2: [IMPLEMENTATION_PLAN_STAGE2.md](project/IMPLEMENTATION_PLAN_STAGE2.md)
+План реализации — Этап 4: [IMPLEMENTATION_PLAN_STAGE4.md](project/IMPLEMENTATION_PLAN_STAGE4.md)

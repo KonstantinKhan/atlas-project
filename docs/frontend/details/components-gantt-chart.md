@@ -2,7 +2,7 @@
 
 **Path:** `/frontend/atlas-project-web-app/src/components/GanttChart/`
 **Module:** [Frontend Index](../INDEX.md)
-**Last Updated:** 2026-03-06
+**Last Updated:** 2026-03-15
 
 ## Purpose
 
@@ -24,6 +24,7 @@ The GanttChart module provides the main visualization component for project task
 | `DependencyActionPopover.tsx` | Popover for dependency actions (change type, delete) |
 | `DependencyTypePopover.tsx` | Popover for selecting dependency type during creation |
 | `Toast.tsx` | Toast notification for error messages |
+| `AnalysisPanel.tsx` | Panel for displaying analysis results (blocker chain, what-if) |
 | `GanttChart.styles.ts` | Shared style constants |
 | `index.ts` | Module exports |
 

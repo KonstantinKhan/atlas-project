@@ -13,6 +13,9 @@ import com.khan366kos.atlas.project.backend.common.models.taskSchedule.TaskSched
 import com.khan366kos.atlas.project.backend.common.models.taskSchedule.TaskScheduleId
 import com.khan366kos.atlas.project.backend.common.models.timelineCalendar.TimelineCalendar
 import com.khan366kos.atlas.project.backend.common.repo.IAtlasProjectTaskRepo
+import com.khan366kos.atlas.project.backend.ktor.app.plugins.configureRouting
+import com.khan366kos.atlas.project.backend.repo.inmemory.PortfolioRepoInMemory
+import com.khan366kos.atlas.project.backend.repo.inmemory.ResourceRepoInMemory
 import com.khan366kos.config.AppConfig
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
@@ -42,7 +45,7 @@ class RoutingTest {
 
         override suspend fun timelineCalendar(): TimelineCalendar = testCalendar
 
-        override suspend fun projectPlan(): ProjectPlan = ProjectPlan(
+        override suspend fun projectPlan(planId: String): ProjectPlan = ProjectPlan(
             tasks = tasks.map { TaskId(it.key) to it.value }.toMap().toMutableMap(),
             schedules = schedules,
             dependencies = dependencies,
@@ -57,12 +60,12 @@ class RoutingTest {
 
         override suspend fun getTask(id: String): ProjectTask? = tasks[id]
 
-        override suspend fun createTask(task: ProjectTask): ProjectTask {
+        override suspend fun createTask(planId: String, task: ProjectTask): ProjectTask {
             tasks[task.id.value] = task
             return task
         }
 
-        override suspend fun createTaskWithoutSchedule(task: ProjectTask): ProjectTask {
+        override suspend fun createTaskWithoutSchedule(planId: String, task: ProjectTask): ProjectTask {
             tasks[task.id.value] = task
             return task
         }
@@ -72,7 +75,7 @@ class RoutingTest {
             return task
         }
 
-        override suspend fun addDependency(predecessorId: String, successorId: String, type: String, lagDays: Int): Int {
+        override suspend fun addDependency(planId: String, predecessorId: String, successorId: String, type: String, lagDays: Int): Int {
             dependencies.add(
                 TaskDependency(
                     predecessor = TaskId(predecessorId),
@@ -83,6 +86,22 @@ class RoutingTest {
             )
             return 1
         }
+
+        override suspend fun updateDependencyLag(predecessorId: String, successorId: String, lag: Int): Int = 1
+
+        override suspend fun updateDependency(predecessorId: String, successorId: String, type: String, lagDays: Int): Int = 1
+
+        override suspend fun deleteDependency(predecessorId: String, successorId: String): Int {
+            dependencies.removeAll { it.predecessor == TaskId(predecessorId) && it.successor == TaskId(successorId) }
+            return 1
+        }
+
+        override suspend fun deleteTask(id: String): Int {
+            tasks.remove(id)
+            return 1
+        }
+
+        override suspend fun reorderTasks(orderedIds: List<String>) {}
     }
 
     private fun testApp(
@@ -90,24 +109,25 @@ class RoutingTest {
         block: suspend ApplicationTestBuilder.() -> Unit
     ) = testApplication {
         application {
-            val config = AppConfig(repo)
+            val config = AppConfig(repo, ResourceRepoInMemory(), PortfolioRepoInMemory())
             configureSerialization()
             configureHTTP()
             configureStatusPages()
             configureRoutingOld(config)
+            configureRouting(config)
         }
         block()
     }
 
     @Test
     fun getProjectPlan_returnsOk() = testApp {
-        val response = client.get("/project-plan")
+        val response = client.get("/projects/1/plan")
         assertEquals(HttpStatusCode.OK, response.status)
     }
 
     @Test
     fun postCreateTaskInPool_returnsCreated() = testApp {
-        val response = client.post("/project-tasks/create-in-pool") {
+        val response = client.post("/projects/1/project-tasks/create-in-pool") {
             contentType(ContentType.Application.Json)
             setBody("""{"title": "Test Task"}""")
         }
@@ -130,7 +150,7 @@ class RoutingTest {
         val repo = createTestRepo(tasks = tasks)
 
         testApp(repo) {
-            val response = client.patch("/project-tasks/$taskId") {
+            val response = client.patch("/projects/1/project-tasks/$taskId") {
                 contentType(ContentType.Application.Json)
                 setBody("""{"title": "Updated Title"}""")
             }
@@ -156,7 +176,7 @@ class RoutingTest {
         val repo = createTestRepo(tasks = tasks, schedules = schedules)
 
         testApp(repo) {
-            val response = client.post("/change-start") {
+            val response = client.post("/projects/1/change-start") {
                 contentType(ContentType.Application.Json)
                 setBody("""{"planId":"1","taskId":"$taskId","newPlannedStart":"2025-03-10"}""")
             }
@@ -180,7 +200,7 @@ class RoutingTest {
         val repo = createTestRepo(tasks = tasks, schedules = schedules)
 
         testApp(repo) {
-            val response = client.post("/change-end") {
+            val response = client.post("/projects/1/change-end") {
                 contentType(ContentType.Application.Json)
                 setBody("""{"planId":"1","taskId":"$taskId","newPlannedEnd":"2025-03-07"}""")
             }
@@ -203,7 +223,7 @@ class RoutingTest {
         val repo = createTestRepo(tasks = tasks, schedules = schedules)
 
         testApp(repo) {
-            val response = client.post("/dependencies") {
+            val response = client.post("/projects/1/dependencies") {
                 contentType(ContentType.Application.Json)
                 setBody("""{"planId":"1","fromTaskId":"$taskA","toTaskId":"$taskB","type":"FS"}""")
             }
@@ -229,7 +249,7 @@ class RoutingTest {
         val repo = createTestRepo(tasks = tasks, schedules = schedules, dependencies = deps)
 
         testApp(repo) {
-            val response = client.post("/dependencies") {
+            val response = client.post("/projects/1/dependencies") {
                 contentType(ContentType.Application.Json)
                 setBody("""{"planId":"1","fromTaskId":"$taskB","toTaskId":"$taskA","type":"FS"}""")
             }

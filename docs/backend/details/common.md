@@ -413,6 +413,172 @@ interface IAtlasProjectTaskRepo {
 
 ---
 
+## Resource Models
+
+### Resource
+
+**Path:** `models/resource/Resource.kt`
+
+**Purpose:** Represents a resource (person or role) available for task work.
+
+```kotlin
+data class Resource(
+    val id: ResourceId = ResourceId.NONE,
+    val name: ResourceName = ResourceName.NONE,
+    val type: ResourceType = ResourceType.PERSON,
+    val capacityHoursPerDay: Double = 8.0,
+    val sortOrder: Int = 0,
+)
+```
+
+**Properties:**
+- `id: ResourceId` - Unique identifier
+- `name: ResourceName` - Resource name
+- `type: ResourceType` - Either PERSON or ROLE
+- `capacityHoursPerDay: Double` - Default daily capacity
+- `sortOrder: Int` - Display order
+
+---
+
+### TaskAssignment
+
+**Path:** `models/resource/TaskAssignment.kt`
+
+**Purpose:** Represents an assignment of a resource to a task.
+
+```kotlin
+data class TaskAssignment(
+    val id: AssignmentId = AssignmentId.NONE,
+    val taskId: TaskId = TaskId.NONE,
+    val resourceId: ResourceId = ResourceId.NONE,
+    val hoursPerDay: Double = 8.0,
+    val plannedEffortHours: Double? = null,
+)
+```
+
+**Properties:**
+- `id: AssignmentId` - Unique assignment identifier
+- `taskId: TaskId` - Reference to the task
+- `resourceId: ResourceId` - Reference to the resource
+- `hoursPerDay: Double` - Daily allocation
+- `plannedEffortHours: Double?` - Optional total effort estimate
+
+---
+
+### ResourceCalendarOverride
+
+**Path:** `models/resource/ResourceCalendarOverride.kt`
+
+**Purpose:** Overrides a resource's capacity on a specific date.
+
+```kotlin
+data class ResourceCalendarOverride(
+    val resourceId: ResourceId,
+    val date: LocalDate,
+    val availableHours: Double,
+)
+```
+
+---
+
+### AssignmentDayOverride
+
+**Path:** `models/resource/AssignmentDayOverride.kt`
+
+**Purpose:** Overrides an assignment's hours on a specific date.
+
+```kotlin
+data class AssignmentDayOverride(
+    val assignmentId: AssignmentId,
+    val date: LocalDate,
+    val hours: Double,
+)
+```
+
+---
+
+### ResourceLevelingEngine
+
+**Path:** `models/resource/ResourceLevelingEngine.kt`
+
+**Purpose:** Automatic resource overload resolution engine.
+
+```kotlin
+class ResourceLevelingEngine(
+    private val plan: ProjectPlan,
+    private val assignments: List<TaskAssignment>,
+    private val resources: List<Resource>,
+    private val calendar: TimelineCalendar,
+    private val calendarOverrides: Map<ResourceId, List<ResourceCalendarOverride>>,
+    private val dayOverridesByAssignment: Map<AssignmentId, List<AssignmentDayOverride>>,
+) {
+    fun level(): LevelingResult { ... }
+}
+```
+
+**Algorithm:**
+1. Compute resource load for all resources
+2. Identify overloaded days
+3. Delay non-critical tasks to resolve overloads
+4. Return leveling result with updated schedules
+
+---
+
+### ResourceLoadCalculator
+
+**Path:** `models/resource/ResourceLoadCalculator.kt`
+
+**Purpose:** Calculates resource load and generates overload reports.
+
+```kotlin
+class ResourceLoadCalculator(...) {
+    fun computeLoad(from: LocalDate, to: LocalDate): OverloadReport { ... }
+    fun computeResourceLoad(resourceId: ResourceId, from: LocalDate, to: LocalDate): ResourceLoadResult { ... }
+}
+```
+
+---
+
+## Repository Interfaces
+
+### IResourceRepo
+
+**Path:** `repo/IResourceRepo.kt`
+
+**Purpose:** Defines the contract for resource repository operations.
+
+```kotlin
+interface IResourceRepo {
+    // Resource operations
+    fun listResources(planId: String): List<Resource>
+    fun createResource(planId: String, resource: Resource): Resource
+    fun getResource(id: String): Resource?
+    fun updateResource(resource: Resource): Resource
+    fun deleteResource(id: String)
+    
+    // Calendar override operations
+    fun getCalendarOverrides(resourceId: String): List<ResourceCalendarOverride>
+    fun setCalendarOverride(override: ResourceCalendarOverride)
+    fun deleteCalendarOverride(resourceId: String, date: LocalDate)
+    
+    // Assignment operations
+    fun listAssignments(planId: String): List<TaskAssignment>
+    fun createAssignment(planId: String, assignment: TaskAssignment): TaskAssignment
+    fun updateAssignment(id: String, hoursPerDay: Double, plannedEffortHours: Double?): TaskAssignment
+    fun deleteAssignment(id: String)
+    
+    // Day override operations
+    fun getAssignmentDayOverrides(assignmentId: String): List<AssignmentDayOverride>
+    fun setAssignmentDayOverride(override: AssignmentDayOverride)
+    fun deleteAssignmentDayOverride(assignmentId: String, date: LocalDate)
+    
+    // Bulk operations
+    fun getAllDayOverridesForPlan(planId: String): List<AssignmentDayOverride>
+}
+```
+
+---
+
 ## Enums
 
 ### ProjectTaskStatus

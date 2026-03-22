@@ -14,6 +14,8 @@ Service layer providing API integration functions for communicating with the bac
 |------|---------|
 | `projectTasksApi.ts` | Task CRUD and schedule operations |
 | `timelineCalendarApi.ts` | Work calendar operations |
+| `resourcesApi.ts` | Resource CRUD and calendar override operations |
+| `assignmentsApi.ts` | Assignment, day override, and leveling operations |
 
 ---
 
@@ -388,6 +390,334 @@ export async function getTimelineCalendar(): Promise<TimelineCalendar>
 
 **Imported by:**
 - `hooks/useTimelineCalendar.ts`
+
+---
+
+## resourcesApi.ts
+
+### Purpose
+
+API service functions for resource management including CRUD operations and calendar overrides.
+
+### Configuration
+
+```typescript
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
+```
+
+### Functions
+
+#### getResources()
+
+**Purpose:** Fetch all resources.
+
+**Signature:**
+```typescript
+export async function getResources(): Promise<Resource[]>
+```
+
+**API:** `GET /resources`
+
+**Returns:** Array of `Resource` objects validated by `ResourceListSchema`
+
+---
+
+#### createResource(name, type, capacityHoursPerDay)
+
+**Purpose:** Create a new resource.
+
+**Signature:**
+```typescript
+export async function createResource(
+    name: string,
+    type: string,
+    capacityHoursPerDay: number
+): Promise<Resource>
+```
+
+**API:** `POST /resources`
+
+**Returns:** Created `Resource` object
+
+---
+
+#### updateResource(id, updates)
+
+**Purpose:** Update an existing resource.
+
+**Signature:**
+```typescript
+export async function updateResource(
+    id: string,
+    updates: { name?: string; type?: string; capacityHoursPerDay?: number }
+): Promise<Resource>
+```
+
+**API:** `PATCH /resources/:id`
+
+**Returns:** Updated `Resource` object
+
+---
+
+#### deleteResource(id)
+
+**Purpose:** Delete a resource.
+
+**Signature:**
+```typescript
+export async function deleteResource(id: string): Promise<void>
+```
+
+**API:** `DELETE /resources/:id`
+
+**Returns:** `void` (204 No Content)
+
+---
+
+#### getCalendarOverrides(resourceId)
+
+**Purpose:** Fetch calendar overrides for a resource.
+
+**Signature:**
+```typescript
+export async function getCalendarOverrides(resourceId: string): Promise<ResourceCalendarOverride[]>
+```
+
+**API:** `GET /resources/:id/calendar-overrides`
+
+**Returns:** Array of `ResourceCalendarOverride` objects
+
+---
+
+#### setCalendarOverride(resourceId, date, availableHours)
+
+**Purpose:** Set a calendar override for a resource on a specific date.
+
+**Signature:**
+```typescript
+export async function setCalendarOverride(
+    resourceId: string,
+    date: string,
+    availableHours: number
+): Promise<ResourceCalendarOverride>
+```
+
+**API:** `POST /resources/:id/calendar-overrides`
+
+**Returns:** Created `ResourceCalendarOverride` object
+
+---
+
+#### deleteCalendarOverride(resourceId, date)
+
+**Purpose:** Delete a calendar override.
+
+**Signature:**
+```typescript
+export async function deleteCalendarOverride(
+    resourceId: string,
+    date: string
+): Promise<void>
+```
+
+**API:** `DELETE /resources/:id/calendar-overrides/:date`
+
+**Returns:** `void` (204 No Content)
+
+### Dependencies
+
+**Imports:**
+- Schemas from `@/types/schemas/resource.schema`
+
+**Imported by:**
+- `hooks/useResources.ts`
+
+---
+
+## assignmentsApi.ts
+
+### Purpose
+
+API service functions for task assignments, day overrides, and resource leveling operations.
+
+### Configuration
+
+```typescript
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
+```
+
+### Functions
+
+#### getAssignments()
+
+**Purpose:** Fetch all task assignments.
+
+**Signature:**
+```typescript
+export async function getAssignments(): Promise<TaskAssignment[]>
+```
+
+**API:** `GET /assignments`
+
+**Returns:** Array of `TaskAssignment` objects validated by `TaskAssignmentListSchema`
+
+---
+
+#### createAssignment(taskId, resourceId, hoursPerDay, plannedEffortHours)
+
+**Purpose:** Create a new task assignment.
+
+**Signature:**
+```typescript
+export async function createAssignment(
+    taskId: string,
+    resourceId: string,
+    hoursPerDay?: number,
+    plannedEffortHours?: number | null
+): Promise<TaskAssignment>
+```
+
+**API:** `POST /assignments`
+
+**Returns:** Created `TaskAssignment` object
+
+---
+
+#### updateAssignment(id, updates)
+
+**Purpose:** Update an existing assignment.
+
+**Signature:**
+```typescript
+export async function updateAssignment(
+    id: string,
+    updates: { hoursPerDay?: number; plannedEffortHours?: number | null }
+): Promise<TaskAssignment>
+```
+
+**API:** `PATCH /assignments/:id`
+
+**Returns:** Updated `TaskAssignment` object
+
+---
+
+#### deleteAssignment(id)
+
+**Purpose:** Delete an assignment.
+
+**Signature:**
+```typescript
+export async function deleteAssignment(id: string): Promise<void>
+```
+
+**API:** `DELETE /assignments/:id`
+
+**Returns:** `void` (204 No Content)
+
+---
+
+#### getDayOverrides(assignmentId)
+
+**Purpose:** Fetch day overrides for an assignment.
+
+**Signature:**
+```typescript
+export async function getDayOverrides(assignmentId: string): Promise<AssignmentDayOverride[]>
+```
+
+**API:** `GET /assignments/:id/day-overrides`
+
+**Returns:** Array of `AssignmentDayOverride` objects
+
+---
+
+#### setDayOverride(assignmentId, date, hours)
+
+**Purpose:** Set a day override for an assignment.
+
+**Signature:**
+```typescript
+export async function setDayOverride(
+    assignmentId: string,
+    date: string,
+    hours: number
+): Promise<AssignmentDayOverride>
+```
+
+**API:** `POST /assignments/:id/day-overrides`
+
+**Returns:** Created `AssignmentDayOverride` object
+
+---
+
+#### deleteDayOverride(assignmentId, date)
+
+**Purpose:** Delete a day override.
+
+**Signature:**
+```typescript
+export async function deleteDayOverride(
+    assignmentId: string,
+    date: string
+): Promise<void>
+```
+
+**API:** `DELETE /assignments/:id/day-overrides/:date`
+
+**Returns:** `void` (204 No Content)
+
+---
+
+#### getResourceLoad(from, to)
+
+**Purpose:** Fetch resource load report for a date range.
+
+**Signature:**
+```typescript
+export async function getResourceLoad(from: string, to: string): Promise<OverloadReport>
+```
+
+**API:** `GET /resource-load?from=:from&to=:to`
+
+**Returns:** `OverloadReport` object with per-resource load data
+
+---
+
+#### previewLeveling()
+
+**Purpose:** Preview resource leveling result.
+
+**Signature:**
+```typescript
+export async function previewLeveling(): Promise<LevelingResult>
+```
+
+**API:** `POST /leveling/preview`
+
+**Returns:** `LevelingResult` with updated schedules and overload counts
+
+---
+
+#### applyLeveling()
+
+**Purpose:** Apply resource leveling changes.
+
+**Signature:**
+```typescript
+export async function applyLeveling(): Promise<LevelingResult>
+```
+
+**API:** `POST /leveling/apply`
+
+**Returns:** `LevelingResult` with applied changes
+
+### Dependencies
+
+**Imports:**
+- Schemas from `@/types/schemas/assignment.schema`
+
+**Imported by:**
+- `hooks/useAssignments.ts`
 
 ---
 

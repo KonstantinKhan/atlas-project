@@ -346,6 +346,266 @@ data class GanttProjectPlanDto(
 
 ---
 
+## Resource DTOs
+
+### ResourceDto
+
+**Path:** `resource/ResourceDto.kt`
+
+**Purpose:** Resource data for API responses.
+
+```kotlin
+data class ResourceDto(
+    val id: String,
+    val name: String,
+    val type: String,  // PERSON or ROLE
+    val capacityHoursPerDay: Double,
+    val sortOrder: Int,
+)
+```
+
+---
+
+### ResourceListDto
+
+**Path:** `resource/ResourceListDto.kt`
+
+**Purpose:** Wrapper for list of resources.
+
+```kotlin
+data class ResourceListDto(
+    val resources: List<ResourceDto>,
+)
+```
+
+---
+
+### CreateResourceCommandDto
+
+**Path:** `resource/CreateResourceCommandDto.kt`
+
+**Purpose:** Command to create a new resource.
+
+```kotlin
+data class CreateResourceCommandDto(
+    val name: String,
+    val type: String,
+    val capacityHoursPerDay: Double,
+)
+```
+
+---
+
+### UpdateResourceCommandDto
+
+**Path:** `resource/UpdateResourceCommandDto.kt`
+
+**Purpose:** Command to update an existing resource.
+
+```kotlin
+data class UpdateResourceCommandDto(
+    val name: String?,
+    val type: String?,
+    val capacityHoursPerDay: Double?,
+)
+```
+
+---
+
+### ResourceCalendarOverrideDto
+
+**Path:** `resource/ResourceCalendarOverrideDto.kt`
+
+**Purpose:** Calendar override data.
+
+```kotlin
+data class ResourceCalendarOverrideDto(
+    val date: String,  // ISO date
+    val availableHours: Double,
+)
+```
+
+---
+
+### ResourceCalendarOverrideListDto
+
+**Path:** `resource/ResourceCalendarOverrideListDto.kt`
+
+**Purpose:** Wrapper for list of calendar overrides.
+
+```kotlin
+data class ResourceCalendarOverrideListDto(
+    val overrides: List<ResourceCalendarOverrideDto>,
+)
+```
+
+---
+
+## Assignment DTOs
+
+### TaskAssignmentDto
+
+**Path:** `resource/TaskAssignmentDto.kt`
+
+**Purpose:** Task assignment data.
+
+```kotlin
+data class TaskAssignmentDto(
+    val id: String,
+    val taskId: String,
+    val resourceId: String,
+    val hoursPerDay: Double,
+    val plannedEffortHours: Double?,
+)
+```
+
+---
+
+### TaskAssignmentListDto
+
+**Path:** `resource/TaskAssignmentListDto.kt`
+
+**Purpose:** Wrapper for list of assignments.
+
+```kotlin
+data class TaskAssignmentListDto(
+    val assignments: List<TaskAssignmentDto>,
+)
+```
+
+---
+
+### CreateAssignmentCommandDto
+
+**Path:** `resource/CreateAssignmentCommandDto.kt`
+
+**Purpose:** Command to create a new assignment.
+
+```kotlin
+data class CreateAssignmentCommandDto(
+    val taskId: String,
+    val resourceId: String,
+    val hoursPerDay: Double,
+    val plannedEffortHours: Double?,
+)
+```
+
+---
+
+### UpdateAssignmentCommandDto
+
+**Path:** `resource/UpdateAssignmentCommandDto.kt`
+
+**Purpose:** Command to update an assignment.
+
+```kotlin
+data class UpdateAssignmentCommandDto(
+    val hoursPerDay: Double?,
+    val plannedEffortHours: Double?,
+)
+```
+
+---
+
+### SetDayOverrideCommandDto
+
+**Path:** `resource/SetDayOverrideCommandDto.kt`
+
+**Purpose:** Command to set a day override.
+
+```kotlin
+data class SetDayOverrideCommandDto(
+    val date: String,  // ISO date
+    val hours: Double,
+)
+```
+
+---
+
+### AssignmentDayOverrideListDto
+
+**Path:** `resource/AssignmentDayOverrideListDto.kt`
+
+**Purpose:** Wrapper for list of day overrides.
+
+```kotlin
+data class AssignmentDayOverrideListDto(
+    val overrides: List<AssignmentDayOverrideDto>,
+)
+```
+
+---
+
+## Resource Load DTOs
+
+### ResourceDayLoadDto
+
+**Path:** `resource/ResourceDayLoadDto.kt`
+
+**Purpose:** Daily load data for a resource.
+
+```kotlin
+data class ResourceDayLoadDto(
+    val date: String,
+    val assignedHours: Double,
+    val capacityHours: Double,
+    val isOverloaded: Boolean,
+)
+```
+
+---
+
+### ResourceLoadResultDto
+
+**Path:** `resource/ResourceLoadResultDto.kt`
+
+**Purpose:** Load result for a single resource.
+
+```kotlin
+data class ResourceLoadResultDto(
+    val resourceId: String,
+    val resourceName: String,
+    val days: List<ResourceDayLoadDto>,
+    val overloadedDaysCount: Int,
+    val allocatedHours: Double,
+    val effortDeficit: Double?,
+)
+```
+
+---
+
+### OverloadReportDto
+
+**Path:** `resource/OverloadReportDto.kt`
+
+**Purpose:** Complete overload report for all resources.
+
+```kotlin
+data class OverloadReportDto(
+    val resources: List<ResourceLoadResultDto>,
+    val totalOverloadedDays: Int,
+    val totalEffortDeficit: Double,
+)
+```
+
+---
+
+### LevelingResultDto
+
+**Path:** `resource/LevelingResultDto.kt`
+
+**Purpose:** Result of resource leveling operation.
+
+```kotlin
+data class LevelingResultDto(
+    val updatedSchedules: List<ScheduleUpdateDto>,
+    val resolvedOverloads: Int,
+    val remainingOverloads: Int,
+)
+```
+
+---
+
 ## Dependencies
 
 **Imports:**

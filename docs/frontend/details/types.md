@@ -25,12 +25,15 @@ types/
 │   ├── timelineCalendar/
 │   ├── *.dto.ts
 │   └── index.ts
-├── interfaces/                 # Interface definitions
 ├── schemas/                    # Zod validation schemas
 │   ├── gantt-project-plan.schema.ts
 │   ├── schedule-delta.schema.ts
 │   ├── task.schema.ts
-│   └── timeline-calendar.schema.ts
+│   ├── timeline-calendar.schema.ts
+│   ├── resource.schema.ts      # Resource types and validation
+│   ├── assignment.schema.ts    # Assignment and leveling types
+│   ├── critical-path.schema.ts # Critical path analysis
+│   └── analysis.schema.ts      # What-if and blocker chain analysis
 ├── types/                      # Type aliases
 │   ├── AssignScheduleCommand.type.ts
 │   ├── ChangeEndDateCommand.type.ts
@@ -286,6 +289,213 @@ export enum DurationUnit {
     WEEKS = 'WEEKS',
     MONTHS = 'MONTHS',
 }
+```
+
+---
+
+## Resource Schema (`resource.schema.ts`)
+
+### Purpose
+
+Zod schemas for resource management validation.
+
+### ResourceSchema
+
+```typescript
+export const ResourceSchema = z.object({
+    id: z.string(),
+    name: z.string(),
+    type: z.enum(['PERSON', 'ROLE']),
+    capacityHoursPerDay: z.number(),
+    sortOrder: z.number().int().default(0),
+})
+
+export type Resource = z.infer<typeof ResourceSchema>
+export type ResourceType = Resource['type']
+```
+
+**Fields:**
+- `id` - Unique resource identifier
+- `name` - Resource name (person name or role name)
+- `type` - Either 'PERSON' or 'ROLE'
+- `capacityHoursPerDay` - Default daily capacity in hours
+- `sortOrder` - Display order in lists
+
+---
+
+### ResourceCalendarOverrideSchema
+
+```typescript
+export const ResourceCalendarOverrideSchema = z.object({
+    date: z.string(),
+    availableHours: z.number(),
+})
+
+export type ResourceCalendarOverride = z.infer<typeof ResourceCalendarOverrideSchema>
+```
+
+**Fields:**
+- `date` - ISO date string
+- `availableHours` - Available hours on this date (overrides capacity)
+
+---
+
+## Assignment Schema (`assignment.schema.ts`)
+
+### Purpose
+
+Zod schemas for task assignments, day overrides, and resource leveling.
+
+### TaskAssignmentSchema
+
+```typescript
+export const TaskAssignmentSchema = z.object({
+    id: z.string(),
+    taskId: z.string(),
+    resourceId: z.string(),
+    hoursPerDay: z.number(),
+    plannedEffortHours: z.number().nullable().optional(),
+})
+
+export type TaskAssignment = z.infer<typeof TaskAssignmentSchema>
+```
+
+**Fields:**
+- `id` - Unique assignment identifier
+- `taskId` - Reference to the task
+- `resourceId` - Reference to the resource
+- `hoursPerDay` - Daily allocation (0.5-24)
+- `plannedEffortHours` - Optional total effort estimate
+
+---
+
+### AssignmentDayOverrideSchema
+
+```typescript
+export const AssignmentDayOverrideSchema = z.object({
+    date: z.string(),
+    hours: z.number(),
+})
+
+export type AssignmentDayOverride = z.infer<typeof AssignmentDayOverrideSchema>
+```
+
+**Fields:**
+- `date` - ISO date string
+- `hours` - Hours assigned on this specific day
+
+---
+
+### ResourceDayLoadSchema
+
+```typescript
+export const ResourceDayLoadSchema = z.object({
+    date: z.string(),
+    assignedHours: z.number(),
+    capacityHours: z.number(),
+    isOverloaded: z.boolean(),
+})
+
+export type ResourceDayLoad = z.infer<typeof ResourceDayLoadSchema>
+```
+
+**Fields:**
+- `date` - ISO date string
+- `assignedHours` - Total assigned hours on this day
+- `capacityHours` - Available capacity on this day
+- `isOverloaded` - True if assignedHours > capacityHours
+
+---
+
+### ResourceLoadResultSchema
+
+```typescript
+export const ResourceLoadResultSchema = z.object({
+    resourceId: z.string(),
+    resourceName: z.string(),
+    days: z.array(ResourceDayLoadSchema),
+    overloadedDaysCount: z.number().int(),
+    allocatedHours: z.number(),
+    effortDeficit: z.number().nullable().optional(),
+})
+
+export type ResourceLoadResult = z.infer<typeof ResourceLoadResultSchema>
+```
+
+---
+
+### OverloadReportSchema
+
+```typescript
+export const OverloadReportSchema = z.object({
+    resources: z.array(ResourceLoadResultSchema),
+    totalOverloadedDays: z.number().int(),
+    totalEffortDeficit: z.number(),
+})
+
+export type OverloadReport = z.infer<typeof OverloadReportSchema>
+```
+
+---
+
+### LevelingResultSchema
+
+```typescript
+export const LevelingResultSchema = z.object({
+    updatedSchedules: z.array(ScheduleUpdateSchema),
+    resolvedOverloads: z.number().int(),
+    remainingOverloads: z.number().int(),
+})
+
+export type LevelingResult = z.infer<typeof LevelingResultSchema>
+```
+
+---
+
+## Analysis Schemas
+
+### CriticalPathSchema (`critical-path.schema.ts`)
+
+```typescript
+export const CriticalPathSchema = z.object({
+    criticalTasks: z.array(z.string()),
+    totalSlack: z.number(),
+})
+
+export type CriticalPath = z.infer<typeof CriticalPathSchema>
+```
+
+---
+
+### AnalysisSchemas (`analysis.schema.ts`)
+
+```typescript
+// BlockerChainDto
+export const BlockerChainSchema = z.object({
+    chain: z.array(z.string()),
+    totalDelay: z.number(),
+})
+
+// AvailableTasksDto
+export const AvailableTasksSchema = z.object({
+    tasks: z.array(z.object({
+        id: z.string(),
+        title: z.string(),
+        availableFrom: z.string(),
+    })),
+})
+
+// WhatIfDto
+export const WhatIfSchema = z.object({
+    taskId: z.string(),
+    originalStart: z.string(),
+    newStart: z.string(),
+    impact: z.array(z.object({
+        taskId: z.string(),
+        originalStart: z.string(),
+        newStart: z.string(),
+    })),
+})
 ```
 
 ---

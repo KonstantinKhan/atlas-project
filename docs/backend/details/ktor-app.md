@@ -583,6 +583,281 @@ fun Application.configureHTTP() {
 
 ---
 
+## Resource Routes
+
+### Resources Route (`routes/Resources.kt`)
+
+#### GET /resources
+
+**Purpose:** List all resources for the project plan.
+
+**Response:** `ResourceListDto`
+
+**Handler:**
+```kotlin
+get {
+    val plan = taskRepo.projectPlan()
+    val resources = resourceRepo.listResources(plan.id.asString())
+    call.respond(ResourceListDto(resources = resources.map { it.toDto() }))
+}
+```
+
+---
+
+#### POST /resources
+
+**Purpose:** Create a new resource.
+
+**Request:** `CreateResourceCommandDto`
+
+**Response:** `ResourceDto` (201 Created)
+
+**Handler:**
+```kotlin
+post {
+    val request = call.receive<CreateResourceCommandDto>()
+    val plan = taskRepo.projectPlan()
+    val resource = Resource(
+        name = ResourceName(request.name),
+        type = ResourceType.valueOf(request.type),
+        capacityHoursPerDay = request.capacityHoursPerDay,
+    )
+    val created = resourceRepo.createResource(plan.id.asString(), resource)
+    call.respond(HttpStatusCode.Created, created.toDto())
+}
+```
+
+---
+
+#### PATCH /resources/:id
+
+**Purpose:** Update an existing resource.
+
+**Request:** `UpdateResourceCommandDto`
+
+**Response:** `ResourceDto`
+
+---
+
+#### DELETE /resources/:id
+
+**Purpose:** Delete a resource.
+
+**Response:** `204 No Content`
+
+---
+
+#### GET/POST/DELETE /resources/:id/calendar-overrides
+
+**Purpose:** Manage calendar overrides for a resource.
+
+**GET Response:** `ResourceCalendarOverrideListDto`
+
+**POST Request:** `ResourceCalendarOverrideDto`
+
+**POST Response:** `ResourceCalendarOverrideDto` (201 Created)
+
+---
+
+### Assignments Route (`routes/Assignments.kt`)
+
+#### GET /assignments
+
+**Purpose:** List all task assignments.
+
+**Response:** `TaskAssignmentListDto`
+
+---
+
+#### POST /assignments
+
+**Purpose:** Create a new task assignment.
+
+**Request:** `CreateAssignmentCommandDto`
+
+**Response:** `TaskAssignmentDto` (201 Created)
+
+---
+
+#### PATCH /assignments/:id
+
+**Purpose:** Update an existing assignment.
+
+**Request:** `UpdateAssignmentCommandDto`
+
+**Response:** `TaskAssignmentDto`
+
+---
+
+#### DELETE /assignments/:id
+
+**Purpose:** Delete an assignment.
+
+**Response:** `204 No Content`
+
+---
+
+#### GET/POST/DELETE /assignments/:id/day-overrides
+
+**Purpose:** Manage day overrides for an assignment.
+
+**GET Response:** `AssignmentDayOverrideListDto`
+
+**POST Request:** `SetDayOverrideCommandDto`
+
+---
+
+### Resource Load Route
+
+#### GET /resource-load
+
+**Purpose:** Get resource overload report for a date range.
+
+**Query Parameters:**
+- `from` - Start date (ISO string)
+- `to` - End date (ISO string)
+
+**Response:** `OverloadReportDto`
+
+**Handler:**
+```kotlin
+get {
+    val from = LocalDate.parse(call.request.queryParameters["from"]!!)
+    val to = LocalDate.parse(call.request.queryParameters["to"]!!)
+    val plan = taskRepo.projectPlan()
+    val assignments = resourceRepo.listAssignments(plan.id.asString())
+    val resources = resourceRepo.listResources(plan.id.asString())
+    val calendar = calendarService.current()
+    val calculator = ResourceLoadCalculator(...)
+    val report = calculator.computeLoad(from, to)
+    call.respond(report.toDto())
+}
+```
+
+---
+
+#### GET /resource-load/:resourceId
+
+**Purpose:** Get load details for a specific resource.
+
+**Response:** `ResourceLoadResultDto`
+
+---
+
+### Leveling Route (`routes/Leveling.kt`)
+
+#### POST /leveling/preview
+
+**Purpose:** Preview resource leveling result without applying changes.
+
+**Response:** `LevelingResultDto`
+
+**Handler:**
+```kotlin
+post("/preview") {
+    val plan = taskRepo.projectPlan()
+    val engine = ResourceLevelingEngine(...)
+    val result = engine.level()
+    call.respond(HttpStatusCode.OK, result.toDto())
+}
+```
+
+---
+
+#### POST /leveling/apply
+
+**Purpose:** Apply resource leveling changes to the project schedule.
+
+**Response:** `LevelingResultDto`
+
+**Handler:**
+```kotlin
+post("/apply") {
+    val plan = taskRepo.projectPlan()
+    val engine = ResourceLevelingEngine(...)
+    val result = engine.level()
+    
+    // Persist schedule changes
+    for (schedule in result.scheduleDelta.updatedSchedule) {
+        taskRepo.updateSchedule(schedule)
+    }
+    
+    call.respond(HttpStatusCode.OK, result.toDto())
+}
+```
+
+---
+
+### Analysis Route (`routes/Analysis.kt`)
+
+#### GET /analysis/blocker-chain/:taskId
+
+**Purpose:** Get the chain of blocking tasks preventing a task from starting earlier.
+
+**Response:** `BlockerChainDto`
+
+**Handler:**
+```kotlin
+get("/blocker-chain/{taskId}") {
+    val taskId = TaskId(call.parameters["taskId"]!!)
+    val plan = repo.projectPlan()
+    call.respond(plan.blockerChain(taskId).toDto())
+}
+```
+
+---
+
+#### GET /analysis/available-tasks
+
+**Purpose:** Get tasks available to start from a given date.
+
+**Query Parameters:**
+- `today` - Reference date
+
+**Response:** `AvailableTasksDto`
+
+---
+
+#### GET /analysis/what-if
+
+**Purpose:** Simulate impact of changing a task's start date.
+
+**Query Parameters:**
+- `taskId` - Task to analyze
+- `newStart` - New start date
+
+**Response:** `WhatIfDto`
+
+---
+
+#### GET /analysis/what-if-end
+
+**Purpose:** Simulate impact of changing a task's end date.
+
+**Response:** `WhatIfDto`
+
+---
+
+### Critical Path Route (`routes/CriticalPath.kt`)
+
+#### GET /critical-path
+
+**Purpose:** Calculate the critical path through the project.
+
+**Response:** `CriticalPathDto`
+
+**Handler:**
+```kotlin
+get {
+    val plan = repo.projectPlan()
+    val calendar = calendarService.current()
+    val result = CriticalPathAnalysis(plan, calendar).compute()
+    call.respond(result.toDto())
+}
+```
+
+---
+
 ## StatusPages.kt
 
 ### Purpose

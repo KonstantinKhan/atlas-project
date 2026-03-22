@@ -23,6 +23,10 @@ data class UpdateProjectTaskRequest(
     val actualStartDate: LocalDate? = null,
     @SerialName("actualEndDate")
     val actualEndDate: LocalDate? = null,
+    @SerialName("baselineEffortHours")
+    val baselineEffortHours: Double? = null,
+    @SerialName("additionalEffortHours")
+    val additionalEffortHours: Double? = null,
     @SerialName("status")
     val status: ProjectTaskStatus? = null,
     @SerialName("dependsOn")

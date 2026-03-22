@@ -9,6 +9,7 @@ import { PlanFromEndCommand } from "./PlanFromEndCommand.type"
 import { AssignScheduleCommand } from "./AssignScheduleCommand.type"
 import { MoveTaskCommand } from "./MoveTaskCommand.type"
 import { ResizeTaskCommand } from "./ResizeTaskCommand.type"
+import { UpdateFieldsCommand } from "./UpdateFieldsCommand.type"
 
 export type TaskCommand =
 	| CreateTaskInPoolCommand
@@ -22,3 +23,4 @@ export type TaskCommand =
 	| AssignScheduleCommand
 	| MoveTaskCommand
 	| ResizeTaskCommand
+	| UpdateFieldsCommand

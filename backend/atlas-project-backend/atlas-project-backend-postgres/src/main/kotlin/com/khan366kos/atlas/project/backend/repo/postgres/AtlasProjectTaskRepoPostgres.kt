@@ -3,6 +3,7 @@ package com.khan366kos.atlas.project.backend.repo.postgres
 import com.khan366kos.atlas.project.backend.common.enums.DependencyType
 import com.khan366kos.atlas.project.backend.common.models.ProjectDate
 import com.khan366kos.atlas.project.backend.common.models.TaskDependency
+import com.khan366kos.atlas.project.backend.common.models.portfolio.PortfolioId
 import com.khan366kos.atlas.project.backend.common.models.projectPlan.ProjectPlan
 import com.khan366kos.atlas.project.backend.common.models.projectPlan.ProjectPlanId
 import com.khan366kos.atlas.project.backend.common.models.simple.Duration
@@ -60,10 +61,11 @@ class AtlasProjectTaskRepoPostgres(private val database: Database) : IAtlasProje
         )
     }
 
-    override suspend fun projectPlan(): ProjectPlan = newSuspendedTransaction(db = database) {
-        // TODO: поддержка нескольких планов — принимать planId параметром вместо .single()
-        val planUuid = ProjectPlansTable.selectAll().single()[ProjectPlansTable.id]
-        val planIdStr = planUuid.toString()
+    override suspend fun projectPlan(planId: String): ProjectPlan = newSuspendedTransaction(db = database) {
+        val planUuid = UUID.fromString(planId)
+        val planRow = ProjectPlansTable.selectAll()
+            .where { ProjectPlansTable.id eq planUuid }
+            .single()
 
         val tasks = ProjectTasksTable.selectAll()
             .where { ProjectTasksTable.projectPlanId eq planUuid }
@@ -95,10 +97,13 @@ class AtlasProjectTaskRepoPostgres(private val database: Database) : IAtlasProje
             }.toMutableSet()
 
         ProjectPlan(
-            id = ProjectPlanId(planIdStr),
+            id = ProjectPlanId(planId),
+            name = planRow[ProjectPlansTable.name],
+            portfolioId = PortfolioId(planRow[ProjectPlansTable.portfolioId].toString()),
+            priority = planRow[ProjectPlansTable.priority],
             tasks = tasks.associateBy { it.id }.toMutableMap(),
             schedules = schedules,
-            dependencies = dependencies
+            dependencies = dependencies,
         )
     }
 
@@ -134,8 +139,8 @@ class AtlasProjectTaskRepoPostgres(private val database: Database) : IAtlasProje
             .singleOrNull()?.toProjectTask()
     }
 
-    override suspend fun createTask(task: ProjectTask): ProjectTask = newSuspendedTransaction(db = database) {
-        val planUuid = ProjectPlansTable.selectAll().single()[ProjectPlansTable.id]
+    override suspend fun createTask(planId: String, task: ProjectTask): ProjectTask = newSuspendedTransaction(db = database) {
+        val planUuid = UUID.fromString(planId)
         val taskUuid = java.util.UUID.randomUUID()
         val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
         ProjectTasksTable.insert {
@@ -156,9 +161,9 @@ class AtlasProjectTaskRepoPostgres(private val database: Database) : IAtlasProje
     }
 
     @OptIn(ExperimentalUuidApi::class)
-    override suspend fun createTaskWithoutSchedule(task: ProjectTask): ProjectTask =
+    override suspend fun createTaskWithoutSchedule(planId: String, task: ProjectTask): ProjectTask =
         newSuspendedTransaction(db = database) {
-            val planUuid = ProjectPlansTable.selectAll().single()[ProjectPlansTable.id]
+            val planUuid = UUID.fromString(planId)
             val taskUuid = Uuid.random()
             ProjectTasksTable.insert {
                 it[id] = taskUuid.toJavaUuid()
@@ -178,6 +183,12 @@ class AtlasProjectTaskRepoPostgres(private val database: Database) : IAtlasProje
             it[description] = task.description.value
             it[durationDays] = task.duration.value.toIntOrNull() ?: 0
             it[status] = task.status.name
+            it[baselineStart] = task.baselineStart
+            it[baselineEnd] = task.baselineEnd
+            it[actualStart] = task.actualStart
+            it[actualEnd] = task.actualEnd
+            it[baselineEffortHours] = task.baselineEffortHours
+            it[additionalEffortHours] = task.additionalEffortHours
         }
         task
     }
@@ -218,9 +229,9 @@ class AtlasProjectTaskRepoPostgres(private val database: Database) : IAtlasProje
             }
         }
 
-    override suspend fun addDependency(predecessorId: String, successorId: String, type: String, lagDays: Int): Int =
+    override suspend fun addDependency(planId: String, predecessorId: String, successorId: String, type: String, lagDays: Int): Int =
         newSuspendedTransaction(db = database) {
-            val planUuid = ProjectPlansTable.selectAll().single()[ProjectPlansTable.id]
+            val planUuid = UUID.fromString(planId)
             TaskDependenciesTable.insert {
                 it[TaskDependenciesTable.predecessorTaskId] = UUID.fromString(predecessorId)
                 it[TaskDependenciesTable.successorTaskId] = UUID.fromString(successorId)
@@ -238,6 +249,30 @@ class AtlasProjectTaskRepoPostgres(private val database: Database) : IAtlasProje
             }
         }
     }
+
+    override suspend fun saveBaseline(planId: String): Unit = newSuspendedTransaction(db = database) {
+        val planUuid = UUID.fromString(planId)
+        val taskRows = ProjectTasksTable.selectAll()
+            .where { ProjectTasksTable.projectPlanId eq planUuid }
+            .toList()
+
+        val taskUuids = taskRows.map { it[ProjectTasksTable.id] }
+
+        val schedulesByTaskId = TaskSchedulesTable.selectAll()
+            .where { TaskSchedulesTable.taskId inList taskUuids }
+            .associate { row ->
+                row[TaskSchedulesTable.taskId] to row
+            }
+
+        for (taskRow in taskRows) {
+            val taskUuid = taskRow[ProjectTasksTable.id]
+            val scheduleRow = schedulesByTaskId[taskUuid] ?: continue
+            ProjectTasksTable.update({ ProjectTasksTable.id eq taskUuid }) {
+                it[baselineStart] = scheduleRow[TaskSchedulesTable.plannedStart]
+                it[baselineEnd] = scheduleRow[TaskSchedulesTable.plannedEnd]
+            }
+        }
+    }
 }
 
 private fun ResultRow.toProjectTask() = ProjectTask(
@@ -247,4 +282,10 @@ private fun ResultRow.toProjectTask() = ProjectTask(
     duration = Duration(this[ProjectTasksTable.durationDays]),
     status = ProjectTaskStatus.valueOf(this[ProjectTasksTable.status]),
     sortOrder = this[ProjectTasksTable.sortOrder],
+    baselineStart = this[ProjectTasksTable.baselineStart],
+    baselineEnd = this[ProjectTasksTable.baselineEnd],
+    actualStart = this[ProjectTasksTable.actualStart],
+    actualEnd = this[ProjectTasksTable.actualEnd],
+    baselineEffortHours = this[ProjectTasksTable.baselineEffortHours],
+    additionalEffortHours = this[ProjectTasksTable.additionalEffortHours],
 )

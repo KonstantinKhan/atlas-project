@@ -17,6 +17,7 @@ import {
 	useAssignTaskSchedule,
 	usePlanFromEnd,
 	useReorderTasks,
+	useSaveBaseline,
 } from '@/hooks/useProjectTasks'
 import { GanttTask, GanttDependencyDto, TaskCommand } from '@/types'
 import { ProjectTaskStatus } from '@/types/generated/enums/project-task-status.enum'
@@ -36,11 +37,17 @@ import GanttCalendarHeader from './GanttCalendarHeader'
 import GanttCalendarGrid, { TIMELINE_DROP_ID } from './GanttCalendarGrid'
 import ConfirmDeleteModal from './ConfirmDeleteModal'
 import AnalysisPanel from './AnalysisPanel'
+import ResourceLoadPanel, { LOAD_ROW_HEIGHT, type TaskBreakdownMap } from './ResourceLoadPanel'
 import Toast from './Toast'
 import { TaskCommandType } from '@/types/types/TaskCommandType'
 import { TaskId } from '@/utils/types/TaskId'
 import { LocalDate } from '@/utils/types/LocalDate'
-import { BarChart3 } from 'lucide-react'
+import { BarChart3, Users, Activity, Gauge, Filter, Bookmark } from 'lucide-react'
+import Link from 'next/link'
+import { useAssignments, useResourceLoad } from '@/hooks/useAssignments'
+import { useGlobalResourceLoad } from '@/hooks/useCrossProjectLoad'
+import { useResources } from '@/hooks/useResources'
+import { AssignmentEditor } from '@/components/Assignments/AssignmentEditor'
 import { DragDropProvider } from '@dnd-kit/react'
 import type { DragEndEvent } from '@dnd-kit/react'
 import { isSortableOperation } from '@dnd-kit/react/sortable'
@@ -59,11 +66,13 @@ function addDays(date: Date, days: number): Date {
 	return result
 }
 
-export const GanttChart = () => {
+export const GanttChart = ({ projectId }: { projectId: string }) => {
 	const viewMode = useTimelineCalendarStore((s) => s.ui.viewMode)
 	const setViewMode = useTimelineCalendarStore((s) => s.setViewMode)
 	const isAnalysisPanelOpen = useTimelineCalendarStore((s) => s.ui.isAnalysisPanelOpen)
 	const setAnalysisPanelOpen = useTimelineCalendarStore((s) => s.setAnalysisPanelOpen)
+	const showResourceLoad = useTimelineCalendarStore((s) => s.ui.showResourceLoad)
+	const toggleResourceLoad = useTimelineCalendarStore((s) => s.toggleResourceLoad)
 	const dayWidth = viewMode === 'day' ? DAY_WIDTH_DAILY : DAY_WIDTH_WEEKLY
 
 	const {
@@ -78,25 +87,46 @@ export const GanttChart = () => {
 		isLoading: planLoading,
 		error: planError,
 		refetch: refetchPlan,
-	} = useProjectPlan()
+	} = useProjectPlan(projectId)
 
 	const [allTasks, setAllTasks] = useState<GanttTask[]>([])
 	const [dependencies, setDependencies] = useState<GanttDependencyDto[]>([])
 	const prevTasksRef = useRef<GanttTask[]>([])
 
-	const createTaskMutation = useCreateProjectTask()
-	const changeStartMutation = useChangeTaskStartDate()
-	const resizeFromStartMutation = useResizeTaskFromStart()
-	const changeEndMutation = useChangeTaskEndDate()
-	const createDependencyMutation = useCreateDependency()
-	const changeDependencyTypeMutation = useChangeDependencyType()
-	const deleteDependencyMutation = useDeleteDependency()
-	const updateTitleMutation = useUpdateProjectTask()
-	const deleteTaskMutation = useDeleteProjectTask()
-	const assignScheduleMutation = useAssignTaskSchedule()
-	const planFromEndMutation = usePlanFromEnd()
-	const reorderTasksMutation = useReorderTasks()
-	const { data: criticalPathData } = useCriticalPath()
+	const createTaskMutation = useCreateProjectTask(projectId)
+	const changeStartMutation = useChangeTaskStartDate(projectId)
+	const resizeFromStartMutation = useResizeTaskFromStart(projectId)
+	const changeEndMutation = useChangeTaskEndDate(projectId)
+	const createDependencyMutation = useCreateDependency(projectId)
+	const changeDependencyTypeMutation = useChangeDependencyType(projectId)
+	const deleteDependencyMutation = useDeleteDependency(projectId)
+	const updateTitleMutation = useUpdateProjectTask(projectId)
+	const deleteTaskMutation = useDeleteProjectTask(projectId)
+	const assignScheduleMutation = useAssignTaskSchedule(projectId)
+	const planFromEndMutation = usePlanFromEnd(projectId)
+	const reorderTasksMutation = useReorderTasks(projectId)
+	const saveBaselineMutation = useSaveBaseline(projectId)
+	const { data: criticalPathData } = useCriticalPath(projectId)
+	const { data: assignments } = useAssignments(projectId)
+	const { data: resources } = useResources()
+
+	const [assignmentEditor, setAssignmentEditor] = useState<{
+		taskId: string
+		taskTitle: string
+		position: { x: number; y: number }
+	} | null>(null)
+
+	const assignmentsByTask = useMemo(() => {
+		if (!assignments || !resources) return new Map<string, Array<{ resourceName: string; resourceId: string }>>()
+		const resourceMap = new Map(resources.map((r) => [r.id, r.name]))
+		const map = new Map<string, Array<{ resourceName: string; resourceId: string }>>()
+		for (const a of assignments) {
+			const list = map.get(a.taskId) ?? []
+			list.push({ resourceId: a.resourceId, resourceName: resourceMap.get(a.resourceId) ?? '?' })
+			map.set(a.taskId, list)
+		}
+		return map
+	}, [assignments, resources])
 
 	const criticalTaskIds = useMemo(() => {
 		if (!criticalPathData) return undefined
@@ -112,12 +142,118 @@ export const GanttChart = () => {
 		return map
 	}, [criticalPathData])
 
+	// Resource load for inline Gantt visualization
+	const loadDateRange = useMemo(() => {
+		const tasksWithDates = allTasks.filter((t) => t.start && t.end)
+		if (tasksWithDates.length === 0) return { from: null, to: null }
+		const { start, end } = getCalendarRange(tasksWithDates)
+		return { from: formatDateForInput(start), to: formatDateForInput(end) }
+	}, [allTasks])
+
+	const { data: resourceLoadReport } = useResourceLoad(
+		projectId,
+		showResourceLoad ? loadDateRange.from : null,
+		showResourceLoad ? loadDateRange.to : null,
+	)
+
+	const { data: globalLoadReport } = useGlobalResourceLoad(
+		showResourceLoad ? loadDateRange.from : null,
+		showResourceLoad ? loadDateRange.to : null,
+	)
+
+	// Build cross-project map: resourceId → date → { thisProject, otherProjects, capacity, otherProjectDetails }
+	const crossProjectMap = useMemo(() => {
+		if (!globalLoadReport) return undefined
+		const map = new Map<string, Map<string, { thisProject: number; otherProjects: number; capacity: number; otherProjectDetails: { projectId: string; projectName: string; hours: number }[] }>>()
+		for (const res of globalLoadReport.resources) {
+			const dayMap = new Map<string, { thisProject: number; otherProjects: number; capacity: number; otherProjectDetails: { projectId: string; projectName: string; hours: number }[] }>()
+			for (const day of res.days) {
+				let thisProjectHours = 0
+				let otherProjectsHours = 0
+				const otherProjectDetails: { projectId: string; projectName: string; hours: number }[] = []
+				for (const contrib of day.projectBreakdown) {
+					if (contrib.projectId === projectId) {
+						thisProjectHours += contrib.hours
+					} else {
+						otherProjectsHours += contrib.hours
+						otherProjectDetails.push({ projectId: contrib.projectId, projectName: contrib.projectName, hours: contrib.hours })
+					}
+				}
+				dayMap.set(day.date, {
+					thisProject: thisProjectHours,
+					otherProjects: otherProjectsHours,
+					capacity: day.capacityHours,
+					otherProjectDetails,
+				})
+			}
+			map.set(res.resourceId, dayMap)
+		}
+		return map
+	}, [globalLoadReport, projectId])
+
+	// Build task breakdown map: resourceId → date → [{ taskId, taskTitle, hours }]
+	const taskBreakdownMap: TaskBreakdownMap | undefined = useMemo(() => {
+		if (!assignments || assignments.length === 0) return undefined
+		const taskMap = new Map(allTasks.map((t) => [t.id, t]))
+		const map: TaskBreakdownMap = new Map()
+		for (const a of assignments) {
+			const task = taskMap.get(a.taskId)
+			if (!task || !task.start || !task.end) continue
+			const startMs = task.start.getTime()
+			const endMs = task.end.getTime()
+			let resDayMap = map.get(a.resourceId)
+			if (!resDayMap) {
+				resDayMap = new Map()
+				map.set(a.resourceId, resDayMap)
+			}
+			// Iterate each day in task range
+			for (let ms = startMs; ms <= endMs; ms += 86400000) {
+				const d = new Date(ms)
+				const y = d.getFullYear()
+				const m = String(d.getMonth() + 1).padStart(2, '0')
+				const day = String(d.getDate()).padStart(2, '0')
+				const dateStr = `${y}-${m}-${day}`
+				let list = resDayMap.get(dateStr)
+				if (!list) {
+					list = []
+					resDayMap.set(dateStr, list)
+				}
+				list.push({ taskId: task.id, taskTitle: task.title, hours: a.hoursPerDay })
+			}
+		}
+		return map
+	}, [assignments, allTasks])
+
+	// Resource load filter: only project-assigned resources, user can toggle individual ones
+	const projectResourceIds = useMemo(() => {
+		if (!assignments) return new Set<string>()
+		return new Set(assignments.map((a) => a.resourceId))
+	}, [assignments])
+
+	const [hiddenResourceIds, setHiddenResourceIds] = useState<Set<string>>(new Set())
+	const [showResourceFilter, setShowResourceFilter] = useState(false)
+
+	const filteredLoadReport = useMemo(() => {
+		if (!resourceLoadReport) return null
+		const filtered = resourceLoadReport.resources
+			.filter((r) => projectResourceIds.has(r.resourceId))
+			.filter((r) => !hiddenResourceIds.has(r.resourceId))
+		return { ...resourceLoadReport, resources: filtered }
+	}, [resourceLoadReport, projectResourceIds, hiddenResourceIds])
+
+	// All project resources (for filter UI)
+	const projectResources = useMemo(() => {
+		if (!resourceLoadReport) return []
+		return resourceLoadReport.resources.filter((r) => projectResourceIds.has(r.resourceId))
+	}, [resourceLoadReport, projectResourceIds])
+
 	const [pendingDeleteTaskId, setPendingDeleteTaskId] = useState<string | null>(
 		null,
 	)
 	const [toastMessage, setToastMessage] = useState<string | null>(null)
 	const leftRef = useRef<HTMLDivElement>(null)
 	const rightRef = useRef<HTMLDivElement>(null)
+	const loadPanelRef = useRef<HTMLDivElement>(null)
 	const isSyncing = useRef(false)
 	const hasScrolledToToday = useRef(false)
 
@@ -331,6 +467,13 @@ export const GanttChart = () => {
 					)
 					break
 				}
+
+				case TaskCommandType.UpdateFields:
+					updateTitleMutation.mutate(
+						{ id: cmd.taskId, updates: cmd.updates },
+						{ onError: () => setToastMessage('Не удалось обновить поля задачи') },
+					)
+					break
 
 				default: {
 					const _exhaustive: never = cmd
@@ -582,12 +725,29 @@ export const GanttChart = () => {
 			if (from && to) {
 				to.scrollTop = from.scrollTop
 			}
+			// Sync horizontal scroll to load panel
+			if (source === 'right' && rightRef.current && loadPanelRef.current) {
+				loadPanelRef.current.scrollLeft = rightRef.current.scrollLeft
+			}
 			requestAnimationFrame(() => {
 				isSyncing.current = false
 			})
 		},
 		[],
 	)
+
+	// Close resource filter dropdown on outside click
+	const resourceFilterRef = useRef<HTMLDivElement>(null)
+	useEffect(() => {
+		if (!showResourceFilter) return
+		const handleClick = (e: MouseEvent) => {
+			if (resourceFilterRef.current && !resourceFilterRef.current.contains(e.target as Node)) {
+				setShowResourceFilter(false)
+			}
+		}
+		document.addEventListener('mousedown', handleClick)
+		return () => document.removeEventListener('mousedown', handleClick)
+	}, [showResourceFilter])
 
 	// Reset scroll-to-today when view mode changes
 	useEffect(() => {
@@ -716,7 +876,28 @@ export const GanttChart = () => {
 						Неделя
 					</button>
 
-					<div className="ml-auto">
+					<div className="ml-auto flex items-center gap-2">
+						<Link
+							href={`/projects/${projectId}/resources`}
+							className="flex items-center gap-1 rounded px-3 py-1 text-xs text-gray-600 hover:bg-gray-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+						>
+							<Users size={14} />
+							Ресурсы
+						</Link>
+						<Link
+							href={`/projects/${projectId}/resource-load`}
+							className="flex items-center gap-1 rounded px-3 py-1 text-xs text-gray-600 hover:bg-gray-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+						>
+							<Activity size={14} />
+							Нагрузка
+						</Link>
+						<button
+							className={`flex items-center gap-1 px-3 py-1 text-xs rounded ${showResourceLoad ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300 font-semibold' : 'text-gray-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800'}`}
+							onClick={toggleResourceLoad}
+						>
+							<Gauge size={14} />
+							Загрузка
+						</button>
 						<button
 							className={`flex items-center gap-1 px-3 py-1 text-xs rounded ${isAnalysisPanelOpen ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300 font-semibold' : 'text-gray-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800'}`}
 							onClick={() => setAnalysisPanelOpen(!isAnalysisPanelOpen)}
@@ -724,70 +905,202 @@ export const GanttChart = () => {
 							<BarChart3 size={14} />
 							Аналитика
 						</button>
+						<button
+							className="flex items-center gap-1 px-3 py-1 text-xs rounded text-gray-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800"
+							onClick={() => {
+								if (confirm('Сохранить текущие даты как базовый план? Предыдущий базовый план будет перезаписан.')) {
+									saveBaselineMutation.mutate(undefined)
+								}
+							}}
+						>
+							<Bookmark size={14} />
+							Базовый план
+						</button>
 					</div>
 				</div>
 
-				<div className="flex flex-1 overflow-hidden">
-					<div
-						ref={leftRef}
-						onScroll={syncScroll('left')}
-						className="w-105 shrink-0 border-r border-gray-300 dark:border-zinc-700 overflow-y-auto"
-					>
-						<GanttTaskList
-							tasks={allTasks}
-							headerHeight={HEADER_HEIGHT}
-							rowHeight={ROW_HEIGHT}
-							onUpdateTask={handleUpdateTask}
-							onReorder={handleReorder}
-						/>
-					</div>
-
-					<div
-						ref={rightRef}
-						onScroll={syncScroll('right')}
-						className="flex-1 overflow-auto"
-					>
-						<div className="sticky top-0 z-10 bg-white dark:bg-zinc-950">
-							<GanttCalendarHeader
-								days={days}
-								weeks={weeks}
-								monthGroups={monthGroups}
-								dayWidth={dayWidth}
+				<div className="flex flex-col flex-1 overflow-hidden min-h-0">
+					<div className="flex flex-1 overflow-hidden min-h-0">
+						<div
+							ref={leftRef}
+							onScroll={syncScroll('left')}
+							className="w-105 shrink-0 border-r border-gray-300 dark:border-zinc-700 overflow-y-auto"
+						>
+							<GanttTaskList
+								tasks={allTasks}
 								headerHeight={HEADER_HEIGHT}
-								workCalendar={calendar}
-								viewMode={viewMode}
+								rowHeight={ROW_HEIGHT}
+								assignmentsByTask={assignmentsByTask}
+								onUpdateTask={handleUpdateTask}
+								onReorder={handleReorder}
+								onAssignmentClick={(taskId, e) => {
+									const task = allTasks.find((t) => t.id === taskId)
+									if (!task) return
+									setAssignmentEditor({
+										taskId,
+										taskTitle: task.title,
+										position: { x: e.clientX, y: e.clientY },
+									})
+								}}
 							/>
 						</div>
-						<GanttCalendarGrid
-							tasks={allTasks}
-							dependencies={dependencies}
-							days={days}
-							rangeStart={rangeStart}
-							dayWidth={dayWidth}
-							rowHeight={ROW_HEIGHT}
-							timelineCalendar={calendar}
-							viewMode={viewMode}
-							criticalTaskIds={criticalTaskIds}
-							slackMap={slackMap}
-							onCreateDependency={handleCreateDependency}
-							onChangeDependencyType={handleChangeDependencyType}
-							onRemoveDependency={handleRemoveDependency}
-							onMoveTask={handleMoveTask}
-							onResizeTask={handleResizeTask}
-							onResizeFromStart={handleResizeFromStart}
-						/>
+
+						<div
+							ref={rightRef}
+							onScroll={syncScroll('right')}
+							className="flex-1 overflow-auto"
+						>
+							<div className="sticky top-0 z-10 bg-white dark:bg-zinc-950">
+								<GanttCalendarHeader
+									days={days}
+									weeks={weeks}
+									monthGroups={monthGroups}
+									dayWidth={dayWidth}
+									headerHeight={HEADER_HEIGHT}
+									workCalendar={calendar}
+									viewMode={viewMode}
+								/>
+							</div>
+							<GanttCalendarGrid
+								tasks={allTasks}
+								dependencies={dependencies}
+								days={days}
+								rangeStart={rangeStart}
+								dayWidth={dayWidth}
+								rowHeight={ROW_HEIGHT}
+								timelineCalendar={calendar}
+								viewMode={viewMode}
+								criticalTaskIds={criticalTaskIds}
+								slackMap={slackMap}
+								assignmentsByTask={assignmentsByTask}
+								onCreateDependency={handleCreateDependency}
+								onChangeDependencyType={handleChangeDependencyType}
+								onRemoveDependency={handleRemoveDependency}
+								onMoveTask={handleMoveTask}
+								onResizeTask={handleResizeTask}
+								onResizeFromStart={handleResizeFromStart}
+								onAssignmentClick={(taskId, e) => {
+									const task = allTasks.find((t) => t.id === taskId)
+									if (!task) return
+									setAssignmentEditor({
+										taskId,
+										taskTitle: task.title,
+										position: { x: e.clientX, y: e.clientY },
+									})
+								}}
+							/>
+						</div>
+
+						{isAnalysisPanelOpen && (
+							<div className="w-80 shrink-0 border-l border-gray-300 dark:border-zinc-700 overflow-y-auto bg-white dark:bg-zinc-950">
+								<AnalysisPanel
+									projectId={projectId}
+									tasks={allTasks}
+									onClose={() => setAnalysisPanelOpen(false)}
+								/>
+							</div>
+						)}
 					</div>
 
-					{isAnalysisPanelOpen && (
-						<div className="w-80 shrink-0 border-l border-gray-300 dark:border-zinc-700 overflow-y-auto bg-white dark:bg-zinc-950">
-							<AnalysisPanel
-								tasks={allTasks}
-								onClose={() => setAnalysisPanelOpen(false)}
-							/>
+					{/* Resource load panel */}
+					{showResourceLoad && filteredLoadReport && filteredLoadReport.resources.length > 0 && (
+						<div className="shrink-0 border-t border-gray-300 dark:border-zinc-700 flex max-h-[40vh] overflow-y-auto">
+							{/* Resource labels */}
+							<div className="w-105 shrink-0 border-r border-gray-300 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900">
+								{/* Filter header */}
+								<div ref={resourceFilterRef} className="relative flex items-center px-3 h-7 border-b border-gray-300 dark:border-zinc-700">
+									<span className="text-[10px] text-gray-500 dark:text-zinc-500 uppercase tracking-wide">Ресурсы</span>
+									<button
+										className="ml-auto p-0.5 rounded hover:bg-gray-200 dark:hover:bg-zinc-700"
+										onClick={() => setShowResourceFilter((v) => !v)}
+										title="Фильтр ресурсов"
+									>
+										<Filter size={12} className={hiddenResourceIds.size > 0 ? 'text-indigo-500' : 'text-gray-400 dark:text-zinc-500'} />
+									</button>
+									{showResourceFilter && (
+										<div className="absolute left-0 top-full z-50 w-64 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded shadow-lg py-1 max-h-60 overflow-y-auto">
+											{projectResources.map((r) => (
+												<label
+													key={r.resourceId}
+													className="flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-zinc-700 cursor-pointer"
+												>
+													<input
+														type="checkbox"
+														checked={!hiddenResourceIds.has(r.resourceId)}
+														onChange={() => {
+															setHiddenResourceIds((prev) => {
+																const next = new Set(prev)
+																if (next.has(r.resourceId)) next.delete(r.resourceId)
+																else next.add(r.resourceId)
+																return next
+															})
+														}}
+														className="rounded border-gray-300 dark:border-zinc-600"
+													/>
+													<span className="truncate text-gray-700 dark:text-zinc-300">{r.resourceName}</span>
+													{r.overloadedDaysCount > 0 && (
+														<span className="ml-auto text-[10px] text-red-500">{r.overloadedDaysCount}д</span>
+													)}
+												</label>
+											))}
+											{hiddenResourceIds.size > 0 && (
+												<button
+													className="w-full px-3 py-1.5 text-xs text-indigo-600 dark:text-indigo-400 hover:bg-gray-50 dark:hover:bg-zinc-700 text-left border-t border-gray-100 dark:border-zinc-700"
+													onClick={() => setHiddenResourceIds(new Set())}
+												>
+													Показать все
+												</button>
+											)}
+										</div>
+									)}
+								</div>
+								{filteredLoadReport.resources.map((r) => (
+									<div
+										key={r.resourceId}
+										className="flex items-center px-3 text-xs text-gray-600 dark:text-zinc-400 truncate border-b border-gray-200 dark:border-zinc-800"
+										style={{ height: LOAD_ROW_HEIGHT }}
+									>
+										<span className="truncate">{r.resourceName}</span>
+										{r.overloadedDaysCount > 0 && (
+											<span className="ml-auto shrink-0 text-[10px] text-red-500 font-medium">
+												{r.overloadedDaysCount}д
+											</span>
+										)}
+									</div>
+								))}
+							</div>
+							{/* Load bars */}
+							<div ref={loadPanelRef} className="flex-1 overflow-x-hidden bg-gray-50/50 dark:bg-zinc-900/50">
+								<div className="h-7 border-b border-gray-300 dark:border-zinc-700" />
+								<ResourceLoadPanel
+									report={filteredLoadReport}
+									days={days}
+									dayWidth={dayWidth}
+									crossProjectMap={crossProjectMap}
+									taskBreakdownMap={taskBreakdownMap}
+								/>
+							</div>
+						</div>
+					)}
+					{showResourceLoad && filteredLoadReport && filteredLoadReport.resources.length === 0 && projectResourceIds.size > 0 && hiddenResourceIds.size > 0 && (
+						<div className="shrink-0 border-t border-gray-300 dark:border-zinc-700 px-4 py-3 text-xs text-gray-500 dark:text-zinc-400 text-center">
+							Все ресурсы скрыты фильтром.{' '}
+							<button className="text-indigo-600 dark:text-indigo-400 hover:underline" onClick={() => setHiddenResourceIds(new Set())}>
+								Показать все
+							</button>
 						</div>
 					)}
 				</div>
 			</div>
+			{assignmentEditor && (
+				<AssignmentEditor
+					projectId={projectId}
+					taskId={assignmentEditor.taskId}
+					taskTitle={assignmentEditor.taskTitle}
+					position={assignmentEditor.position}
+					onClose={() => setAssignmentEditor(null)}
+				/>
+			)}
 		</DragDropProvider>
 	)
 }

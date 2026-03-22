@@ -14,7 +14,7 @@ data class TimelineCalendar(
     val holidays: Set<LocalDate> = emptySet(),
     val workingWeekends: Set<LocalDate> = emptySet(),
 ) {
-    private fun isWorkingDay(date: LocalDate): Boolean =
+    fun isWorkingDay(date: LocalDate): Boolean =
         (date.dayOfWeek in workingWeekDays ||
                 date in workingWeekends) && date !in holidays
 

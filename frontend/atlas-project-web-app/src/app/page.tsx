@@ -1,5 +1,5 @@
-import { GanttChart } from "@/components/GanttChart";
+import { redirect } from 'next/navigation'
 
 export default function Home() {
-	return <GanttChart />
+	redirect('/portfolios')
 }

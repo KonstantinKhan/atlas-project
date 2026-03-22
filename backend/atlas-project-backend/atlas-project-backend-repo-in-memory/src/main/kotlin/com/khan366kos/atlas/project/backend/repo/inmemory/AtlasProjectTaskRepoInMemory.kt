@@ -25,7 +25,7 @@ class AtlasProjectTaskRepoInMemory(private val database: Database) : IAtlasProje
         TODO("Not yet implemented")
     }
 
-    override suspend fun projectPlan(): ProjectPlan {
+    override suspend fun projectPlan(planId: String): ProjectPlan {
         TODO("Not yet implemented")
     }
 
@@ -43,7 +43,7 @@ class AtlasProjectTaskRepoInMemory(private val database: Database) : IAtlasProje
             .singleOrNull()?.toProjectTask()
     }
 
-    override suspend fun createTask(task: ProjectTask): ProjectTask = newSuspendedTransaction(db = database) {
+    override suspend fun createTask(planId: String, task: ProjectTask): ProjectTask = newSuspendedTransaction(db = database) {
         ProjectTasksTable.insert {
             it[ProjectTasksTable.id] = task.id.value
             it[ProjectTasksTable.title] = task.title.value
@@ -53,7 +53,7 @@ class AtlasProjectTaskRepoInMemory(private val database: Database) : IAtlasProje
         task
     }
 
-    override suspend fun createTaskWithoutSchedule(task: ProjectTask): ProjectTask = newSuspendedTransaction(db = database) {
+    override suspend fun createTaskWithoutSchedule(planId: String, task: ProjectTask): ProjectTask = newSuspendedTransaction(db = database) {
         ProjectTasksTable.insert {
             it[ProjectTasksTable.id] = task.id.value
             it[ProjectTasksTable.title] = task.title.value
@@ -72,7 +72,7 @@ class AtlasProjectTaskRepoInMemory(private val database: Database) : IAtlasProje
         task
     }
 
-    override suspend fun addDependency(predecessorId: String, successorId: String, type: String, lagDays: Int): Int {
+    override suspend fun addDependency(planId: String, predecessorId: String, successorId: String, type: String, lagDays: Int): Int {
         TODO("Not yet implemented - in-memory repo does not support dependencies")
     }
 
@@ -94,6 +94,10 @@ class AtlasProjectTaskRepoInMemory(private val database: Database) : IAtlasProje
 
     override suspend fun reorderTasks(orderedIds: List<String>) {
         TODO("Not yet implemented - in-memory repo does not support reordering")
+    }
+
+    override suspend fun saveBaseline(planId: String) {
+        TODO("Not yet implemented - in-memory repo does not support baselines")
     }
 }
 

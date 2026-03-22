@@ -14,8 +14,11 @@ src/
 │   ├── globals.css           # Global styles
 │   └── favicon.ico
 ├── components/               # React components
-│   ├── GanttChart/           # Gantt chart components (9 files)
+│   ├── GanttChart/           # Gantt chart components (15 files)
 │   ├── Task/                 # Task components
+│   ├── Resources/            # Resource management components
+│   ├── ResourceLoad/         # Resource load visualization
+│   ├── Assignments/          # Assignment editor
 │   ├── Block.tsx             # Base block component
 │   ├── DraggableBlock.tsx    # Draggable wrapper
 │   ├── DroppableBlock.tsx    # Droppable wrapper
@@ -24,16 +27,19 @@ src/
 │   └── DefaultZone.tsx       # Default drop zone
 ├── hooks/                    # Custom React hooks
 │   ├── useProjectTasks.ts    # Task API hooks
-│   └── useTimelineCalendar.ts # Calendar API hook
+│   ├── useTimelineCalendar.ts # Calendar API hook
+│   ├── useResources.ts       # Resource CRUD hooks
+│   └── useAssignments.ts     # Assignment & leveling hooks
 ├── services/                 # API service layer
 │   ├── projectTasksApi.ts    # Task CRUD operations
-│   └── timelineCalendarApi.ts # Calendar operations
+│   ├── timelineCalendarApi.ts # Calendar operations
+│   ├── resourcesApi.ts       # Resource CRUD operations
+│   └── assignmentsApi.ts     # Assignment & leveling operations
 ├── store/                    # Zustand state management
 │   └── timelineCalendarStore.ts # UI state store
 ├── types/                    # TypeScript types
 │   ├── enums/                # Enum definitions
 │   ├── generated/            # Auto-generated DTOs
-│   ├── interfaces/           # Interface definitions
 │   ├── schemas/              # Zod validation schemas
 │   ├── types/                # Type aliases
 │   └── index.ts              # Type exports
@@ -54,6 +60,9 @@ src/
 |--------|------|-------------|-------|
 | **GanttChart** | `./components/GanttChart/` | Main Gantt chart visualization with calendar grid, task rows, and dependency lines | [Overview](details/components-gantt-chart.md) |
 | **Task** | `./components/Task/` | Task row component with inline editing | [Overview](details/components-task.md) |
+| **Resources** | `./components/Resources/` | Resource management page with CRUD operations | [Overview](details/components-resources.md) |
+| **ResourceLoad** | `./components/ResourceLoad/` | Resource load visualization and leveling preview | [Overview](details/components-resource-load.md) |
+| **Assignments** | `./components/Assignments/` | Assignment editor popover for task-resource assignments | [Overview](details/components-assignments.md) |
 | **Blocks** | `./components/` | Drag-and-drop block components | [Overview](details/components-blocks.md) |
 
 ## Hook Modules
@@ -62,6 +71,8 @@ src/
 |--------|------|-------------|-------|
 | **useProjectTasks** | `./hooks/useProjectTasks.ts` | React Query hooks for task CRUD operations | [Detail](details/hooks.md#useprojecttasks) |
 | **useTimelineCalendar** | `./hooks/useTimelineCalendar.ts` | React Query hook for work calendar | [Detail](details/hooks.md#usetimelinecalendar) |
+| **useResources** | `./hooks/useResources.ts` | React Query hooks for resource CRUD and calendar overrides | [Detail](details/hooks.md#useresources) |
+| **useAssignments** | `./hooks/useAssignments.ts` | React Query hooks for assignments, day overrides, and leveling | [Detail](details/hooks.md#useassignments) |
 
 ## Service Modules
 
@@ -69,6 +80,8 @@ src/
 |--------|------|-------------|-------|
 | **projectTasksApi** | `./services/projectTasksApi.ts` | API service for task operations | [Detail](details/services.md#projecttasksapits) |
 | **timelineCalendarApi** | `./services/timelineCalendarApi.ts` | API service for calendar operations | [Detail](details/services.md#timelinecalendarapits) |
+| **resourcesApi** | `./services/resourcesApi.ts` | API service for resource CRUD and calendar overrides | [Detail](details/services.md#resourcesapi) |
+| **assignmentsApi** | `./services/assignmentsApi.ts` | API service for assignments, day overrides, and leveling | [Detail](details/services.md#assignmentsapi) |
 
 ## State Management
 
@@ -112,6 +125,8 @@ Utils → Types
 
 ## API Endpoints Consumed
 
+### Task Endpoints
+
 | Endpoint | Method | Hook/Service | Description |
 |----------|--------|--------------|-------------|
 | `/work-calendar` | GET | useTimelineCalendar | Fetch work calendar |
@@ -128,6 +143,45 @@ Utils → Types
 | `/project-tasks/:id` | DELETE | deleteProjectTask | Delete task |
 | `/project-tasks/:id/schedule` | POST | assignTaskSchedule | Assign schedule to pool task |
 | `/plan-from-end` | POST | planTaskFromEnd | Plan backwards from end date |
+
+### Resource Endpoints
+
+| Endpoint | Method | Hook/Service | Description |
+|----------|--------|--------------|-------------|
+| `/resources` | GET | useResources | Fetch all resources |
+| `/resources` | POST | createResource | Create new resource |
+| `/resources/:id` | PATCH | updateResource | Update resource |
+| `/resources/:id` | DELETE | deleteResource | Delete resource |
+| `/resources/:id/calendar-overrides` | GET/POST/DELETE | useCalendarOverrides | Manage calendar overrides |
+
+### Assignment Endpoints
+
+| Endpoint | Method | Hook/Service | Description |
+|----------|--------|--------------|-------------|
+| `/assignments` | GET | useAssignments | Fetch all assignments |
+| `/assignments` | POST | createAssignment | Create assignment |
+| `/assignments/:id` | PATCH | updateAssignment | Update assignment |
+| `/assignments/:id` | DELETE | deleteAssignment | Delete assignment |
+| `/assignments/:id/day-overrides` | GET/POST/DELETE | useDayOverrides | Manage day overrides |
+
+### Resource Load & Leveling
+
+| Endpoint | Method | Hook/Service | Description |
+|----------|--------|--------------|-------------|
+| `/resource-load` | GET | useResourceLoad | Get resource overload report |
+| `/resource-load/:resourceId` | GET | useResourceLoad | Get single resource load |
+| `/leveling/preview` | POST | useLevelingPreview | Preview leveling result |
+| `/leveling/apply` | POST | useApplyLeveling | Apply leveling to schedule |
+
+### Analysis Endpoints
+
+| Endpoint | Method | Hook/Service | Description |
+|----------|--------|--------------|-------------|
+| `/critical-path` | GET | — | Critical path analysis |
+| `/analysis/blocker-chain/:taskId` | GET | — | Blocker chain for task |
+| `/analysis/available-tasks` | GET | — | Available tasks from date |
+| `/analysis/what-if` | GET | — | What-if analysis (start change) |
+| `/analysis/what-if-end` | GET | — | What-if analysis (end change) |
 
 ---
 

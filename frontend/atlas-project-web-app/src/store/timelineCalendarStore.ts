@@ -15,6 +15,7 @@ interface CalendarUIState {
 	whatIfMode: 'start' | 'end'
 	whatIfNewStart: string | null
 	whatIfNewEnd: string | null
+	showResourceLoad: boolean
 }
 
 interface TimelineCalendarStore {
@@ -30,6 +31,7 @@ interface TimelineCalendarStore {
 	setWhatIfMode: (mode: 'start' | 'end') => void
 	setWhatIfNewStart: (date: string | null) => void
 	setWhatIfNewEnd: (date: string | null) => void
+	toggleResourceLoad: () => void
 }
 
 export const useTimelineCalendarStore = create<TimelineCalendarStore>((set) => ({
@@ -44,6 +46,7 @@ export const useTimelineCalendarStore = create<TimelineCalendarStore>((set) => (
 		whatIfMode: 'start',
 		whatIfNewStart: null,
 		whatIfNewEnd: null,
+		showResourceLoad: false,
 	},
 
 	setViewMode: (mode) =>
@@ -94,5 +97,10 @@ export const useTimelineCalendarStore = create<TimelineCalendarStore>((set) => (
 	setWhatIfNewEnd: (date) =>
 		set((state) => ({
 			ui: { ...state.ui, whatIfNewEnd: date },
+		})),
+
+	toggleResourceLoad: () =>
+		set((state) => ({
+			ui: { ...state.ui, showResourceLoad: !state.ui.showResourceLoad },
 		})),
 }))

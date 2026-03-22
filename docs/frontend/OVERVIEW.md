@@ -6,7 +6,7 @@
 
 ## Purpose
 
-The frontend is a **Next.js 16 + React 19 web application** that provides an interactive Gantt chart interface for project task management. It enables users to visualize project timelines, manage task schedules, and handle task dependencies through a drag-and-drop interface.
+The frontend is a **Next.js 16 + React 19 web application** that provides an interactive Gantt chart interface for project task management. It enables users to visualize project timelines, manage task schedules, handle task dependencies, manage resources, and optimize resource allocation through drag-and-drop interfaces.
 
 ## Boundaries
 
@@ -14,6 +14,10 @@ The frontend is a **Next.js 16 + React 19 web application** that provides an int
 - Gantt chart visualization component with calendar grid
 - Task list with inline editing capabilities
 - Drag-and-drop task scheduling (@dnd-kit)
+- Resource management (create, edit, delete resources)
+- Task assignments (assign resources to tasks, effort tracking)
+- Resource load visualization and overload reports
+- Resource leveling (preview and apply)
 - API integration with backend services
 - Client-side state management (Zustand, React Query)
 - Type-safe data validation (Zod schemas)
@@ -33,6 +37,10 @@ The frontend is a **Next.js 16 + React 19 web application** that provides an int
 | **Timeline Calendar** | Work calendar defining working days, weekends, and holidays |
 | **Project Plan** | Collection of tasks with schedules and dependencies |
 | **Drag-and-Drop** | Interactive task scheduling using @dnd-kit react |
+| **Resources** | People or roles with capacity (hours/day) available for task work |
+| **Assignments** | Link between resources and tasks with hours/day and planned effort |
+| **Resource Load** | Visualization of resource capacity vs. assigned work per day |
+| **Resource Leveling** | Automatic rescheduling to resolve resource overloads |
 
 ## External Connections
 
@@ -44,8 +52,14 @@ The frontend is a **Next.js 16 + React 19 web application** that provides an int
 | - `/project-plan` | GET | Fetch complete project plan with tasks |
 | - `/change-start` | POST | Update task start date |
 | - `/change-end` | POST | Update task end date |
-| - `/dependencies` | POST | Create task dependencies |
-| - `/project-tasks` | POST/PATCH | Create/update tasks |
+| - `/dependencies` | POST/PATCH/DELETE | Manage task dependencies |
+| - `/project-tasks` | POST/PATCH/DELETE | Create/update/delete tasks |
+| - `/resources` | GET/POST/PATCH/DELETE | Resource management |
+| - `/assignments` | GET/POST/PATCH/DELETE | Task assignments |
+| - `/resource-load` | GET | Resource load and overload reports |
+| - `/leveling` | POST | Resource leveling (preview/apply) |
+| - `/critical-path` | GET | Critical path analysis |
+| - `/analysis` | GET | Project analysis (blocker chain, what-if) |
 
 ## Technology Stack
 
@@ -75,12 +89,15 @@ The frontend is a **Next.js 16 + React 19 web application** that provides an int
 - `src/app/page.tsx` - Renders the GanttChart component
 
 ### Core Components
-- `components/GanttChart/` - Gantt chart visualization (9 files)
+- `components/GanttChart/` - Gantt chart visualization (15 files)
 - `components/Task/` - Task row component
+- `components/Resources/` - Resource management page and dialogs
+- `components/ResourceLoad/` - Resource load visualization and leveling
+- `components/Assignments/` - Assignment editor popover
 - `components/*.tsx` - Block components for drag-and-drop
 
 ### State & Data
-- `hooks/` - React Query hooks for API integration
+- `hooks/` - React Query hooks for API integration (tasks, resources, assignments)
 - `store/` - Zustand store for UI state
-- `services/` - API service layer
+- `services/` - API service layer (tasks, resources, assignments, calendar)
 - `types/` - TypeScript types, schemas, and DTOs

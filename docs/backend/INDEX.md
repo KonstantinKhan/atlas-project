@@ -100,6 +100,45 @@ atlas-project-backend-common
 | `/project-tasks/:id` | DELETE | ktor-app | `configureRouting` |
 | `/project-tasks/:id/schedule` | POST | ktor-app | `configureRouting` |
 
+### Resources
+
+| Endpoint | Method | Module | Handler |
+|----------|--------|--------|---------|
+| `/resources` | GET | ktor-app | `resources()` |
+| `/resources` | POST | ktor-app | `resources()` |
+| `/resources/:id` | PATCH | ktor-app | `resources()` |
+| `/resources/:id` | DELETE | ktor-app | `resources()` |
+| `/resources/:id/calendar-overrides` | GET/POST/DELETE | ktor-app | `resources()` |
+
+### Assignments
+
+| Endpoint | Method | Module | Handler |
+|----------|--------|--------|---------|
+| `/assignments` | GET | ktor-app | `assignments()` |
+| `/assignments` | POST | ktor-app | `assignments()` |
+| `/assignments/:id` | PATCH | ktor-app | `assignments()` |
+| `/assignments/:id` | DELETE | ktor-app | `assignments()` |
+| `/assignments/:id/day-overrides` | GET/POST/DELETE | ktor-app | `assignments()` |
+
+### Resource Load & Leveling
+
+| Endpoint | Method | Module | Handler |
+|----------|--------|--------|---------|
+| `/resource-load` | GET | ktor-app | `assignments()` |
+| `/resource-load/:resourceId` | GET | ktor-app | `assignments()` |
+| `/leveling/preview` | POST | ktor-app | `leveling()` |
+| `/leveling/apply` | POST | ktor-app | `leveling()` |
+
+### Analysis
+
+| Endpoint | Method | Module | Handler |
+|----------|--------|--------|---------|
+| `/critical-path` | GET | ktor-app | `criticalPath()` |
+| `/analysis/blocker-chain/:taskId` | GET | ktor-app | `analysis()` |
+| `/analysis/available-tasks` | GET | ktor-app | `analysis()` |
+| `/analysis/what-if` | GET | ktor-app | `analysis()` |
+| `/analysis/what-if-end` | GET | ktor-app | `analysis()` |
+
 ## Domain Models
 
 ### Core Models (common)
@@ -113,11 +152,22 @@ atlas-project-backend-common
 | `ProjectDate` | `common/models/` | Date wrapper (Set/Unset) |
 | `Duration` | `common/models/simple/` | Duration value object |
 
+### Resource Models (common)
+
+| Model | Path | Description |
+|-------|------|-------------|
+| `Resource` | `common/models/resource/` | Person or role with capacity |
+| `TaskAssignment` | `common/models/resource/` | Assignment of resource to task |
+| `ResourceCalendarOverride` | `common/models/resource/` | Daily capacity override |
+| `AssignmentDayOverride` | `common/models/resource/` | Assignment-specific day override |
+| `ResourceLevelingEngine` | `common/models/resource/` | Automatic overload resolution |
+
 ### Repository Interfaces
 
 | Interface | Path | Description |
 |-----------|------|-------------|
 | `IAtlasProjectTaskRepo` | `common/repo/` | Repository interface for task operations |
+| `IResourceRepo` | `common/repo/` | Repository interface for resource operations |
 
 ## Transport DTOs
 
@@ -146,6 +196,37 @@ atlas-project-backend-common
 |-----|-------------|
 | `WorkCalendar` | Work calendar configuration |
 | `TimelineCalendarDto` | Timeline calendar for UI |
+
+### Resource DTOs (transport/resource)
+
+| DTO | Description |
+|-----|-------------|
+| `ResourceDto` | Resource data |
+| `ResourceListDto` | List of resources |
+| `CreateResourceCommandDto` | Resource creation command |
+| `UpdateResourceCommandDto` | Resource update command |
+| `ResourceCalendarOverrideDto` | Calendar override data |
+| `ResourceCalendarOverrideListDto` | List of calendar overrides |
+
+### Assignment DTOs (transport/resource)
+
+| DTO | Description |
+|-----|-------------|
+| `TaskAssignmentDto` | Task assignment data |
+| `TaskAssignmentListDto` | List of assignments |
+| `CreateAssignmentCommandDto` | Assignment creation command |
+| `UpdateAssignmentCommandDto` | Assignment update command |
+| `SetDayOverrideCommandDto` | Day override command |
+| `AssignmentDayOverrideListDto` | List of day overrides |
+
+### Resource Load DTOs (transport/resource)
+
+| DTO | Description |
+|-----|-------------|
+| `ResourceDayLoadDto` | Daily load for a resource |
+| `ResourceLoadResultDto` | Load result for a resource |
+| `OverloadReportDto` | Overload report for all resources |
+| `LevelingResultDto` | Resource leveling result |
 
 ## Dependencies
 

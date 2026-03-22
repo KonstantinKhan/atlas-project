@@ -42,6 +42,10 @@ fun ProjectTask.applyUpdate(req: UpdateProjectTaskRequest) = copy(
     description = req.description?.let { Description(it) } ?: description,
     duration = req.plannedCalendarDuration?.let { Duration(it.toString()) } ?: duration,
     status = req.status?.let { CommonProjectTaskStatus.valueOf(it.name) } ?: status,
+    actualStart = req.actualStartDate ?: actualStart,
+    actualEnd = req.actualEndDate ?: actualEnd,
+    baselineEffortHours = req.baselineEffortHours ?: baselineEffortHours,
+    additionalEffortHours = req.additionalEffortHours ?: additionalEffortHours,
 )
 
 fun CreateProjectTaskRequest.toModel() = ProjectTask(

@@ -5,16 +5,17 @@ import com.khan366kos.atlas.project.backend.common.models.projectPlan.CriticalPa
 import com.khan366kos.atlas.project.backend.common.repo.IAtlasProjectTaskRepo
 import com.khan366kos.atlas.project.backend.mappers.toDto
 import io.ktor.server.response.respond
-import io.ktor.server.routing.Routing
+import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.route
 
-fun Routing.criticalPath(
+fun Route.criticalPath(
     repo: IAtlasProjectTaskRepo,
     calendarService: CacheCalendarProvider,
 ) = route("/critical-path") {
     get {
-        val plan = repo.projectPlan()
+        val projectId = call.parameters["projectId"]!!
+        val plan = repo.projectPlan(projectId)
         val calendar = calendarService.current()
         val result = CriticalPathAnalysis(plan, calendar).compute()
         call.respond(result.toDto())

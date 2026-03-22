@@ -11,20 +11,26 @@ interface GanttTaskListProps {
 	tasks: GanttTask[]
 	headerHeight: number
 	rowHeight: number
+	assignmentsByTask?: Map<string, Array<{ resourceName: string; resourceId: string }>>
 	onUpdateTask: (cmd: TaskCommand) => void
 	onReorder: (orderedIds: string[]) => void
+	onAssignmentClick?: (taskId: string, e: React.MouseEvent) => void
 }
 
 function SortableTaskRow({
 	task,
 	index,
 	rowHeight,
+	assignments,
 	onUpdateTask,
+	onAssignmentClick,
 }: {
 	task: GanttTask
 	index: number
 	rowHeight: number
+	assignments?: Array<{ resourceName: string; resourceId: string }>
 	onUpdateTask: (cmd: TaskCommand) => void
+	onAssignmentClick?: (taskId: string, e: React.MouseEvent) => void
 }) {
 	const { ref, handleRef, isDragging } = useSortable({
 		id: task.id,
@@ -38,7 +44,9 @@ function SortableTaskRow({
 			<GanttTaskRow
 				task={task}
 				rowHeight={rowHeight}
+				assignments={assignments}
 				onUpdateTask={onUpdateTask}
+				onAssignmentClick={onAssignmentClick}
 				dragHandleRef={handleRef}
 			/>
 		</div>
@@ -49,8 +57,10 @@ export default function GanttTaskList({
 	tasks,
 	headerHeight,
 	rowHeight,
+	assignmentsByTask,
 	onUpdateTask,
 	onReorder,
+	onAssignmentClick,
 }: GanttTaskListProps) {
 	const [isCreating, setIsCreating] = useState(false)
 	const [newTaskTitle, setNewTaskTitle] = useState('')
@@ -90,8 +100,6 @@ export default function GanttTaskList({
 			>
 				<div className="flex items-center gap-2 w-full text-xs font-semibold text-gray-500 dark:text-zinc-500 uppercase tracking-wider">
 					<span className="flex-1">Задача</span>
-					<span className="w-18 shrink-0 text-center">Начало</span>
-					<span className="w-18 shrink-0 text-center">Окончание</span>
 				</div>
 			</div>
 
@@ -101,7 +109,9 @@ export default function GanttTaskList({
 					task={task}
 					index={index}
 					rowHeight={rowHeight}
+					assignments={assignmentsByTask?.get(task.id)}
 					onUpdateTask={onUpdateTask}
+					onAssignmentClick={onAssignmentClick}
 				/>
 			))}
 
