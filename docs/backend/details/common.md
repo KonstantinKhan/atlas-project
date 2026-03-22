@@ -2,7 +2,7 @@
 
 **Path:** `/backend/atlas-project-backend/atlas-project-backend-common/`
 **Module:** [Backend Index](../INDEX.md)
-**Last Updated:** 2026-03-04
+**Last Updated:** 2026-03-22
 
 ## Purpose
 
@@ -27,8 +27,11 @@ src/commonMain/kotlin/com/khan366kos/atlas/project/backend/common/
 │   ├── simple/
 │   ├── ProjectDate.kt
 │   └── TaskDependency.kt
+├── project/
+│   └── Project.kt
 ├── repo/
-│   └── IAtlasProjectTaskRepo.kt
+│   ├── IAtlasProjectTaskRepo.kt
+│   └── IPortfolioRepo.kt
 ├── enums/
 └── simple/
 ```
@@ -110,24 +113,35 @@ data class TaskDependency(
 
 **Path:** `models/projectPlan/ProjectPlan.kt`
 
-**Purpose:** Represents the complete project plan with tasks, schedules, and dependencies.
+**Purpose:** Represents the complete project plan with tasks, schedules, and dependencies. Note: Project-level metadata (name, portfolio, priority) has been moved to the `Project` class.
 
 ```kotlin
 data class ProjectPlan(
     val id: ProjectPlanId,
     private val tasks: MutableMap<TaskId, ProjectTask>,
     private val schedules: MutableMap<TaskScheduleId, TaskSchedule>,
-    private val dependencies: MutableList<TaskDependency>,
+    private val dependencies: MutableSet<TaskDependency>,
 ) {
     fun tasks(): List<ProjectTask> = tasks.values.toList()
     fun schedules(): Map<TaskScheduleId, TaskSchedule> = schedules.toMap()
     fun dependencies(): List<TaskDependency> = dependencies.toList()
-    
+
     fun changeTaskStartDate(...): ScheduleDelta { ... }
     fun changeTaskEndDate(...): ScheduleDelta { ... }
     fun addDependency(...): ScheduleDelta { ... }
 }
 ```
+
+**Properties:**
+- `id: ProjectPlanId` - Unique identifier for the project plan
+- `tasks: MutableMap<TaskId, ProjectTask>` - Map of tasks by ID
+- `schedules: MutableMap<TaskScheduleId, TaskSchedule>` - Map of schedules by ID
+- `dependencies: MutableSet<TaskDependency>` - Set of task dependencies
+
+**Note:** The following fields were **removed** from `ProjectPlan` and moved to `Project`:
+- ~~`name: String`~~ → moved to `Project.name`
+- ~~`portfolioId: PortfolioId`~~ → moved to `Project.portfolioId`
+- ~~`priority: Int`~~ → moved to `Project.priority`
 
 **Key Methods:**
 - `changeTaskStartDate()` - Update task start and recalculate
@@ -136,6 +150,33 @@ data class ProjectPlan(
 - `planFromEnd()` - Plan task backwards from end date (deadline-driven scheduling)
 - `recalculateAll()` - Recalculate all task schedules based on dependencies
 - `calculateConstrainedStart()` - Calculate task start based on dependency constraints (FS, SS, FF, SF with lag)
+
+---
+
+### Project
+
+**Path:** `project/Project.kt`
+
+**Purpose:** Represents a project with its metadata. Project-level metadata (name, portfolio, priority) was moved here from `ProjectPlan`.
+
+```kotlin
+data class Project(
+    val id: ProjectId = ProjectId.NONE,
+    val name: ProjectName = ProjectName.NONE,
+    val portfolioId: PortfolioId = PortfolioId.NONE,
+    val priority: Int = 0,
+)
+```
+
+**Properties:**
+- `id: ProjectId` - Unique identifier for the project
+- `name: ProjectName` - Project name
+- `portfolioId: PortfolioId` - Reference to the parent portfolio
+- `priority: Int` - Project priority (for ordering within portfolio)
+
+**Note:** This class was introduced to separate project-level metadata from the task-focused `ProjectPlan`. The `ProjectPlan` now focuses solely on tasks, schedules, and dependencies.
+
+---
 
 ### ProjectPlan Method Details
 
@@ -399,8 +440,18 @@ interface IAtlasProjectTaskRepo {
 
     // Project plan
     fun projectPlan(): ProjectPlan
+
+    // Task count
+    suspend fun countTasks(planId: String): Int
+
+    // Baseline operations
+    suspend fun saveBaseline(planId: String)
 }
 ```
+
+**New Methods:**
+- `countTasks(planId: String): Int` - Count the number of tasks in a project plan (added 2026-03-22)
+- `saveBaseline(planId: String)` - Save a baseline snapshot of the project plan
 
 **Implementations:**
 - `PostgresRepo` - PostgreSQL implementation with cascade delete
@@ -410,6 +461,61 @@ interface IAtlasProjectTaskRepo {
 - Returns the number of tasks deleted (typically 1)
 - Implementations should cascade delete associated schedules and dependencies
 - Returns 0 if task not found (implementations should check existence)
+
+---
+
+### IPortfolioRepo
+
+**Path:** `repo/IPortfolioRepo.kt`
+
+**Purpose:** Defines the contract for portfolio and project repository operations. This interface manages portfolios and their associated projects.
+
+```kotlin
+interface IPortfolioRepo {
+    // Portfolio operations
+    suspend fun listPortfolios(): List<Portfolio>
+    suspend fun getPortfolio(id: String): Portfolio?
+    suspend fun createPortfolio(name: String, description: String?): String
+    suspend fun updatePortfolio(portfolioId: String, name: String?, description: String?): Int
+    suspend fun deletePortfolio(id: String): Int
+
+    // Project operations
+    suspend fun listProjects(portfolioId: String): List<Project>
+    suspend fun getProject(id: String): Project?
+    suspend fun createProject(portfolioId: String, name: String, priority: Int): Project
+    suspend fun updateProject(projectId: String, name: String?, priority: Int?): Int
+    suspend fun deleteProject(projectId: String): Int
+    suspend fun reorderProjects(portfolioId: String, orderedProjectIds: List<String>): Int
+    suspend fun listAllProjects(): List<Project>
+}
+```
+
+**Methods:**
+
+| Method | Description |
+|--------|-------------|
+| `listPortfolios()` | List all portfolios |
+| `getPortfolio(id)` | Get a specific portfolio by ID |
+| `createPortfolio(name, description)` | Create a new portfolio |
+| `updatePortfolio(id, name, description)` | Update portfolio metadata |
+| `deletePortfolio(id)` | Delete a portfolio |
+| `listProjects(portfolioId)` | List all projects in a portfolio (returns `List<Project>`) |
+| `getProject(id)` | Get a specific project by ID |
+| `createProject(portfolioId, name, priority)` | Create a new project in a portfolio (returns `Project`) |
+| `updateProject(projectId, name, priority)` | Update project metadata |
+| `deleteProject(projectId)` | Delete a project |
+| `reorderProjects(portfolioId, orderedIds)` | Reorder projects within a portfolio |
+| `listAllProjects()` | List all projects across all portfolios |
+
+**Note:** The following changes were made on 2026-03-22:
+- `listProjectIds()` → `listProjects()` - Now returns `List<Project>` instead of `List<String>`
+- `getProject(id)` - **Added** - Get a single project by ID
+- `createProject()` - Now returns `Project` instead of `String` (project ID)
+- `listAllProjectIds()` → `listAllProjects()` - Now returns `List<Project>` instead of `List<Pair<String, String>>`
+
+**Implementations:**
+- `PortfolioRepoPostgres` - PostgreSQL implementation
+- `PortfolioRepoInMemory` - In-memory implementation for testing
 
 ---
 

@@ -96,6 +96,10 @@ class AtlasProjectTaskRepoInMemory(private val database: Database) : IAtlasProje
         TODO("Not yet implemented - in-memory repo does not support reordering")
     }
 
+    override suspend fun countTasks(planId: String): Int {
+        TODO("Not yet implemented - in-memory repo does not support countTasks")
+    }
+
     override suspend fun saveBaseline(planId: String) {
         TODO("Not yet implemented - in-memory repo does not support baselines")
     }

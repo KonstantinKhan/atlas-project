@@ -148,9 +148,12 @@ atlas-project-backend-common
 | `ProjectTask` | `common/models/task/` | Task entity with id, title, description, duration, status |
 | `TaskSchedule` | `common/models/taskSchedule/` | Scheduled dates for a task |
 | `TaskDependency` | `common/models/` | Dependency between tasks |
-| `ProjectPlan` | `common/models/projectPlan/` | Complete project plan |
+| `ProjectPlan` | `common/models/projectPlan/` | Complete project plan (tasks, schedules, dependencies only) |
+| `Project` | `common/project/` | Project metadata (id, name, portfolioId, priority) |
 | `ProjectDate` | `common/models/` | Date wrapper (Set/Unset) |
 | `Duration` | `common/models/simple/` | Duration value object |
+
+**Note:** `ProjectPlan` was updated on 2026-03-22 - removed `name`, `portfolioId`, and `priority` fields (moved to `Project` class).
 
 ### Resource Models (common)
 
@@ -168,6 +171,13 @@ atlas-project-backend-common
 |-----------|------|-------------|
 | `IAtlasProjectTaskRepo` | `common/repo/` | Repository interface for task operations |
 | `IResourceRepo` | `common/repo/` | Repository interface for resource operations |
+| `IPortfolioRepo` | `common/repo/` | Repository interface for portfolio and project operations |
+
+**Note:** `IPortfolioRepo` was updated on 2026-03-22:
+- `listProjectIds()` → `listProjects()` - Returns `List<Project>` instead of `List<String>`
+- `getProject(id)` - **Added** - Get a single project by ID
+- `createProject()` - Returns `Project` instead of `String`
+- `listAllProjectIds()` → `listAllProjects()` - Returns `List<Project>` instead of `List<Pair<String, String>>`
 
 ## Transport DTOs
 

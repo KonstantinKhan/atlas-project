@@ -102,6 +102,10 @@ class RoutingTest {
         }
 
         override suspend fun reorderTasks(orderedIds: List<String>) {}
+
+        override suspend fun countTasks(planId: String): Int = tasks.size
+
+        override suspend fun saveBaseline(planId: String) {}
     }
 
     private fun testApp(
@@ -114,7 +118,7 @@ class RoutingTest {
             configureHTTP()
             configureStatusPages()
             configureRoutingOld(config)
-            configureRouting(config)
+            configureRouting(config, config.projectService)
         }
         block()
     }

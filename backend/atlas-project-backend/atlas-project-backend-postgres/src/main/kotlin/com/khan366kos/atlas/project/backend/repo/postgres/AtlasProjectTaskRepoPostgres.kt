@@ -3,7 +3,6 @@ package com.khan366kos.atlas.project.backend.repo.postgres
 import com.khan366kos.atlas.project.backend.common.enums.DependencyType
 import com.khan366kos.atlas.project.backend.common.models.ProjectDate
 import com.khan366kos.atlas.project.backend.common.models.TaskDependency
-import com.khan366kos.atlas.project.backend.common.models.portfolio.PortfolioId
 import com.khan366kos.atlas.project.backend.common.models.projectPlan.ProjectPlan
 import com.khan366kos.atlas.project.backend.common.models.projectPlan.ProjectPlanId
 import com.khan366kos.atlas.project.backend.common.models.simple.Duration
@@ -98,9 +97,6 @@ class AtlasProjectTaskRepoPostgres(private val database: Database) : IAtlasProje
 
         ProjectPlan(
             id = ProjectPlanId(planId),
-            name = planRow[ProjectPlansTable.name],
-            portfolioId = PortfolioId(planRow[ProjectPlansTable.portfolioId].toString()),
-            priority = planRow[ProjectPlansTable.priority],
             tasks = tasks.associateBy { it.id }.toMutableMap(),
             schedules = schedules,
             dependencies = dependencies,
@@ -248,6 +244,12 @@ class AtlasProjectTaskRepoPostgres(private val database: Database) : IAtlasProje
                 it[sortOrder] = index
             }
         }
+    }
+
+    override suspend fun countTasks(planId: String): Int = newSuspendedTransaction(db = database) {
+        ProjectTasksTable.selectAll()
+            .where { ProjectTasksTable.projectPlanId eq UUID.fromString(planId) }
+            .count().toInt()
     }
 
     override suspend fun saveBaseline(planId: String): Unit = newSuspendedTransaction(db = database) {

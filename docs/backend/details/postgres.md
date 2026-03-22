@@ -2,7 +2,7 @@
 
 **Path:** `/backend/atlas-project-backend/atlas-project-backend-postgres/`
 **Module:** [Backend Index](../INDEX.md)
-**Last Updated:** 2026-03-04
+**Last Updated:** 2026-03-22
 
 ## Purpose
 
@@ -224,7 +224,7 @@ override fun projectPlan(): ProjectPlan {
     val tasks = fetchAllTasks().associateBy { it.id }
     val schedules = fetchAllSchedules().associateBy { it.id }
     val dependencies = fetchAllDependencies()
-    
+
     return ProjectPlan(
         id = ProjectPlanId("main"),
         tasks = tasks,
@@ -233,6 +233,29 @@ override fun projectPlan(): ProjectPlan {
     )
 }
 ```
+
+---
+
+#### countTasks(planId: String): Int
+
+**Purpose:** Count the number of tasks in a project plan.
+
+**SQL:**
+```sql
+SELECT COUNT(*) FROM project_tasks
+WHERE project_plan_id = ?
+```
+
+**Implementation:**
+```kotlin
+override suspend fun countTasks(planId: String): Int = newSuspendedTransaction(db = database) {
+    ProjectTasksTable.selectAll()
+        .where { ProjectTasksTable.projectPlanId eq UUID.fromString(planId) }
+        .count().toInt()
+}
+```
+
+**Returns:** Number of tasks in the specified project plan
 
 ---
 
@@ -428,6 +451,259 @@ override fun projectPlan(): ProjectPlan {
 
 **Imported by:**
 - Ktor App module (via dependency injection)
+
+---
+
+## Portfolio Repository Implementation
+
+### PortfolioRepoPostgres (implementation of IPortfolioRepo)
+
+**Path:** `repo/postgres/`
+
+**Purpose:** Implements the portfolio repository interface using PostgreSQL as the data store. Manages portfolios and their associated projects.
+
+---
+
+### Key Responsibilities
+
+1. **Portfolio Persistence:** CRUD operations for portfolios
+2. **Project Persistence:** CRUD operations for projects within portfolios
+3. **Project Ordering:** Manage project priority/ordering within portfolios
+4. **Cross-Portfolio Queries:** List all projects across all portfolios
+
+---
+
+### Interface Implementation
+
+```kotlin
+class PortfolioRepoPostgres(private val database: Database) : IPortfolioRepo {
+
+    // Portfolio operations
+    override suspend fun listPortfolios(): List<Portfolio> { ... }
+    override suspend fun getPortfolio(id: String): Portfolio? { ... }
+    override suspend fun createPortfolio(name: String, description: String?): String { ... }
+    override suspend fun updatePortfolio(portfolioId: String, name: String?, description: String?): Int { ... }
+    override suspend fun deletePortfolio(id: String): Int { ... }
+
+    // Project operations
+    override suspend fun listProjects(portfolioId: String): List<Project> { ... }
+    override suspend fun getProject(id: String): Project? { ... }
+    override suspend fun createProject(portfolioId: String, name: String, priority: Int): Project { ... }
+    override suspend fun updateProject(projectId: String, name: String?, priority: Int?): Int { ... }
+    override suspend fun deleteProject(projectId: String): Int { ... }
+    override suspend fun reorderProjects(portfolioId: String, orderedProjectIds: List<String>): Int { ... }
+    override suspend fun listAllProjects(): List<Project> { ... }
+}
+```
+
+---
+
+### Portfolio Operations
+
+#### listPortfolios(): List<Portfolio>
+
+**Purpose:** List all portfolios.
+
+**SQL:**
+```sql
+SELECT * FROM portfolios ORDER BY created_at
+```
+
+---
+
+#### getPortfolio(id: String): Portfolio?
+
+**Purpose:** Get a specific portfolio by ID.
+
+**SQL:**
+```sql
+SELECT * FROM portfolios WHERE id = ?
+```
+
+---
+
+#### createPortfolio(name: String, description: String?): String
+
+**Purpose:** Create a new portfolio.
+
+**SQL:**
+```sql
+INSERT INTO portfolios (id, name, description)
+VALUES (?, ?, ?)
+RETURNING id
+```
+
+---
+
+#### updatePortfolio(portfolioId: String, name: String?, description: String?): Int
+
+**Purpose:** Update portfolio metadata.
+
+**SQL:**
+```sql
+UPDATE portfolios
+SET name = COALESCE(?, name),
+    description = COALESCE(?, description)
+WHERE id = ?
+```
+
+---
+
+#### deletePortfolio(id: String): Int
+
+**Purpose:** Delete a portfolio.
+
+**SQL:**
+```sql
+DELETE FROM portfolios WHERE id = ?
+```
+
+---
+
+### Project Operations
+
+#### listProjects(portfolioId: String): List<Project>
+
+**Purpose:** List all projects in a portfolio, ordered by priority.
+
+**SQL:**
+```sql
+SELECT * FROM project_plans
+WHERE portfolio_id = ?
+ORDER BY priority
+```
+
+**Returns:** `List<Project>` with id, name, portfolioId, and priority
+
+**Note:** Changed on 2026-03-22 - previously returned `List<String>` (project IDs only)
+
+---
+
+#### getProject(id: String): Project?
+
+**Purpose:** Get a specific project by ID.
+
+**SQL:**
+```sql
+SELECT * FROM project_plans WHERE id = ?
+```
+
+**Returns:** `Project` if found, null otherwise
+
+**Note:** Added on 2026-03-22
+
+---
+
+#### createProject(portfolioId: String, name: String, priority: Int): Project
+
+**Purpose:** Create a new project in a portfolio.
+
+**SQL:**
+```sql
+INSERT INTO project_plans (id, name, portfolio_id, priority)
+VALUES (?, ?, ?, ?)
+RETURNING *
+```
+
+**Returns:** `Project` object with all fields
+
+**Note:** Changed on 2026-03-22 - previously returned `String` (project ID only)
+
+---
+
+#### updateProject(projectId: String, name: String?, priority: Int?): Int
+
+**Purpose:** Update project metadata.
+
+**SQL:**
+```sql
+UPDATE project_plans
+SET name = COALESCE(?, name),
+    priority = COALESCE(?, priority)
+WHERE id = ?
+```
+
+---
+
+#### deleteProject(projectId: String): Int
+
+**Purpose:** Delete a project.
+
+**SQL:**
+```sql
+DELETE FROM project_plans WHERE id = ?
+```
+
+---
+
+#### reorderProjects(portfolioId: String, orderedProjectIds: List<String>): Int
+
+**Purpose:** Update project priorities based on ordered list.
+
+**Implementation:**
+```kotlin
+override suspend fun reorderProjects(
+    portfolioId: String,
+    orderedProjectIds: List<String>
+): Int = newSuspendedTransaction(db = database) {
+    orderedProjectIds.forEachIndexed { index, id ->
+        ProjectPlansTable.update({ ProjectPlansTable.id eq UUID.fromString(id) }) {
+            it[ProjectPlansTable.priority] = index
+        }
+    }
+    orderedProjectIds.size
+}
+```
+
+---
+
+#### listAllProjects(): List<Project>
+
+**Purpose:** List all projects across all portfolios.
+
+**SQL:**
+```sql
+SELECT * FROM project_plans
+```
+
+**Returns:** `List<Project>` with all projects
+
+**Note:** Changed on 2026-03-22 - previously returned `List<Pair<String, String>>` (portfolioId to projectId pairs)
+
+---
+
+### Helper Methods
+
+#### toProject(): Project
+
+**Purpose:** Convert a database ResultRow to a Project domain object.
+
+**Implementation:**
+```kotlin
+private fun ResultRow.toProject() = Project(
+    id = ProjectId(this[ProjectPlansTable.id].toString()),
+    name = ProjectName(this[ProjectPlansTable.name]),
+    portfolioId = PortfolioId(this[ProjectPlansTable.portfolioId].toString()),
+    priority = this[ProjectPlansTable.priority],
+)
+```
+
+---
+
+#### toPortfolio(): Portfolio
+
+**Purpose:** Convert a database ResultRow to a Portfolio domain object.
+
+**Implementation:**
+```kotlin
+private fun ResultRow.toPortfolio() = Portfolio(
+    id = PortfolioId(this[PortfoliosTable.id].toString()),
+    name = this[PortfoliosTable.name],
+    description = this[PortfoliosTable.description],
+)
+```
+
+---
 
 ---
 

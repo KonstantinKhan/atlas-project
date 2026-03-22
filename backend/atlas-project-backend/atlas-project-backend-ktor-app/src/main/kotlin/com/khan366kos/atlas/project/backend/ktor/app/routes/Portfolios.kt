@@ -4,6 +4,7 @@ import com.khan366kos.atlas.project.backend.calendar.service.CacheCalendarProvid
 import com.khan366kos.atlas.project.backend.common.models.portfolio.Portfolio
 import com.khan366kos.atlas.project.backend.common.models.resource.CrossProjectLoadAggregator
 import com.khan366kos.atlas.project.backend.common.models.resource.ProjectLoadInput
+import com.khan366kos.atlas.project.backend.common.project.Project
 import com.khan366kos.atlas.project.backend.common.repo.IAtlasProjectTaskRepo
 import com.khan366kos.atlas.project.backend.common.repo.IPortfolioRepo
 import com.khan366kos.atlas.project.backend.common.repo.IResourceRepo
@@ -124,15 +125,10 @@ fun Routing.portfolios(
         val id = call.parameters["id"]!!
         portfolioRepo.getPortfolio(id)
             ?: return@get call.respond(HttpStatusCode.NotFound)
-        val projectIds = portfolioRepo.listProjectIds(id)
-        val summaries = projectIds.map { projectId ->
-            val plan = taskRepo.projectPlan(projectId)
-            ProjectSummaryDto(
-                id = projectId,
-                name = plan.name,
-                priority = plan.priority,
-                taskCount = plan.tasks().size,
-            )
+        val projects = portfolioRepo.listProjects(id)
+        val summaries = projects.map { project ->
+            val taskCount = taskRepo.countTasks(project.id.asString())
+            project.toSummaryDto(taskCount)
         }
         call.respond(ProjectSummaryListDto(projects = summaries))
     }
@@ -142,16 +138,8 @@ fun Routing.portfolios(
         portfolioRepo.getPortfolio(id)
             ?: return@post call.respond(HttpStatusCode.NotFound)
         val request = call.receive<CreateProjectRequest>()
-        val projectId = portfolioRepo.createProject(id, request.name, request.priority)
-        call.respond(
-            HttpStatusCode.Created,
-            ProjectSummaryDto(
-                id = projectId,
-                name = request.name,
-                priority = request.priority,
-                taskCount = 0,
-            )
-        )
+        val project = portfolioRepo.createProject(id, request.name, request.priority)
+        call.respond(HttpStatusCode.Created, project.toSummaryDto(taskCount = 0))
     }
 
     patch("/{id}/projects/reorder") {
@@ -171,19 +159,18 @@ fun Routing.portfolios(
             ?: return@get call.respond(HttpStatusCode.NotFound)
 
         // Load projects from this portfolio + all other projects (for external load)
-        val portfolioProjectIds = portfolioRepo.listProjectIds(id).toSet()
-        val allProjectPairs = portfolioRepo.listAllProjectIds()
+        val allProjects = portfolioRepo.listAllProjects()
 
-        val projectInputs = allProjectPairs.map { (portfolioId, projectId) ->
+        val projectInputs = allProjects.map { project ->
+            val projectId = project.id.asString()
             val plan = taskRepo.projectPlan(projectId)
-            val planId = plan.id.asString()
-            val assignments = resourceRepo.listAssignments(planId)
-            val dayOverrides = resourceRepo.getAllDayOverridesForPlan(planId).groupBy { it.assignmentId }
+            val assignments = resourceRepo.listAssignments(projectId)
+            val dayOverrides = resourceRepo.getAllDayOverridesForPlan(projectId).groupBy { it.assignmentId }
             ProjectLoadInput(
                 projectId = projectId,
-                projectName = plan.name,
-                portfolioId = portfolioId,
-                priority = plan.priority,
+                projectName = project.name.asString(),
+                portfolioId = project.portfolioId.asString(),
+                priority = project.priority,
                 plan = plan,
                 assignments = assignments,
                 dayOverrides = dayOverrides,
@@ -208,4 +195,11 @@ private fun Portfolio.toDto() = PortfolioDto(
     id = id.value,
     name = name,
     description = description,
+)
+
+private fun Project.toSummaryDto(taskCount: Int) = ProjectSummaryDto(
+    id = id.asString(),
+    name = name.asString(),
+    priority = priority,
+    taskCount = taskCount,
 )

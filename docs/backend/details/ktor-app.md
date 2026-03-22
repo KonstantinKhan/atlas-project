@@ -724,15 +724,32 @@ post {
 get {
     val from = LocalDate.parse(call.request.queryParameters["from"]!!)
     val to = LocalDate.parse(call.request.queryParameters["to"]!!)
-    val plan = taskRepo.projectPlan()
-    val assignments = resourceRepo.listAssignments(plan.id.asString())
-    val resources = resourceRepo.listResources(plan.id.asString())
-    val calendar = calendarService.current()
+    val allProjects = portfolioRepo.listAllProjects()
+    
+    val projectInputs = allProjects.map { project ->
+        val projectId = project.id.asString()
+        val plan = taskRepo.projectPlan(projectId)
+        val assignments = resourceRepo.listAssignments(projectId)
+        val dayOverrides = resourceRepo.getAllDayOverridesForPlan(projectId)
+            .groupBy { it.assignmentId }
+        ProjectLoadInput(
+            projectId = projectId,
+            projectName = project.name.asString(),
+            portfolioId = project.portfolioId.asString(),
+            priority = project.priority,
+            plan = plan,
+            assignments = assignments,
+            dayOverrides = dayOverrides,
+        )
+    }
+    
     val calculator = ResourceLoadCalculator(...)
     val report = calculator.computeLoad(from, to)
     call.respond(report.toDto())
 }
 ```
+
+**Note:** Updated on 2026-03-22 to use `Project` objects from `portfolioRepo.listAllProjects()` instead of project ID pairs. Project metadata (name, portfolioId, priority) is now obtained from the `Project` domain object instead of `ProjectPlan`.
 
 ---
 
@@ -741,6 +758,189 @@ get {
 **Purpose:** Get load details for a specific resource.
 
 **Response:** `ResourceLoadResultDto`
+
+---
+
+### Portfolios Route (`routes/Portfolios.kt`)
+
+#### GET /portfolios
+
+**Purpose:** List all portfolios.
+
+**Response:** `PortfolioListDto`
+
+**Handler:**
+```kotlin
+get {
+    val portfolios = portfolioRepo.listPortfolios()
+    call.respond(PortfolioListDto(portfolios = portfolios.map { it.toDto() }))
+}
+```
+
+---
+
+#### POST /portfolios
+
+**Purpose:** Create a new portfolio.
+
+**Request:** `CreatePortfolioRequest`
+
+```kotlin
+data class CreatePortfolioRequest(
+    val name: String,
+    val description: String?,
+)
+```
+
+**Response:** `PortfolioDto` (201 Created)
+
+---
+
+#### GET /portfolios/{id}
+
+**Purpose:** Get a specific portfolio by ID.
+
+**Response:** `PortfolioDto`
+
+**Error Responses:**
+- `404 Not Found` - Portfolio not found
+
+---
+
+#### GET /portfolios/{id}/projects
+
+**Purpose:** List all projects in a portfolio with task counts.
+
+**Response:** `ProjectSummaryListDto`
+
+**Handler:**
+```kotlin
+get("/{id}/projects") {
+    val id = call.parameters["id"]!!
+    portfolioRepo.getPortfolio(id)
+        ?: return@get call.respond(HttpStatusCode.NotFound)
+    val projects = portfolioRepo.listProjects(id)
+    val summaries = projects.map { project ->
+        val taskCount = taskRepo.countTasks(project.id.asString())
+        project.toSummaryDto(taskCount)
+    }
+    call.respond(ProjectSummaryListDto(projects = summaries))
+}
+```
+
+**Note:** Updated on 2026-03-22 to use `Project` objects from `portfolioRepo.listProjects()` instead of project IDs. Task count is obtained via `taskRepo.countTasks()`.
+
+---
+
+#### POST /portfolios/{id}/projects
+
+**Purpose:** Create a new project in a portfolio.
+
+**Request:** `CreateProjectRequest`
+
+```kotlin
+data class CreateProjectRequest(
+    val name: String,
+    val priority: Int,
+)
+```
+
+**Response:** `ProjectSummaryDto` (201 Created)
+
+**Handler:**
+```kotlin
+post("/{id}/projects") {
+    val id = call.parameters["id"]!!
+    portfolioRepo.getPortfolio(id)
+        ?: return@post call.respond(HttpStatusCode.NotFound)
+    val request = call.receive<CreateProjectRequest>()
+    val project = portfolioRepo.createProject(id, request.name, request.priority)
+    call.respond(HttpStatusCode.Created, project.toSummaryDto(taskCount = 0))
+}
+```
+
+**Note:** Updated on 2026-03-22 - `createProject()` now returns `Project` object instead of project ID string.
+
+---
+
+#### PATCH /portfolios/{id}/projects/reorder
+
+**Purpose:** Reorder projects within a portfolio.
+
+**Request:** `ReorderProjectsRequest`
+
+```kotlin
+data class ReorderProjectsRequest(
+    val orderedProjectIds: List<String>,
+)
+```
+
+**Response:** `204 No Content`
+
+---
+
+#### GET /portfolios/{id}/resource-load
+
+**Purpose:** Get resource load for a specific portfolio including external project load.
+
+**Query Parameters:**
+- `from` - Start date (ISO string)
+- `to` - End date (ISO string)
+
+**Response:** `OverloadReportDto`
+
+**Handler:**
+```kotlin
+get("/{id}/resource-load") {
+    val id = call.parameters["id"]!!
+    portfolioRepo.getPortfolio(id)
+        ?: return@get call.respond(HttpStatusCode.NotFound)
+
+    // Load projects from this portfolio + all other projects (for external load)
+    val allProjects = portfolioRepo.listAllProjects()
+
+    val projectInputs = allProjects.map { project ->
+        val projectId = project.id.asString()
+        val plan = taskRepo.projectPlan(projectId)
+        val assignments = resourceRepo.listAssignments(projectId)
+        val dayOverrides = resourceRepo.getAllDayOverridesForPlan(projectId)
+            .groupBy { it.assignmentId }
+        ProjectLoadInput(
+            projectId = projectId,
+            projectName = project.name.asString(),
+            portfolioId = project.portfolioId.asString(),
+            priority = project.priority,
+            plan = plan,
+            assignments = assignments,
+            dayOverrides = dayOverrides,
+        )
+    }
+
+    val calculator = ResourceLoadCalculator(...)
+    val report = calculator.computeLoad(from, to)
+    call.respond(report.toDto())
+}
+```
+
+**Note:** Updated on 2026-03-22 to use `Project` objects from `portfolioRepo.listAllProjects()` instead of project ID pairs.
+
+---
+
+### Helper Functions
+
+#### toSummaryDto(taskCount: Int): ProjectSummaryDto
+
+**Purpose:** Convert a `Project` to a `ProjectSummaryDto` with task count.
+
+**Implementation:**
+```kotlin
+private fun Project.toSummaryDto(taskCount: Int) = ProjectSummaryDto(
+    id = id.asString(),
+    name = name.asString(),
+    priority = priority,
+    taskCount = taskCount,
+)
+```
 
 ---
 

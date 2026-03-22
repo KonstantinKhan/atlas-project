@@ -27,18 +27,18 @@ fun Routing.resourceLoad(
 ) = route("/resource-load") {
 
     get {
-        val allProjectPairs = portfolioRepo.listAllProjectIds()
+        val allProjects = portfolioRepo.listAllProjects()
 
-        val projectInputs = allProjectPairs.map { (portfolioId, projectId) ->
+        val projectInputs = allProjects.map { project ->
+            val projectId = project.id.asString()
             val plan = taskRepo.projectPlan(projectId)
-            val planId = plan.id.asString()
-            val assignments = resourceRepo.listAssignments(planId)
-            val dayOverrides = resourceRepo.getAllDayOverridesForPlan(planId).groupBy { it.assignmentId }
+            val assignments = resourceRepo.listAssignments(projectId)
+            val dayOverrides = resourceRepo.getAllDayOverridesForPlan(projectId).groupBy { it.assignmentId }
             ProjectLoadInput(
                 projectId = projectId,
-                projectName = plan.name,
-                portfolioId = portfolioId,
-                priority = plan.priority,
+                projectName = project.name.asString(),
+                portfolioId = project.portfolioId.asString(),
+                priority = project.priority,
                 plan = plan,
                 assignments = assignments,
                 dayOverrides = dayOverrides,

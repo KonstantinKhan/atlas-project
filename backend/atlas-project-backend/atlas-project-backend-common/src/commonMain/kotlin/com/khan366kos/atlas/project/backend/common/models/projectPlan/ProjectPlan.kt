@@ -3,7 +3,6 @@ package com.khan366kos.atlas.project.backend.common.models.projectPlan
 import com.khan366kos.atlas.project.backend.common.enums.DependencyType
 import com.khan366kos.atlas.project.backend.common.models.ProjectDate
 import com.khan366kos.atlas.project.backend.common.models.TaskDependency
-import com.khan366kos.atlas.project.backend.common.models.portfolio.PortfolioId
 import com.khan366kos.atlas.project.backend.common.models.simple.Duration
 import com.khan366kos.atlas.project.backend.common.models.task.ProjectTask
 import com.khan366kos.atlas.project.backend.common.models.task.simple.TaskId
@@ -15,9 +14,6 @@ import kotlinx.datetime.LocalDate
 
 data class ProjectPlan(
     val id: ProjectPlanId = ProjectPlanId.NONE,
-    val name: String = "",
-    val portfolioId: PortfolioId = PortfolioId.NONE,
-    val priority: Int = 0,
     private val tasks: MutableMap<TaskId, ProjectTask> = mutableMapOf(),
     private val schedules: MutableMap<TaskScheduleId, TaskSchedule>,
     private val dependencies: MutableSet<TaskDependency> = mutableSetOf(),
@@ -241,9 +237,6 @@ data class ProjectPlan(
 
     fun snapshot(): ProjectPlan = ProjectPlan(
         id = id,
-        name = name,
-        portfolioId = portfolioId,
-        priority = priority,
         tasks = tasks.toMutableMap(),
         schedules = schedules.mapValues { (_, v) -> v.copy() }.toMutableMap(),
         dependencies = dependencies.toMutableSet(),

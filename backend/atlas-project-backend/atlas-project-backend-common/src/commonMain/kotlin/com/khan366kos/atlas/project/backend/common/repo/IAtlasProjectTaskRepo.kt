@@ -27,5 +27,7 @@ interface IAtlasProjectTaskRepo {
 
     suspend fun reorderTasks(orderedIds: List<String>)
 
+    suspend fun countTasks(planId: String): Int
+
     suspend fun saveBaseline(planId: String)
 }

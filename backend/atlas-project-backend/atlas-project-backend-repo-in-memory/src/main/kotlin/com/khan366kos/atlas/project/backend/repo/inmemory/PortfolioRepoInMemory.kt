@@ -2,6 +2,9 @@ package com.khan366kos.atlas.project.backend.repo.inmemory
 
 import com.khan366kos.atlas.project.backend.common.models.portfolio.Portfolio
 import com.khan366kos.atlas.project.backend.common.models.portfolio.PortfolioId
+import com.khan366kos.atlas.project.backend.common.project.Project
+import com.khan366kos.atlas.project.backend.common.project.ProjectId
+import com.khan366kos.atlas.project.backend.common.project.ProjectName
 import com.khan366kos.atlas.project.backend.common.repo.IPortfolioRepo
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -14,7 +17,14 @@ class PortfolioRepoInMemory : IPortfolioRepo {
         val portfolioId: String,
         val name: String,
         val priority: Int,
-    )
+    ) {
+        fun toProject(id: String) = Project(
+            id = ProjectId(id),
+            name = ProjectName(name),
+            portfolioId = PortfolioId(portfolioId),
+            priority = priority,
+        )
+    }
 
     override suspend fun listPortfolios(): List<Portfolio> =
         portfolios.values.toList()
@@ -40,16 +50,20 @@ class PortfolioRepoInMemory : IPortfolioRepo {
         return if (portfolios.remove(id) != null) 1 else 0
     }
 
-    override suspend fun listProjectIds(portfolioId: String): List<String> =
+    override suspend fun listProjects(portfolioId: String): List<Project> =
         projects.filter { it.value.portfolioId == portfolioId }
             .entries.sortedBy { it.value.priority }
-            .map { it.key }
+            .map { (id, entry) -> entry.toProject(id) }
+
+    override suspend fun getProject(id: String): Project? =
+        projects[id]?.toProject(id)
 
     @OptIn(ExperimentalUuidApi::class)
-    override suspend fun createProject(portfolioId: String, name: String, priority: Int): String {
+    override suspend fun createProject(portfolioId: String, name: String, priority: Int): Project {
         val newId = Uuid.random().toString()
-        projects[newId] = ProjectEntry(portfolioId = portfolioId, name = name, priority = priority)
-        return newId
+        val entry = ProjectEntry(portfolioId = portfolioId, name = name, priority = priority)
+        projects[newId] = entry
+        return entry.toProject(newId)
     }
 
     override suspend fun updateProject(projectId: String, name: String?, priority: Int?): Int {
@@ -64,8 +78,8 @@ class PortfolioRepoInMemory : IPortfolioRepo {
     override suspend fun deleteProject(projectId: String): Int =
         if (projects.remove(projectId) != null) 1 else 0
 
-    override suspend fun listAllProjectIds(): List<Pair<String, String>> =
-        projects.map { (projectId, entry) -> entry.portfolioId to projectId }
+    override suspend fun listAllProjects(): List<Project> =
+        projects.map { (id, entry) -> entry.toProject(id) }
 
     override suspend fun reorderProjects(portfolioId: String, orderedProjectIds: List<String>): Int {
         orderedProjectIds.forEachIndexed { index, id ->

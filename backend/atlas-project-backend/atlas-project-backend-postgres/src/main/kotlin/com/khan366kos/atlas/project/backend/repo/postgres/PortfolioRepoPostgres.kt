@@ -2,6 +2,9 @@ package com.khan366kos.atlas.project.backend.repo.postgres
 
 import com.khan366kos.atlas.project.backend.common.models.portfolio.Portfolio
 import com.khan366kos.atlas.project.backend.common.models.portfolio.PortfolioId
+import com.khan366kos.atlas.project.backend.common.project.Project
+import com.khan366kos.atlas.project.backend.common.project.ProjectId
+import com.khan366kos.atlas.project.backend.common.project.ProjectName
 import com.khan366kos.atlas.project.backend.common.repo.IPortfolioRepo
 import com.khan366kos.atlas.project.backend.repo.postgres.table.PortfoliosTable
 import com.khan366kos.atlas.project.backend.repo.postgres.table.ProjectPlansTable
@@ -55,15 +58,22 @@ class PortfolioRepoPostgres(private val database: Database) : IPortfolioRepo {
         PortfoliosTable.deleteWhere { PortfoliosTable.id eq UUID.fromString(id) }
     }
 
-    override suspend fun listProjectIds(portfolioId: String): List<String> = newSuspendedTransaction(db = database) {
+    override suspend fun listProjects(portfolioId: String): List<Project> = newSuspendedTransaction(db = database) {
         ProjectPlansTable.selectAll()
             .where { ProjectPlansTable.portfolioId eq UUID.fromString(portfolioId) }
             .orderBy(ProjectPlansTable.priority)
-            .map { it[ProjectPlansTable.id].toString() }
+            .map { it.toProject() }
+    }
+
+    override suspend fun getProject(id: String): Project? = newSuspendedTransaction(db = database) {
+        ProjectPlansTable.selectAll()
+            .where { ProjectPlansTable.id eq UUID.fromString(id) }
+            .singleOrNull()
+            ?.toProject()
     }
 
     @OptIn(ExperimentalUuidApi::class)
-    override suspend fun createProject(portfolioId: String, name: String, priority: Int): String =
+    override suspend fun createProject(portfolioId: String, name: String, priority: Int): Project =
         newSuspendedTransaction(db = database) {
             val newId = Uuid.random().toJavaUuid()
             ProjectPlansTable.insert {
@@ -72,7 +82,12 @@ class PortfolioRepoPostgres(private val database: Database) : IPortfolioRepo {
                 it[ProjectPlansTable.portfolioId] = UUID.fromString(portfolioId)
                 it[ProjectPlansTable.priority] = priority
             }
-            newId.toString()
+            Project(
+                id = ProjectId(newId.toString()),
+                name = ProjectName(name),
+                portfolioId = PortfolioId(portfolioId),
+                priority = priority,
+            )
         }
 
     override suspend fun updateProject(projectId: String, name: String?, priority: Int?): Int =
@@ -97,10 +112,16 @@ class PortfolioRepoPostgres(private val database: Database) : IPortfolioRepo {
             orderedProjectIds.size
         }
 
-    override suspend fun listAllProjectIds(): List<Pair<String, String>> = newSuspendedTransaction(db = database) {
-        ProjectPlansTable.selectAll()
-            .map { it[ProjectPlansTable.portfolioId].toString() to it[ProjectPlansTable.id].toString() }
+    override suspend fun listAllProjects(): List<Project> = newSuspendedTransaction(db = database) {
+        ProjectPlansTable.selectAll().map { it.toProject() }
     }
+
+    private fun ResultRow.toProject() = Project(
+        id = ProjectId(this[ProjectPlansTable.id].toString()),
+        name = ProjectName(this[ProjectPlansTable.name]),
+        portfolioId = PortfolioId(this[ProjectPlansTable.portfolioId].toString()),
+        priority = this[ProjectPlansTable.priority],
+    )
 
     private fun ResultRow.toPortfolio() = Portfolio(
         id = PortfolioId(this[PortfoliosTable.id].toString()),
