@@ -1,7 +1,7 @@
 # Backend Ktor Application Module
 
-**Path:** `/backend/atlas-project-backend/atlas-project-backend-ktor-app`  
-**Last Updated:** 2026-03-09
+**Path:** `/backend/atlas-project-backend/atlas-project-backend-ktor-app`
+**Last Updated:** 2026-03-22
 
 ## Overview
 
@@ -24,8 +24,16 @@ src/main/kotlin/
 │   ├── plugins/
 │   │   └── Routing.kt                 # Route configuration
 │   └── routes/
+│       ├── Analysis.kt                # What-if, blocker chain analysis
+│       ├── Assignments.kt             # Task-resource assignments
+│       ├── Baselines.kt               # Project baselines
 │       ├── CriticalPath.kt            # CPM endpoint
-│       └── ProjectPlan.kt             # Project plan endpoints
+│       ├── Leveling.kt                # Resource leveling
+│       ├── Portfolios.kt              # Portfolio management
+│       ├── ProjectPlan.kt             # Project plan endpoints
+│       ├── ReorderTasks.kt            # Task reordering
+│       ├── ResourceLoad.kt            # Resource load calculation
+│       └── Resources.kt               # Resource management
 ├── config/
 │   └── AppConfig.kt                   # Application configuration
 ├── Databases.kt                       # Database setup
@@ -280,12 +288,131 @@ route("/timeline-calendar") {
         val calendar = repo.getTimelineCalendar()
         call.respond(calendar.toDto())
     }
-    
+
     put {
         val calendar = call.receive<TimelineCalendarDto>()
         val updated = repo.updateTimelineCalendar(calendar.toDomain())
         call.respond(updated.toDto())
     }
+}
+```
+
+## New Routes (Stage 2 - Resource & Portfolio Management)
+
+### Portfolio Routes (routes/Portfolios.kt)
+
+```kotlin
+fun Routing.portfolios(
+    portfolioRepo: IPortfolioRepo,
+    taskRepo: IAtlasProjectTaskRepo,
+    resourceRepo: IResourceRepo,
+    calendarService: CacheCalendarProvider,
+) = route("/portfolios") {
+    get { /* List all portfolios */ }
+    post { /* Create portfolio */ }
+    get("/{id}") { /* Get portfolio */ }
+    patch("/{id}") { /* Update portfolio */ }
+    delete("/{id}") { /* Delete portfolio */ }
+    
+    get("/{id}/projects") { /* List portfolio projects */ }
+    post("/{id}/projects") { /* Create project in portfolio */ }
+    patch("/{id}/projects/reorder") { /* Reorder projects */ }
+    get("/{id}/resource-load") { /* Cross-project resource load */ }
+}
+```
+
+### Resource Routes (routes/Resources.kt)
+
+```kotlin
+fun Routing.resources(resourceRepo: IResourceRepo) = route("/resources") {
+    get { /* List resources */ }
+    post { /* Create resource */ }
+    patch("/{id}") { /* Update resource */ }
+    delete("/{id}") { /* Delete resource */ }
+    
+    get("/{id}/calendar-overrides") { /* Get calendar overrides */ }
+    post("/{id}/calendar-overrides") { /* Add calendar override */ }
+    delete("/{id}/calendar-overrides/{date}") { /* Remove override */ }
+}
+```
+
+### Assignment Routes (routes/Assignments.kt)
+
+```kotlin
+fun Route.assignments(
+    taskRepo: IAtlasProjectTaskRepo,
+    resourceRepo: IResourceRepo,
+    calendarService: CacheCalendarProvider,
+) {
+    route("/assignments") {
+        get { /* List assignments */ }
+        post { /* Create assignment */ }
+        patch("/{id}") { /* Update assignment */ }
+        delete("/{id}") { /* Delete assignment */ }
+        
+        get("/{id}/day-overrides") { /* Get day overrides */ }
+        post("/{id}/day-overrides") { /* Set day override */ }
+        delete("/{id}/day-overrides/{date}") { /* Remove override */ }
+    }
+    
+    route("/resource-load") {
+        get { /* Calculate resource load */ }
+        get("/{resourceId}") { /* Get specific resource load */ }
+    }
+}
+```
+
+### Analysis Routes (routes/Analysis.kt)
+
+```kotlin
+fun Route.analysis(
+    repo: IAtlasProjectTaskRepo,
+    calendarService: CacheCalendarProvider,
+) = route("/analysis") {
+    get("/blocker-chain/{taskId}") { /* Get blocker chain */ }
+    get("/available-tasks") { /* Get available tasks */ }
+    get("/what-if") { /* What-if start analysis */ }
+    get("/what-if-end") { /* What-if end analysis */ }
+}
+```
+
+### Resource Leveling Routes (routes/Leveling.kt)
+
+```kotlin
+fun Route.leveling(
+    taskRepo: IAtlasProjectTaskRepo,
+    resourceRepo: IResourceRepo,
+    calendarService: CacheCalendarProvider,
+) {
+    route("/leveling") {
+        post("/preview") { /* Preview leveling */ }
+        post("/apply") { /* Apply leveling */ }
+    }
+}
+```
+
+### Baselines Routes (routes/Baselines.kt)
+
+```kotlin
+fun Route.baselines(repo: IAtlasProjectTaskRepo) {
+    route("/baselines") {
+        get { /* List baselines */ }
+        post { /* Create baseline */ }
+        get("/{id}") { /* Get baseline */ }
+        delete("/{id}") { /* Delete baseline */ }
+    }
+}
+```
+
+### Reorder Tasks Routes (routes/ReorderTasks.kt)
+
+```kotlin
+fun Route.reorderTasks(
+    taskRepo: IAtlasProjectTaskRepo,
+    resourceRepo: IResourceRepo,
+    calendarService: CacheCalendarProvider,
+) = route("/reorder") {
+    patch { /* Reorder tasks */ }
 }
 ```
 

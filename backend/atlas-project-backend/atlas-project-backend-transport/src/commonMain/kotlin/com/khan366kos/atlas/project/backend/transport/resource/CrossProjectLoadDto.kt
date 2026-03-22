@@ -1,5 +1,6 @@
 package com.khan366kos.atlas.project.backend.transport.resource
 
+import com.khan366kos.atlas.project.backend.transport.enums.ProjectPriorityDto
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -31,7 +32,7 @@ data class CrossProjectResourceLoadDto(
 data class ProjectInfoDto(
     val id: String,
     val name: String,
-    val priority: Int,
+    val priority: ProjectPriorityDto,
     val portfolioId: String,
 )
 

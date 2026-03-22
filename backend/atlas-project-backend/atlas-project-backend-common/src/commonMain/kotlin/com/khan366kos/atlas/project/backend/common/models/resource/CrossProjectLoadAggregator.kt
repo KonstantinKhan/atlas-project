@@ -2,6 +2,7 @@ package com.khan366kos.atlas.project.backend.common.models.resource
 
 import com.khan366kos.atlas.project.backend.common.models.projectPlan.ProjectPlan
 import com.khan366kos.atlas.project.backend.common.models.timelineCalendar.TimelineCalendar
+import com.khan366kos.atlas.project.backend.common.project.ProjectPriority
 import kotlinx.datetime.LocalDate
 
 data class ProjectContribution(
@@ -31,7 +32,7 @@ data class CrossProjectResourceLoad(
 data class ProjectInfo(
     val id: String,
     val name: String,
-    val priority: Int,
+    val priority: ProjectPriority,
     val portfolioId: String,
 )
 
@@ -46,7 +47,7 @@ data class ProjectLoadInput(
     val projectId: String,
     val projectName: String,
     val portfolioId: String,
-    val priority: Int,
+    val priority: ProjectPriority,
     val plan: ProjectPlan,
     val assignments: List<TaskAssignment>,
     val dayOverrides: Map<AssignmentId, List<AssignmentDayOverride>>,

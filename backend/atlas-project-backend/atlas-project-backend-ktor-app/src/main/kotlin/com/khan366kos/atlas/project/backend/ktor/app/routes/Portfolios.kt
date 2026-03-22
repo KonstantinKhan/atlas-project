@@ -5,10 +5,12 @@ import com.khan366kos.atlas.project.backend.common.models.portfolio.Portfolio
 import com.khan366kos.atlas.project.backend.common.models.resource.CrossProjectLoadAggregator
 import com.khan366kos.atlas.project.backend.common.models.resource.ProjectLoadInput
 import com.khan366kos.atlas.project.backend.common.project.Project
+import com.khan366kos.atlas.project.backend.common.project.ProjectPriority
 import com.khan366kos.atlas.project.backend.common.repo.IAtlasProjectTaskRepo
 import com.khan366kos.atlas.project.backend.common.repo.IPortfolioRepo
 import com.khan366kos.atlas.project.backend.common.repo.IResourceRepo
 import com.khan366kos.atlas.project.backend.mappers.toDto
+import com.khan366kos.atlas.project.backend.transport.enums.ProjectPriorityDto
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
@@ -48,7 +50,7 @@ data class UpdatePortfolioRequest(
 data class ProjectSummaryDto(
     val id: String,
     val name: String,
-    val priority: Int,
+    val priority: ProjectPriorityDto,
     val taskCount: Int,
 )
 
@@ -60,18 +62,18 @@ data class ProjectSummaryListDto(
 @Serializable
 data class CreateProjectRequest(
     val name: String,
-    val priority: Int = 0,
+    val priority: ProjectPriorityDto = ProjectPriorityDto.MEDIUM,
 )
 
 @Serializable
 data class ReorderProjectsRequest(
-    val projectPriorities: List<ProjectPriorityEntry>,
+    val projectSortOrders: List<ProjectSortOrderEntry>,
 )
 
 @Serializable
-data class ProjectPriorityEntry(
+data class ProjectSortOrderEntry(
     val projectId: String,
-    val priority: Int,
+    val sortOrder: Int,
 )
 
 fun Routing.portfolios(
@@ -138,7 +140,7 @@ fun Routing.portfolios(
         portfolioRepo.getPortfolio(id)
             ?: return@post call.respond(HttpStatusCode.NotFound)
         val request = call.receive<CreateProjectRequest>()
-        val project = portfolioRepo.createProject(id, request.name, request.priority)
+        val project = portfolioRepo.createProject(id, request.name, request.priority.toDomain())
         call.respond(HttpStatusCode.Created, project.toSummaryDto(taskCount = 0))
     }
 
@@ -147,9 +149,8 @@ fun Routing.portfolios(
         portfolioRepo.getPortfolio(id)
             ?: return@patch call.respond(HttpStatusCode.NotFound)
         val request = call.receive<ReorderProjectsRequest>()
-        for (entry in request.projectPriorities) {
-            portfolioRepo.updateProject(entry.projectId, name = null, priority = entry.priority)
-        }
+        val orderedProjectIds = request.projectSortOrders.sortedBy { it.sortOrder }.map { it.projectId }
+        portfolioRepo.reorderProjects(id, orderedProjectIds)
         call.respond(HttpStatusCode.OK)
     }
 
@@ -200,6 +201,9 @@ private fun Portfolio.toDto() = PortfolioDto(
 private fun Project.toSummaryDto(taskCount: Int) = ProjectSummaryDto(
     id = id.asString(),
     name = name.asString(),
-    priority = priority,
+    priority = priority.toDto(),
     taskCount = taskCount,
 )
+
+private fun ProjectPriorityDto.toDomain() = ProjectPriority.valueOf(this.name)
+private fun ProjectPriority.toDto() = ProjectPriorityDto.valueOf(this.name)

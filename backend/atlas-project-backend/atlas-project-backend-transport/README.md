@@ -1,7 +1,7 @@
 # Backend Transport Module
 
-**Path:** `/backend/atlas-project-backend/atlas-project-backend-transport`  
-**Last Updated:** 2026-03-09
+**Path:** `/backend/atlas-project-backend/atlas-project-backend-transport`
+**Last Updated:** 2026-03-22
 
 ## Overview
 
@@ -36,7 +36,9 @@ src/commonMain/kotlin/com/khan366kos/atlas/project/backend/transport/
 │   └── PlanFromEndCommandDto.kt
 ├── enums/
 │   ├── DependencyTypeDto.kt
-│   └── ProjectTaskStatus.kt
+│   ├── ProjectTaskStatus.kt
+│   ├── ProjectPriorityDto.kt
+│   └── ResourceTypeDto.kt
 ├── plan/
 │   ├── GantPlanDto.kt
 │   └── ProjectPlanDto.kt
@@ -46,8 +48,31 @@ src/commonMain/kotlin/com/khan366kos/atlas/project/backend/transport/
 │   ├── ActualCalendarDuration.kt
 │   ├── PlannedCalendarDuration.kt
 │   └── ProjectTaskDescription.kt
-└── cpm/
-    └── CriticalPathDto.kt
+├── cpm/
+│   └── CriticalPathDto.kt
+├── analysis/                          # New (Stage 2)
+│   ├── AvailableTasksDto.kt
+│   ├── BlockerChainDto.kt
+│   └── WhatIfDto.kt
+├── resource/                          # New (Stage 2)
+│   ├── ResourceDto.kt
+│   ├── ResourceListDto.kt
+│   ├── CreateResourceCommandDto.kt
+│   ├── UpdateResourceCommandDto.kt
+│   ├── ResourceCalendarOverrideDto.kt
+│   ├── AssignmentDto.kt
+│   ├── AssignmentListDto.kt
+│   ├── CreateAssignmentCommandDto.kt
+│   ├── UpdateAssignmentCommandDto.kt
+│   ├── AssignmentDayOverrideDto.kt
+│   ├── LevelingResultDto.kt
+│   └── CrossProjectLoadDto.kt
+└── portfolio/                         # New (Stage 2)
+    ├── PortfolioDto.kt
+    ├── PortfolioListDto.kt
+    ├── CreatePortfolioRequest.kt
+    ├── ProjectSummaryDto.kt
+    └── CreateProjectRequest.kt
 
 src/jvmMain/kotlin/
 └── com/khan366kos/atlas/project/backend/transport/
@@ -246,6 +271,331 @@ enum class ProjectTaskStatus {
     COMPLETED
 }
 ```
+
+### ProjectPriorityDto (New)
+
+```kotlin
+@Serializable
+enum class ProjectPriorityDto {
+    LOW,
+    MEDIUM,
+    HIGH,
+    CRITICAL
+}
+```
+
+### ResourceTypeDto (New)
+
+```kotlin
+@Serializable
+enum class ResourceTypeDto {
+    PERSON,
+    EQUIPMENT,
+    MATERIAL
+}
+```
+
+## New DTOs (Stage 2 - Resource & Portfolio Management)
+
+### Resource DTOs
+
+#### ResourceDto
+
+```kotlin
+@Serializable
+data class ResourceDto(
+    val id: String,
+    val name: String,
+    val type: String,  // PERSON, EQUIPMENT, MATERIAL
+    val capacityHoursPerDay: Double,
+    val sortOrder: Int
+)
+```
+
+**Endpoint**: `GET /resources`, `POST /resources`, `PATCH /resources/{id}`
+
+#### ResourceListDto
+
+```kotlin
+@Serializable
+data class ResourceListDto(
+    val resources: List<ResourceDto>
+)
+```
+
+**Endpoint**: `GET /resources`
+
+#### CreateResourceCommandDto
+
+```kotlin
+@Serializable
+data class CreateResourceCommandDto(
+    val name: String,
+    val type: String,
+    val capacityHoursPerDay: Double
+)
+```
+
+**Endpoint**: `POST /resources`
+
+#### UpdateResourceCommandDto
+
+```kotlin
+@Serializable
+data class UpdateResourceCommandDto(
+    val name: String?,
+    val type: String?,
+    val capacityHoursPerDay: Double?
+)
+```
+
+**Endpoint**: `PATCH /resources/{id}`
+
+#### ResourceCalendarOverrideDto
+
+```kotlin
+@Serializable
+data class ResourceCalendarOverrideDto(
+    val date: String,
+    val availableHours: Double
+)
+```
+
+**Endpoint**: `POST /resources/{id}/calendar-overrides`
+
+### Assignment DTOs
+
+#### AssignmentDto
+
+```kotlin
+@Serializable
+data class AssignmentDto(
+    val id: String,
+    val taskId: String,
+    val resourceId: String,
+    val hoursPerDay: Double,
+    val plannedEffortHours: Double
+)
+```
+
+**Endpoint**: `GET /projects/{id}/assignments`, `POST /projects/{id}/assignments`
+
+#### AssignmentListDto
+
+```kotlin
+@Serializable
+data class TaskAssignmentListDto(
+    val assignments: List<AssignmentDto>
+)
+```
+
+**Endpoint**: `GET /projects/{id}/assignments`
+
+#### CreateAssignmentCommandDto
+
+```kotlin
+@Serializable
+data class CreateAssignmentCommandDto(
+    val taskId: String,
+    val resourceId: String,
+    val hoursPerDay: Double,
+    val plannedEffortHours: Double
+)
+```
+
+**Endpoint**: `POST /projects/{id}/assignments`
+
+#### UpdateAssignmentCommandDto
+
+```kotlin
+@Serializable
+data class UpdateAssignmentCommandDto(
+    val hoursPerDay: Double?,
+    val plannedEffortHours: Double?
+)
+```
+
+**Endpoint**: `PATCH /projects/{id}/assignments/{id}`
+
+#### AssignmentDayOverrideDto
+
+```kotlin
+@Serializable
+data class AssignmentDayOverrideDto(
+    val date: String,
+    val hours: Double
+)
+```
+
+**Endpoint**: `POST /projects/{id}/assignments/{id}/day-overrides`
+
+### Resource Leveling DTOs
+
+#### LevelingResultDto
+
+```kotlin
+@Serializable
+data class LevelingResultDto(
+    val scheduleDelta: ScheduleDeltaDto,
+    val overallocations: List<OverallocationDto>
+)
+
+@Serializable
+data class OverallocationDto(
+    val resourceId: String,
+    val date: String,
+    val allocatedHours: Double,
+    val capacityHours: Double
+)
+```
+
+**Endpoint**: `POST /projects/{id}/leveling/preview`, `POST /projects/{id}/leveling/apply`
+
+#### CrossProjectLoadDto
+
+```kotlin
+@Serializable
+data class CrossProjectLoadDto(
+    val from: String,
+    val to: String,
+    val resourceLoads: List<ResourceLoadEntryDto>
+)
+
+@Serializable
+data class ResourceLoadEntryDto(
+    val resourceId: String,
+    val resourceName: String,
+    val dailyLoads: List<DailyLoadDto>
+)
+
+@Serializable
+data class DailyLoadDto(
+    val date: String,
+    val allocatedHours: Double,
+    val capacityHours: Double,
+    val overallocated: Boolean
+)
+```
+
+**Endpoint**: `GET /portfolios/{id}/resource-load`
+
+### Portfolio DTOs
+
+#### PortfolioDto
+
+```kotlin
+@Serializable
+data class PortfolioDto(
+    val id: String,
+    val name: String,
+    val description: String
+)
+```
+
+**Endpoint**: `GET /portfolios`, `POST /portfolios`, `GET /portfolios/{id}`
+
+#### PortfolioListDto
+
+```kotlin
+@Serializable
+data class PortfolioListDto(
+    val portfolios: List<PortfolioDto>
+)
+```
+
+**Endpoint**: `GET /portfolios`
+
+#### CreatePortfolioRequest
+
+```kotlin
+@Serializable
+data class CreatePortfolioRequest(
+    val name: String,
+    val description: String = ""
+)
+```
+
+**Endpoint**: `POST /portfolios`
+
+#### ProjectSummaryDto
+
+```kotlin
+@Serializable
+data class ProjectSummaryDto(
+    val id: String,
+    val name: String,
+    val priority: ProjectPriorityDto,
+    val taskCount: Int
+)
+```
+
+**Endpoint**: `GET /portfolios/{id}/projects`
+
+#### CreateProjectRequest
+
+```kotlin
+@Serializable
+data class CreateProjectRequest(
+    val name: String,
+    val priority: ProjectPriorityDto = ProjectPriorityDto.MEDIUM
+)
+```
+
+**Endpoint**: `POST /portfolios/{id}/projects`
+
+### Analysis DTOs
+
+#### BlockerChainDto
+
+```kotlin
+@Serializable
+data class BlockerChainDto(
+    val taskId: String,
+    val blockers: List<String>,
+    val chainLength: Int
+)
+```
+
+**Endpoint**: `GET /projects/{id}/analysis/blocker-chain/{taskId}`
+
+#### AvailableTasksDto
+
+```kotlin
+@Serializable
+data class AvailableTasksDto(
+    val availableTasks: List<AvailableTaskEntryDto>
+)
+
+@Serializable
+data class AvailableTaskEntryDto(
+    val taskId: String,
+    val title: String,
+    val canStart: Boolean
+)
+```
+
+**Endpoint**: `GET /projects/{id}/analysis/available-tasks`
+
+#### WhatIfDto
+
+```kotlin
+@Serializable
+data class WhatIfDto(
+    val taskId: String,
+    val newStart: String,
+    val impactedTasks: List<ImpactedTaskDto>
+)
+
+@Serializable
+data class ImpactedTaskDto(
+    val taskId: String,
+    val originalStart: String,
+    val newStart: String,
+    val delta: Int
+)
+```
+
+**Endpoint**: `GET /projects/{id}/analysis/what-if`
 
 ## TypeScript Generation
 

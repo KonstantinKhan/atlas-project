@@ -1,7 +1,7 @@
 # Atlas Project Backend
 
-**Path:** `/backend/atlas-project-backend`  
-**Last Updated:** 2026-03-09
+**Path:** `/backend/atlas-project-backend`
+**Last Updated:** 2026-03-22
 
 ## Overview
 
@@ -15,6 +15,9 @@ The backend follows a **clean architecture** pattern with clear separation of co
 ┌─────────────────────────────────────────────────────────┐
 │                    Ktor Application                      │
 │              (atlas-project-backend-ktor-app)            │
+├─────────────────────────────────────────────────────────┤
+│                   Project Service Layer                  │
+│          (atlas-project-backend-project-service)         │
 ├─────────────────────────────────────────────────────────┤
 │                     Transport Layer                      │
 │            (atlas-project-backend-transport)             │
@@ -33,6 +36,10 @@ The backend follows a **clean architecture** pattern with clear separation of co
 │                      Common Layer                        │
 │            (atlas-project-backend-common)                │
 │   Domain Models │ Enums │ Repository Interfaces          │
+│   - Tasks, Schedules, Dependencies                       │
+│   - Projects, Portfolios                                 │
+│   - Resources, Assignments                               │
+│   - Project Plan, CPM Analysis                           │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -47,6 +54,7 @@ The backend follows a **clean architecture** pattern with clear separation of co
 | **postgres** | PostgreSQL repository implementation | Exposed, PostgreSQL JDBC |
 | **repo-in-memory** | In-memory repository for testing | Exposed, H2 |
 | **common** | Domain models, enums, repository interfaces | Kotlin Multiplatform |
+| **project-service** | Project orchestration, portfolio management | Kotlin |
 
 ## Tech Stack
 
@@ -231,6 +239,82 @@ ktor {
 | GET | `/timeline-calendar` | Get calendar config |
 | PUT | `/timeline-calendar` | Update calendar |
 
+### Portfolios (New)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/portfolios` | List all portfolios |
+| POST | `/portfolios` | Create portfolio |
+| GET | `/portfolios/{id}` | Get portfolio details |
+| PATCH | `/portfolios/{id}` | Update portfolio |
+| DELETE | `/portfolios/{id}` | Delete portfolio |
+| GET | `/portfolios/{id}/projects` | List portfolio projects |
+| POST | `/portfolios/{id}/projects` | Create project in portfolio |
+| PATCH | `/portfolios/{id}/projects/reorder` | Reorder projects |
+| GET | `/portfolios/{id}/resource-load` | Cross-project resource load |
+
+### Resources (New)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/resources` | List all resources |
+| POST | `/resources` | Create resource |
+| PATCH | `/resources/{id}` | Update resource |
+| DELETE | `/resources/{id}` | Delete resource |
+| GET | `/resources/{id}/calendar-overrides` | Get calendar overrides |
+| POST | `/resources/{id}/calendar-overrides` | Add calendar override |
+| DELETE | `/resources/{id}/calendar-overrides/{date}` | Remove calendar override |
+
+### Assignments (New)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/projects/{id}/assignments` | List task assignments |
+| POST | `/projects/{id}/assignments` | Create assignment |
+| PATCH | `/projects/{id}/assignments/{id}` | Update assignment |
+| DELETE | `/projects/{id}/assignments/{id}` | Delete assignment |
+| GET | `/projects/{id}/assignments/{id}/day-overrides` | Get day overrides |
+| POST | `/projects/{id}/assignments/{id}/day-overrides` | Set day override |
+| DELETE | `/projects/{id}/assignments/{id}/day-overrides/{date}` | Remove day override |
+
+### Resource Load (New)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/projects/{id}/resource-load` | Calculate resource load |
+| GET | `/projects/{id}/resource-load/{resourceId}` | Get specific resource load |
+
+### Resource Leveling (New)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/projects/{id}/leveling/preview` | Preview leveling result |
+| POST | `/projects/{id}/leveling/apply` | Apply leveling changes |
+
+### Analysis (New)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/projects/{id}/analysis/blocker-chain/{taskId}` | Get blocker chain for task |
+| GET | `/projects/{id}/analysis/available-tasks` | Get tasks available to start |
+| GET | `/projects/{id}/analysis/what-if?taskId=&newStart=` | What-if start date analysis |
+| GET | `/projects/{id}/analysis/what-if-end?taskId=&newEnd=` | What-if end date analysis |
+
+### Baselines (New)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/projects/{id}/baselines` | List project baselines |
+| POST | `/projects/{id}/baselines` | Create baseline |
+| GET | `/projects/{id}/baselines/{id}` | Get baseline details |
+| DELETE | `/projects/{id}/baselines/{id}` | Delete baseline |
+
+### Reorder Tasks (New)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| PATCH | `/projects/{id}/reorder` | Reorder tasks within project |
+
 ## Domain Models
 
 ### Core Models (common module)
@@ -268,6 +352,54 @@ data class TimelineCalendar(
     val holidays: List<Holiday>,
     val workingWeekends: List<LocalDate>
 )
+
+// Portfolio (New)
+data class Portfolio(
+    val id: PortfolioId,
+    val name: String,
+    val description: String
+)
+
+// Project (New)
+data class Project(
+    val id: ProjectId,
+    val name: ProjectName,
+    val priority: ProjectPriority,
+    val portfolioId: PortfolioId,
+    val sortOrder: Int
+)
+
+// Resource (New)
+data class Resource(
+    val id: ResourceId,
+    val name: ResourceName,
+    val type: ResourceType,  // PERSON, EQUIPMENT, MATERIAL
+    val capacityHoursPerDay: Double,
+    val sortOrder: Int
+)
+
+// Task Assignment (New)
+data class TaskAssignment(
+    val id: AssignmentId,
+    val taskId: TaskId,
+    val resourceId: ResourceId,
+    val hoursPerDay: Double,
+    val plannedEffortHours: Double
+)
+
+// Resource Calendar Override (New)
+data class ResourceCalendarOverride(
+    val resourceId: ResourceId,
+    val date: LocalDate,
+    val availableHours: Double
+)
+
+// Assignment Day Override (New)
+data class AssignmentDayOverride(
+    val assignmentId: AssignmentId,
+    val date: LocalDate,
+    val hours: Double
+)
 ```
 
 ### Enums
@@ -285,6 +417,19 @@ enum class ProjectTaskStatus {
     PLANNED,
     IN_PROGRESS,
     COMPLETED
+}
+
+enum class ResourceType {
+    PERSON,
+    EQUIPMENT,
+    MATERIAL
+}
+
+enum class ProjectPriority {
+    LOW,
+    MEDIUM,
+    HIGH,
+    CRITICAL
 }
 ```
 
@@ -347,6 +492,7 @@ Generated TypeScript types are placed in:
 
 Tables managed by Exposed ORM:
 
+### Core Tables
 - `project_plans` - Project plan metadata
 - `project_tasks` - Task definitions
 - `task_schedules` - Task scheduling
@@ -354,6 +500,21 @@ Tables managed by Exposed ORM:
 - `timeline_calendars` - Calendar definitions
 - `timeline_calendar_holidays` - Calendar holidays
 - `timeline_calendar_working_weekends` - Working weekends
+
+### Portfolio & Project Tables (New)
+- `portfolios` - Portfolio definitions
+- `projects` - Project entities with priority and sort order
+
+### Resource Management Tables (New)
+- `resources` - Resource definitions (person, equipment, material)
+- `task_assignments` - Resource-to-task assignments
+- `resource_calendar_overrides` - Resource availability overrides
+- `assignment_day_overrides` - Daily assignment hour overrides
+
+### Baseline Tables (New)
+- `baselines` - Project baseline snapshots
+- `baseline_tasks` - Baseline task snapshots
+- `baseline_schedules` - Baseline schedule snapshots
 
 Migrations managed by Flyway in `src/main/resources/db/migration/`.
 

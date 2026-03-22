@@ -5,6 +5,7 @@ import com.khan366kos.atlas.project.backend.common.models.portfolio.PortfolioId
 import com.khan366kos.atlas.project.backend.common.project.Project
 import com.khan366kos.atlas.project.backend.common.project.ProjectId
 import com.khan366kos.atlas.project.backend.common.project.ProjectName
+import com.khan366kos.atlas.project.backend.common.project.ProjectPriority
 import com.khan366kos.atlas.project.backend.common.repo.IPortfolioRepo
 import com.khan366kos.atlas.project.backend.repo.postgres.table.PortfoliosTable
 import com.khan366kos.atlas.project.backend.repo.postgres.table.ProjectPlansTable
@@ -62,7 +63,7 @@ class PortfolioRepoPostgres(private val database: Database) : IPortfolioRepo {
     override suspend fun listProjects(portfolioId: String): List<Project> = newSuspendedTransaction(db = database) {
         ProjectsTable.selectAll()
             .where { ProjectsTable.portfolioId eq UUID.fromString(portfolioId) }
-            .orderBy(ProjectsTable.priority)
+            .orderBy(ProjectsTable.sortOrder)
             .map { it.toProject() }
     }
 
@@ -74,14 +75,15 @@ class PortfolioRepoPostgres(private val database: Database) : IPortfolioRepo {
     }
 
     @OptIn(ExperimentalUuidApi::class)
-    override suspend fun createProject(portfolioId: String, name: String, priority: Int): Project =
+    override suspend fun createProject(portfolioId: String, name: String, priority: ProjectPriority): Project =
         newSuspendedTransaction(db = database) {
             val newId = Uuid.random().toJavaUuid()
             ProjectsTable.insert {
                 it[id] = newId
                 it[ProjectsTable.name] = name
                 it[ProjectsTable.portfolioId] = UUID.fromString(portfolioId)
-                it[ProjectsTable.priority] = priority
+                it[ProjectsTable.priority] = priority.ordinal
+                it[ProjectsTable.sortOrder] = 0
             }
             ProjectPlansTable.insert {
                 it[id] = newId
@@ -92,14 +94,15 @@ class PortfolioRepoPostgres(private val database: Database) : IPortfolioRepo {
                 name = ProjectName(name),
                 portfolioId = PortfolioId(portfolioId),
                 priority = priority,
+                sortOrder = 0,
             )
         }
 
-    override suspend fun updateProject(projectId: String, name: String?, priority: Int?): Int =
+    override suspend fun updateProject(projectId: String, name: String?, priority: ProjectPriority?): Int =
         newSuspendedTransaction(db = database) {
             ProjectsTable.update({ ProjectsTable.id eq UUID.fromString(projectId) }) {
                 if (name != null) it[ProjectsTable.name] = name
-                if (priority != null) it[ProjectsTable.priority] = priority
+                if (priority != null) it[ProjectsTable.priority] = priority.ordinal
             }
         }
 
@@ -111,7 +114,7 @@ class PortfolioRepoPostgres(private val database: Database) : IPortfolioRepo {
         newSuspendedTransaction(db = database) {
             orderedProjectIds.forEachIndexed { index, id ->
                 ProjectsTable.update({ ProjectsTable.id eq UUID.fromString(id) }) {
-                    it[priority] = index
+                    it[sortOrder] = index
                 }
             }
             orderedProjectIds.size
@@ -125,7 +128,8 @@ class PortfolioRepoPostgres(private val database: Database) : IPortfolioRepo {
         id = ProjectId(this[ProjectsTable.id].toString()),
         name = ProjectName(this[ProjectsTable.name]),
         portfolioId = PortfolioId(this[ProjectsTable.portfolioId].toString()),
-        priority = this[ProjectsTable.priority],
+        priority = ProjectPriority.entries.getOrElse(this[ProjectsTable.priority]) { ProjectPriority.MEDIUM },
+        sortOrder = this[ProjectsTable.sortOrder],
     )
 
     private fun ResultRow.toPortfolio() = Portfolio(

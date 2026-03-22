@@ -7,6 +7,7 @@ object ProjectsTable : Table("projects") {
     val name = varchar("name", 255)
     val portfolioId = uuid("portfolio_id")
     val priority = integer("priority")
+    val sortOrder = integer("sort_order")
 
     override val primaryKey = PrimaryKey(id)
 }

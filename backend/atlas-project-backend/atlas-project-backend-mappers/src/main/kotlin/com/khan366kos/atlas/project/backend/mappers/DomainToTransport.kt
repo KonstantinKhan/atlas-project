@@ -270,7 +270,7 @@ fun CrossProjectResourceLoad.toDto() = CrossProjectResourceLoadDto(
 fun ProjectInfo.toDto() = ProjectInfoDto(
     id = id,
     name = name,
-    priority = priority,
+    priority = priority.toDto(),
     portfolioId = portfolioId,
 )
 
@@ -279,3 +279,6 @@ fun CrossProjectOverloadReport.toDto() = CrossProjectOverloadReportDto(
     projects = projects.map { it.toDto() },
     totalOverloadedDays = totalOverloadedDays,
 )
+
+fun com.khan366kos.atlas.project.backend.common.project.ProjectPriority.toDto() =
+    com.khan366kos.atlas.project.backend.transport.enums.ProjectPriorityDto.valueOf(this.name)

@@ -1,7 +1,7 @@
 # Backend Supporting Modules
 
-**Path:** `/backend/atlas-project-backend`  
-**Last Updated:** 2026-03-09
+**Path:** `/backend/atlas-project-backend`
+**Last Updated:** 2026-03-22
 
 ## Overview
 
@@ -515,6 +515,8 @@ dependencies {
 ktor-app
 ├── transport
 ├── common
+├── project-service
+│   └── common
 ├── mappers
 │   ├── transport
 │   └── common
@@ -525,6 +527,103 @@ ktor-app
 └── calendar-service
     └── common
 ```
+
+---
+
+## Project Service Module
+
+**Path:** `atlas-project-backend-project-service`
+
+### Purpose
+
+Orchestration layer for project-level operations, providing unified access to project plans and coordinating between repositories.
+
+### Structure
+
+```
+src/main/kotlin/com/khan366kos/atlas/project/backend/project/service/
+└── ProjectService.kt    # Project orchestration
+```
+
+### ProjectService.kt
+
+```kotlin
+package com.khan366kos.atlas.project.backend.project.service
+
+import com.khan366kos.atlas.project.backend.common.models.projectPlan.ProjectPlanId
+import com.khan366kos.atlas.project.backend.common.repo.IAtlasProjectTaskRepo
+
+class ProjectService(
+    private val projectRepo: IAtlasProjectTaskRepo
+) {
+    suspend fun project(projectId: ProjectPlanId) = 
+        projectRepo.projectPlan(projectId.asString())
+}
+```
+
+### Usage
+
+Injected into Ktor application for route coordination:
+
+```kotlin
+// Application.kt
+fun Application.module(config: AppConfig) {
+    val projectService = ProjectService(config.repo)
+    configureRouting(config, projectService)
+}
+
+// plugins/Routing.kt
+fun Application.configureRouting(
+    appConfig: AppConfig,
+    projectService: ProjectService
+) {
+    routing {
+        route("/projects/{projectId}") {
+            projectPlan(appConfig.repo, ...)
+            criticalPath(appConfig.repo, ...)
+            analysis(appConfig.repo, ...)
+            // ... other routes
+        }
+    }
+}
+```
+
+### Build Configuration
+
+```kotlin
+// build.gradle.kts
+plugins {
+    alias(libs.plugins.kotlin.jvm)
+}
+
+dependencies {
+    implementation(projects.atlasProjectBackendCommon)
+    testImplementation(kotlin("test"))
+}
+```
+
+### Testing
+
+```kotlin
+class ProjectServiceTest {
+    private val mockRepo = mockk<IAtlasProjectTaskRepo>()
+    private val service = ProjectService(mockRepo)
+
+    @Test
+    fun `get project returns project plan`() = runBlocking {
+        val projectId = ProjectPlanId("test-1")
+        val expectedPlan = ProjectPlan(projectId, emptyList(), emptyList(), emptyList())
+        
+        coEvery { mockRepo.projectPlan("test-1") } returns expectedPlan
+        
+        val result = service.project(projectId)
+        
+        assertEquals(expectedPlan, result)
+    }
+}
+```
+
+---
 
 ## Testing Strategy
 
