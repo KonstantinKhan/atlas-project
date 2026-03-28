@@ -5,7 +5,7 @@ import com.khan366kos.atlas.project.backend.common.models.simple.Duration
 import com.khan366kos.atlas.project.backend.common.models.taskSchedule.TaskSchedule
 import com.khan366kos.atlas.project.backend.common.models.taskSchedule.TaskScheduleId
 import com.khan366kos.atlas.project.backend.common.models.task.simple.TaskId
-import com.khan366kos.atlas.project.backend.ktor.app.helpers.handleParameters
+import com.khan366kos.atlas.project.backend.ktor.app.helpers.handleProjectId
 import com.khan366kos.atlas.project.backend.mappers.toDto
 import com.khan366kos.atlas.project.backend.mappers.toGanttDto
 import com.khan366kos.atlas.project.backend.mappers.toTransport
@@ -44,7 +44,7 @@ fun Application.configureRoutingOld(config: AppConfig) {
 
         route("/projects/{projectId}") {
             post("/change-start") {
-                call.handleParameters() {
+                call.handleProjectId {
                     val request = call.receive<ChangeTaskStartDateCommandDto>()
                     val plan = config.repo.projectPlan(it.asString())
                     val delta = plan.changeTaskStartDate(

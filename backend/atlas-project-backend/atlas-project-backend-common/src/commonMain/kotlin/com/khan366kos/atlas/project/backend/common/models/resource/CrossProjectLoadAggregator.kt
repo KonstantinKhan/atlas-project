@@ -1,7 +1,11 @@
 package com.khan366kos.atlas.project.backend.common.models.resource
 
+import com.khan366kos.atlas.project.backend.common.models.portfolio.PortfolioId
 import com.khan366kos.atlas.project.backend.common.models.projectPlan.ProjectPlan
 import com.khan366kos.atlas.project.backend.common.models.timelineCalendar.TimelineCalendar
+import com.khan366kos.atlas.project.backend.common.project.Project
+import com.khan366kos.atlas.project.backend.common.project.ProjectId
+import com.khan366kos.atlas.project.backend.common.project.ProjectName
 import com.khan366kos.atlas.project.backend.common.project.ProjectPriority
 import kotlinx.datetime.LocalDate
 
@@ -29,16 +33,9 @@ data class CrossProjectResourceLoad(
     val overloadedDays: List<CrossProjectDayLoad> get() = days.filter { it.isOverloaded }
 }
 
-data class ProjectInfo(
-    val id: String,
-    val name: String,
-    val priority: ProjectPriority,
-    val portfolioId: String,
-)
-
 data class CrossProjectOverloadReport(
     val resources: List<CrossProjectResourceLoad>,
-    val projects: List<ProjectInfo>,
+    val projects: List<Project>,
 ) {
     val totalOverloadedDays: Int get() = resources.sumOf { it.overloadedDays.size }
 }
@@ -129,11 +126,11 @@ class CrossProjectLoadAggregator(
         }
 
         val projectInfos = projectInputs.map { input ->
-            ProjectInfo(
-                id = input.projectId,
-                name = input.projectName,
+            Project(
+                id = ProjectId(input.projectId),
+                name = ProjectName(input.projectName),
                 priority = input.priority,
-                portfolioId = input.portfolioId,
+                portfolioId = PortfolioId(input.portfolioId),
             )
         }
 

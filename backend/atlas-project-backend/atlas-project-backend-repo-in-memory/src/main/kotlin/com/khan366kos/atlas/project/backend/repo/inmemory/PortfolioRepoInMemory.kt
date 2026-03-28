@@ -13,19 +13,18 @@ import kotlin.uuid.Uuid
 class PortfolioRepoInMemory : IPortfolioRepo {
     private val portfolios = mutableMapOf<String, Portfolio>()
     private val projects = mutableMapOf<String, ProjectEntry>()
+    private val projectSortOrders = mutableMapOf<String, Int>() // projectId -> sortOrder
 
     private data class ProjectEntry(
         val portfolioId: String,
         val name: String,
         val priority: ProjectPriority,
-        val sortOrder: Int,
     ) {
         fun toProject(id: String) = Project(
             id = ProjectId(id),
             name = ProjectName(name),
             portfolioId = PortfolioId(portfolioId),
             priority = priority,
-            sortOrder = sortOrder,
         )
     }
 
@@ -55,7 +54,7 @@ class PortfolioRepoInMemory : IPortfolioRepo {
 
     override suspend fun listProjects(portfolioId: String): List<Project> =
         projects.filter { it.value.portfolioId == portfolioId }
-            .entries.sortedBy { it.value.sortOrder }
+            .entries.sortedBy { projectSortOrders[it.key] ?: 0 }
             .map { (id, entry) -> entry.toProject(id) }
 
     override suspend fun getProject(id: String): Project? =
@@ -64,8 +63,9 @@ class PortfolioRepoInMemory : IPortfolioRepo {
     @OptIn(ExperimentalUuidApi::class)
     override suspend fun createProject(portfolioId: String, name: String, priority: ProjectPriority): Project {
         val newId = Uuid.random().toString()
-        val entry = ProjectEntry(portfolioId = portfolioId, name = name, priority = priority, sortOrder = 0)
+        val entry = ProjectEntry(portfolioId = portfolioId, name = name, priority = priority)
         projects[newId] = entry
+        projectSortOrders[newId] = 0
         return entry.toProject(newId)
     }
 
@@ -86,8 +86,7 @@ class PortfolioRepoInMemory : IPortfolioRepo {
 
     override suspend fun reorderProjects(portfolioId: String, orderedProjectIds: List<String>): Int {
         orderedProjectIds.forEachIndexed { index, id ->
-            val existing = projects[id] ?: return@forEachIndexed
-            projects[id] = existing.copy(sortOrder = index)
+            projectSortOrders[id] = index
         }
         return orderedProjectIds.size
     }

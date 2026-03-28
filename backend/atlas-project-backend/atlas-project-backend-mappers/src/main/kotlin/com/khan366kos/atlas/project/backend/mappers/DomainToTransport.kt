@@ -8,7 +8,6 @@ import com.khan366kos.atlas.project.backend.common.models.resource.CrossProjectR
 import com.khan366kos.atlas.project.backend.common.models.resource.LevelingResult
 import com.khan366kos.atlas.project.backend.common.models.resource.OverloadReport
 import com.khan366kos.atlas.project.backend.common.models.resource.ProjectContribution
-import com.khan366kos.atlas.project.backend.common.models.resource.ProjectInfo
 import com.khan366kos.atlas.project.backend.common.models.resource.Resource
 import com.khan366kos.atlas.project.backend.common.models.resource.ResourceCalendarOverride
 import com.khan366kos.atlas.project.backend.common.models.resource.ResourceDayLoad
@@ -27,6 +26,8 @@ import com.khan366kos.atlas.project.backend.common.models.taskSchedule.ScheduleD
 import com.khan366kos.atlas.project.backend.common.models.taskSchedule.TaskSchedule
 import com.khan366kos.atlas.project.backend.common.models.taskSchedule.TaskScheduleId
 import com.khan366kos.atlas.project.backend.common.models.timelineCalendar.TimelineCalendar
+import com.khan366kos.atlas.project.backend.common.project.Project
+import com.khan366kos.atlas.project.backend.common.project.ProjectPriority
 import com.khan366kos.atlas.project.backend.transport.GanttDependencyDto
 import com.khan366kos.atlas.project.backend.transport.GanttTaskDto
 import com.khan366kos.atlas.project.backend.transport.ScheduleDeltaDto
@@ -41,14 +42,15 @@ import com.khan366kos.atlas.project.backend.transport.enums.DependencyTypeDto
 import com.khan366kos.atlas.project.backend.transport.enums.ProjectTaskStatus
 import com.khan366kos.atlas.project.backend.transport.cpm.CpmTaskDto
 import com.khan366kos.atlas.project.backend.transport.cpm.CriticalPathDto
+import com.khan366kos.atlas.project.backend.transport.enums.ProjectPriorityDto
 import com.khan366kos.atlas.project.backend.transport.ganttProjectPlan.GanttProjectPlanDto
+import com.khan366kos.atlas.project.backend.transport.project.ProjectDto
 import com.khan366kos.atlas.project.backend.transport.resource.CrossProjectDayLoadDto
 import com.khan366kos.atlas.project.backend.transport.resource.CrossProjectOverloadReportDto
 import com.khan366kos.atlas.project.backend.transport.resource.CrossProjectResourceLoadDto
 import com.khan366kos.atlas.project.backend.transport.resource.LevelingResultDto
 import com.khan366kos.atlas.project.backend.transport.resource.OverloadReportDto
 import com.khan366kos.atlas.project.backend.transport.resource.ProjectContributionDto
-import com.khan366kos.atlas.project.backend.transport.resource.ProjectInfoDto
 import com.khan366kos.atlas.project.backend.transport.resource.ResourceCalendarOverrideDto
 import com.khan366kos.atlas.project.backend.transport.resource.ResourceDayLoadDto
 import com.khan366kos.atlas.project.backend.transport.resource.ResourceDto
@@ -86,12 +88,13 @@ fun ProjectPlan.toGanttDto(
         val endDate = (schedule.end as? ProjectDate.Set)?.date
 
         val taskAssignments = assignments.filter { it.taskId.value == task.id.value }
-        val allocatedEffortHours = if (calendar != null && startDate != null && endDate != null && taskAssignments.isNotEmpty()) {
-            val workDays = calendar.workingDaysBetween(startDate, endDate).asInt()
-            taskAssignments.sumOf { it.hoursPerDay * workDays }
-        } else {
-            null
-        }
+        val allocatedEffortHours =
+            if (calendar != null && startDate != null && endDate != null && taskAssignments.isNotEmpty()) {
+                val workDays = calendar.workingDaysBetween(startDate, endDate).asInt()
+                taskAssignments.sumOf { it.hoursPerDay * workDays }
+            } else {
+                null
+            }
         val totalPlanned = (task.baselineEffortHours ?: 0.0) + (task.additionalEffortHours ?: 0.0)
         val effortCoveragePercent = if (totalPlanned > 0 && allocatedEffortHours != null) {
             allocatedEffortHours / totalPlanned * 100.0
@@ -267,18 +270,19 @@ fun CrossProjectResourceLoad.toDto() = CrossProjectResourceLoadDto(
     totalAllocatedHours = totalAllocatedHours,
 )
 
-fun ProjectInfo.toDto() = ProjectInfoDto(
-    id = id,
-    name = name,
-    priority = priority.toDto(),
-    portfolioId = portfolioId,
-)
-
 fun CrossProjectOverloadReport.toDto() = CrossProjectOverloadReportDto(
     resources = resources.map { it.toDto() },
     projects = projects.map { it.toDto() },
     totalOverloadedDays = totalOverloadedDays,
 )
 
-fun com.khan366kos.atlas.project.backend.common.project.ProjectPriority.toDto() =
-    com.khan366kos.atlas.project.backend.transport.enums.ProjectPriorityDto.valueOf(this.name)
+fun ProjectPriority.toDto() =
+    ProjectPriorityDto.valueOf(this.name)
+
+
+fun Project.toDto() = ProjectDto(
+    id = id.asString(),
+    name = name.asString(),
+    portfolioId = portfolioId.asString(),
+    priority = ProjectPriorityDto.valueOf(priority.name),
+)

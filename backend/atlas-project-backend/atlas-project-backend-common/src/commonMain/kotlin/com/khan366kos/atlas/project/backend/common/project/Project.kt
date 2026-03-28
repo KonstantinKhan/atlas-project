@@ -7,5 +7,4 @@ data class Project(
     val name: ProjectName = ProjectName.NONE,
     val portfolioId: PortfolioId = PortfolioId.NONE,
     val priority: ProjectPriority = ProjectPriority.MEDIUM,
-    val sortOrder: Int = 0,
 )
