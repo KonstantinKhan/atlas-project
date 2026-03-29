@@ -37,8 +37,8 @@ fun Routing.resourceLoad(
             ProjectLoadInput(
                 projectId = projectId,
                 projectName = project.name.asString(),
-                portfolioId = project.portfolioId.asString(),
-                priority = project.priority,
+                portfolioId = "",
+                priority = com.khan366kos.atlas.project.backend.common.project.ProjectPriority.MEDIUM,
                 plan = plan,
                 assignments = assignments,
                 dayOverrides = dayOverrides,

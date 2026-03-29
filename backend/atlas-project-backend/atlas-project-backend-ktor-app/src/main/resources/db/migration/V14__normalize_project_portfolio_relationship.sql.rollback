@@ -1,0 +1,43 @@
+-- Rollback V14: Restore Project-Portfolio 1:N relationship
+-- Revert from M:N back to 1:N relationship
+
+-- 1. Add portfolio_id and priority columns back to projects table
+ALTER TABLE projects ADD COLUMN portfolio_id UUID;
+ALTER TABLE projects ADD COLUMN priority INTEGER NOT NULL DEFAULT 1;
+
+-- 2. Migrate data from portfolio_projects back to projects
+-- Note: This takes the first portfolio association for each project
+-- (in M:N, a project could belong to multiple portfolios, but we can only restore one)
+UPDATE projects p
+SET 
+    portfolio_id = pp.portfolio_id,
+    priority = pp.priority
+FROM (
+    SELECT DISTINCT ON (project_id) project_id, portfolio_id, priority
+    FROM portfolio_projects
+    ORDER BY project_id, sort_order
+) pp
+WHERE p.id = pp.project_id;
+
+-- 3. Recreate project_sort_orders table
+CREATE TABLE project_sort_orders (
+    portfolio_id UUID NOT NULL REFERENCES portfolios(id) ON DELETE CASCADE,
+    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (portfolio_id, project_id)
+);
+
+-- 4. Migrate sort_order data back
+INSERT INTO project_sort_orders (portfolio_id, project_id, sort_order)
+SELECT portfolio_id, project_id, sort_order
+FROM portfolio_projects;
+
+-- 5. Drop the portfolio_projects table
+DROP TABLE portfolio_projects;
+
+-- 6. Add foreign key constraint back
+ALTER TABLE projects 
+    ADD CONSTRAINT fk_projects_portfolio 
+    FOREIGN KEY (portfolio_id) 
+    REFERENCES portfolios(id) 
+    ON DELETE CASCADE;

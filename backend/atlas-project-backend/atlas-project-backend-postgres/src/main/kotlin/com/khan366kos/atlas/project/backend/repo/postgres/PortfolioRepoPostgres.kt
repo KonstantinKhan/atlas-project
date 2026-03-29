@@ -2,17 +2,21 @@ package com.khan366kos.atlas.project.backend.repo.postgres
 
 import com.khan366kos.atlas.project.backend.common.models.portfolio.Portfolio
 import com.khan366kos.atlas.project.backend.common.models.portfolio.PortfolioId
+import com.khan366kos.atlas.project.backend.common.project.PortfolioProject
+import com.khan366kos.atlas.project.backend.common.project.PortfolioProjectId
 import com.khan366kos.atlas.project.backend.common.project.Project
 import com.khan366kos.atlas.project.backend.common.project.ProjectId
 import com.khan366kos.atlas.project.backend.common.project.ProjectName
 import com.khan366kos.atlas.project.backend.common.project.ProjectPriority
 import com.khan366kos.atlas.project.backend.common.repo.IPortfolioRepo
+import com.khan366kos.atlas.project.backend.repo.postgres.mapper.toProject
+import com.khan366kos.atlas.project.backend.repo.postgres.table.PortfolioProjectsTable
 import com.khan366kos.atlas.project.backend.repo.postgres.table.PortfoliosTable
 import com.khan366kos.atlas.project.backend.repo.postgres.table.ProjectPlansTable
-import com.khan366kos.atlas.project.backend.repo.postgres.table.ProjectSortOrdersTable
 import com.khan366kos.atlas.project.backend.repo.postgres.table.ProjectsTable
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
@@ -61,12 +65,9 @@ class PortfolioRepoPostgres(private val database: Database) : IPortfolioRepo {
         PortfoliosTable.deleteWhere { PortfoliosTable.id eq UUID.fromString(id) }
     }
 
-    override suspend fun listProjects(portfolioId: String): List<Project> = newSuspendedTransaction(db = database) {
-        (ProjectsTable innerJoin ProjectSortOrdersTable)
-            .selectAll()
-            .where { ProjectsTable.portfolioId eq UUID.fromString(portfolioId) }
-            .orderBy(ProjectSortOrdersTable.sortOrder)
-            .map { it.toProject() }
+    // Project operations (independent of portfolios)
+    override suspend fun listAllProjects(): List<Project> = newSuspendedTransaction(db = database) {
+        ProjectsTable.selectAll().map { it.toProject() }
     }
 
     override suspend fun getProject(id: String): Project? = newSuspendedTransaction(db = database) {
@@ -77,37 +78,26 @@ class PortfolioRepoPostgres(private val database: Database) : IPortfolioRepo {
     }
 
     @OptIn(ExperimentalUuidApi::class)
-    override suspend fun createProject(portfolioId: String, name: String, priority: ProjectPriority): Project =
-        newSuspendedTransaction(db = database) {
-            val newId = Uuid.random().toJavaUuid()
-            ProjectsTable.insert {
-                it[id] = newId
-                it[ProjectsTable.name] = name
-                it[ProjectsTable.portfolioId] = UUID.fromString(portfolioId)
-                it[ProjectsTable.priority] = priority.ordinal
-            }
-            ProjectSortOrdersTable.insert {
-                it[ProjectSortOrdersTable.portfolioId] = UUID.fromString(portfolioId)
-                it[ProjectSortOrdersTable.projectId] = newId
-                it[ProjectSortOrdersTable.sortOrder] = 0
-            }
-            ProjectPlansTable.insert {
-                it[id] = newId
-                it[projectId] = newId
-            }
-            Project(
-                id = ProjectId(newId.toString()),
-                name = ProjectName(name),
-                portfolioId = PortfolioId(portfolioId),
-                priority = priority,
-            )
+    override suspend fun createProject(name: String): Project = newSuspendedTransaction(db = database) {
+        val newId = Uuid.random().toJavaUuid()
+        ProjectsTable.insert {
+            it[id] = newId
+            it[ProjectsTable.name] = name
         }
+        ProjectPlansTable.insert {
+            it[id] = newId
+            it[projectId] = newId
+        }
+        Project(
+            id = ProjectId(newId.toString()),
+            name = ProjectName(name),
+        )
+    }
 
-    override suspend fun updateProject(projectId: String, name: String?, priority: ProjectPriority?): Int =
+    override suspend fun updateProject(projectId: String, name: String?): Int =
         newSuspendedTransaction(db = database) {
             ProjectsTable.update({ ProjectsTable.id eq UUID.fromString(projectId) }) {
                 if (name != null) it[ProjectsTable.name] = name
-                if (priority != null) it[ProjectsTable.priority] = priority.ordinal
             }
         }
 
@@ -115,30 +105,84 @@ class PortfolioRepoPostgres(private val database: Database) : IPortfolioRepo {
         ProjectsTable.deleteWhere { ProjectsTable.id eq UUID.fromString(projectId) }
     }
 
-    override suspend fun reorderProjects(portfolioId: String, orderedProjectIds: List<String>): Int =
+    // Portfolio-Project relationship operations
+    override suspend fun listPortfolioProjects(portfolioId: String): List<PortfolioProject> =
+        newSuspendedTransaction(db = database) {
+            PortfolioProjectsTable.selectAll()
+                .where { PortfolioProjectsTable.portfolioId eq UUID.fromString(portfolioId) }
+                .orderBy(PortfolioProjectsTable.sortOrder)
+                .map { it.toPortfolioProject() }
+        }
+
+    @OptIn(ExperimentalUuidApi::class)
+    override suspend fun addProjectToPortfolio(
+        portfolioId: String,
+        projectId: String,
+        priority: ProjectPriority,
+    ): PortfolioProject = newSuspendedTransaction(db = database) {
+        val newId = Uuid.random().toJavaUuid()
+        // Get the max sort order for this portfolio
+        val maxSortOrder = PortfolioProjectsTable
+            .selectAll()
+            .where { PortfolioProjectsTable.portfolioId eq UUID.fromString(portfolioId) }
+            .maxOfOrNull { it[PortfolioProjectsTable.sortOrder] } ?: -1
+
+        PortfolioProjectsTable.insert {
+            it[id] = newId
+            it[PortfolioProjectsTable.portfolioId] = UUID.fromString(portfolioId)
+            it[PortfolioProjectsTable.projectId] = UUID.fromString(projectId)
+            it[PortfolioProjectsTable.priority] = priority.ordinal
+            it[PortfolioProjectsTable.sortOrder] = maxSortOrder + 1
+        }
+        PortfolioProject(
+            id = PortfolioProjectId(newId.toString()),
+            portfolioId = PortfolioId(portfolioId),
+            projectId = ProjectId(projectId),
+            priority = priority,
+        )
+    }
+
+    override suspend fun removeProjectFromPortfolio(portfolioId: String, projectId: String): Int =
+        newSuspendedTransaction(db = database) {
+            PortfolioProjectsTable.deleteWhere {
+                (PortfolioProjectsTable.portfolioId eq UUID.fromString(portfolioId)) and
+                    (PortfolioProjectsTable.projectId eq UUID.fromString(projectId))
+            }
+        }
+
+    override suspend fun updateProjectPriority(
+        portfolioId: String,
+        projectId: String,
+        priority: ProjectPriority,
+    ): Int = newSuspendedTransaction(db = database) {
+        PortfolioProjectsTable.update({
+            (PortfolioProjectsTable.portfolioId eq UUID.fromString(portfolioId)) and
+                (PortfolioProjectsTable.projectId eq UUID.fromString(projectId))
+        }) {
+            it[PortfolioProjectsTable.priority] = priority.ordinal
+        }
+    }
+
+    override suspend fun reorderPortfolioProjects(portfolioId: String, orderedProjectIds: List<String>): Int =
         newSuspendedTransaction(db = database) {
             orderedProjectIds.forEachIndexed { index, id ->
-                ProjectSortOrdersTable.update({ ProjectSortOrdersTable.projectId eq UUID.fromString(id) }) {
+                PortfolioProjectsTable.update({ PortfolioProjectsTable.projectId eq UUID.fromString(id) }) {
                     it[sortOrder] = index
                 }
             }
             orderedProjectIds.size
         }
 
-    override suspend fun listAllProjects(): List<Project> = newSuspendedTransaction(db = database) {
-        (ProjectsTable innerJoin ProjectSortOrdersTable).selectAll().map { it.toProject() }
-    }
-
-    private fun ResultRow.toProject() = Project(
-        id = ProjectId(this[ProjectsTable.id].toString()),
-        name = ProjectName(this[ProjectsTable.name]),
-        portfolioId = PortfolioId(this[ProjectsTable.portfolioId].toString()),
-        priority = ProjectPriority.entries.getOrElse(this[ProjectsTable.priority]) { ProjectPriority.MEDIUM },
-    )
-
     private fun ResultRow.toPortfolio() = Portfolio(
         id = PortfolioId(this[PortfoliosTable.id].toString()),
         name = this[PortfoliosTable.name],
         description = this[PortfoliosTable.description],
+    )
+
+    private fun ResultRow.toPortfolioProject() = PortfolioProject(
+        id = PortfolioProjectId(this[PortfolioProjectsTable.id].toString()),
+        portfolioId = PortfolioId(this[PortfolioProjectsTable.portfolioId].toString()),
+        projectId = ProjectId(this[PortfolioProjectsTable.projectId].toString()),
+        priority = ProjectPriority.entries[this[PortfolioProjectsTable.priority]],
     )
 }

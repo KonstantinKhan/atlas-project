@@ -10,10 +10,13 @@ export const PortfolioListSchema = z.object({
 	portfolios: z.array(PortfolioSchema),
 })
 
+export const ProjectPrioritySchema = z.enum(['HIGH', 'MEDIUM', 'LOW'])
+export type ProjectPriority = z.infer<typeof ProjectPrioritySchema>
+
 export const ProjectSummarySchema = z.object({
 	id: z.string(),
 	name: z.string(),
-	priority: z.number(),
+	priority: ProjectPrioritySchema,
 	taskCount: z.number(),
 })
 

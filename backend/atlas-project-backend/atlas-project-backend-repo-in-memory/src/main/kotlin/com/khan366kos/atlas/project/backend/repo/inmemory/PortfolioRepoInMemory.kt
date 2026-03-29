@@ -2,6 +2,8 @@ package com.khan366kos.atlas.project.backend.repo.inmemory
 
 import com.khan366kos.atlas.project.backend.common.models.portfolio.Portfolio
 import com.khan366kos.atlas.project.backend.common.models.portfolio.PortfolioId
+import com.khan366kos.atlas.project.backend.common.project.PortfolioProject
+import com.khan366kos.atlas.project.backend.common.project.PortfolioProjectId
 import com.khan366kos.atlas.project.backend.common.project.Project
 import com.khan366kos.atlas.project.backend.common.project.ProjectId
 import com.khan366kos.atlas.project.backend.common.project.ProjectName
@@ -12,18 +14,19 @@ import kotlin.uuid.Uuid
 
 class PortfolioRepoInMemory : IPortfolioRepo {
     private val portfolios = mutableMapOf<String, Portfolio>()
-    private val projects = mutableMapOf<String, ProjectEntry>()
-    private val projectSortOrders = mutableMapOf<String, Int>() // projectId -> sortOrder
+    private val projects = mutableMapOf<String, Project>()
+    private val portfolioProjects = mutableMapOf<String, PortfolioProjectEntry>()
 
-    private data class ProjectEntry(
+    private data class PortfolioProjectEntry(
         val portfolioId: String,
-        val name: String,
+        val projectId: String,
         val priority: ProjectPriority,
+        val sortOrder: Int = 0,
     ) {
-        fun toProject(id: String) = Project(
-            id = ProjectId(id),
-            name = ProjectName(name),
+        fun toPortfolioProject(id: String) = PortfolioProject(
+            id = PortfolioProjectId(id),
             portfolioId = PortfolioId(portfolioId),
+            projectId = ProjectId(projectId),
             priority = priority,
         )
     }
@@ -48,45 +51,98 @@ class PortfolioRepoInMemory : IPortfolioRepo {
     }
 
     override suspend fun deletePortfolio(id: String): Int {
-        projects.entries.removeAll { it.value.portfolioId == id }
+        portfolioProjects.entries.removeAll { it.value.portfolioId == id }
         return if (portfolios.remove(id) != null) 1 else 0
     }
 
-    override suspend fun listProjects(portfolioId: String): List<Project> =
-        projects.filter { it.value.portfolioId == portfolioId }
-            .entries.sortedBy { projectSortOrders[it.key] ?: 0 }
-            .map { (id, entry) -> entry.toProject(id) }
+    // Project operations (independent of portfolios)
+    override suspend fun listAllProjects(): List<Project> =
+        projects.values.toList()
 
     override suspend fun getProject(id: String): Project? =
-        projects[id]?.toProject(id)
+        projects[id]
 
     @OptIn(ExperimentalUuidApi::class)
-    override suspend fun createProject(portfolioId: String, name: String, priority: ProjectPriority): Project {
+    override suspend fun createProject(name: String): Project {
         val newId = Uuid.random().toString()
-        val entry = ProjectEntry(portfolioId = portfolioId, name = name, priority = priority)
-        projects[newId] = entry
-        projectSortOrders[newId] = 0
-        return entry.toProject(newId)
+        val project = Project(
+            id = ProjectId(newId),
+            name = ProjectName(name),
+        )
+        projects[newId] = project
+        return project
     }
 
-    override suspend fun updateProject(projectId: String, name: String?, priority: ProjectPriority?): Int {
+    override suspend fun updateProject(projectId: String, name: String?): Int {
         val existing = projects[projectId] ?: return 0
         projects[projectId] = existing.copy(
-            name = name ?: existing.name,
-            priority = priority ?: existing.priority,
+            name = ProjectName(name ?: existing.name.asString()),
         )
         return 1
     }
 
-    override suspend fun deleteProject(projectId: String): Int =
-        if (projects.remove(projectId) != null) 1 else 0
+    override suspend fun deleteProject(projectId: String): Int {
+        portfolioProjects.entries.removeAll { it.value.projectId == projectId }
+        return if (projects.remove(projectId) != null) 1 else 0
+    }
 
-    override suspend fun listAllProjects(): List<Project> =
-        projects.map { (id, entry) -> entry.toProject(id) }
+    // Portfolio-Project relationship operations
+    override suspend fun listPortfolioProjects(portfolioId: String): List<PortfolioProject> =
+        portfolioProjects.filter { it.value.portfolioId == portfolioId }
+            .entries.sortedBy { it.value.sortOrder }
+            .map { (id, entry) -> entry.toPortfolioProject(id) }
 
-    override suspend fun reorderProjects(portfolioId: String, orderedProjectIds: List<String>): Int {
-        orderedProjectIds.forEachIndexed { index, id ->
-            projectSortOrders[id] = index
+    @OptIn(ExperimentalUuidApi::class)
+    override suspend fun addProjectToPortfolio(
+        portfolioId: String,
+        projectId: String,
+        priority: ProjectPriority,
+    ): PortfolioProject {
+        val newId = Uuid.random().toString()
+        val maxSortOrder = portfolioProjects.values
+            .filter { it.portfolioId == portfolioId }
+            .maxOfOrNull { it.sortOrder } ?: -1
+
+        val entry = PortfolioProjectEntry(
+            portfolioId = portfolioId,
+            projectId = projectId,
+            priority = priority,
+            sortOrder = maxSortOrder + 1,
+        )
+        portfolioProjects[newId] = entry
+        return entry.toPortfolioProject(newId)
+    }
+
+    override suspend fun removeProjectFromPortfolio(portfolioId: String, projectId: String): Int {
+        val entryToRemove = portfolioProjects.entries.find {
+            it.value.portfolioId == portfolioId && it.value.projectId == projectId
+        }
+        return if (entryToRemove != null) {
+            portfolioProjects.remove(entryToRemove.key)
+            1
+        } else {
+            0
+        }
+    }
+
+    override suspend fun updateProjectPriority(
+        portfolioId: String,
+        projectId: String,
+        priority: ProjectPriority,
+    ): Int {
+        val entry = portfolioProjects.entries.find {
+            it.value.portfolioId == portfolioId && it.value.projectId == projectId
+        } ?: return 0
+        portfolioProjects[entry.key] = entry.value.copy(priority = priority)
+        return 1
+    }
+
+    override suspend fun reorderPortfolioProjects(portfolioId: String, orderedProjectIds: List<String>): Int {
+        orderedProjectIds.forEachIndexed { index, projectId ->
+            val entry = portfolioProjects.entries.find { it.value.projectId == projectId }
+            if (entry != null) {
+                portfolioProjects[entry.key] = entry.value.copy(sortOrder = index)
+            }
         }
         return orderedProjectIds.size
     }

@@ -55,7 +55,7 @@ export function PortfolioListPage() {
 	return (
 		<div className="mx-auto max-w-4xl p-6">
 			<div className="mb-6 flex items-center justify-between">
-				<h1 className="text-2xl font-bold text-gray-900">Портфели проектов</h1>
+				<h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Портфели проектов</h1>
 				<div className="flex items-center gap-2">
 					<Link
 						href="/resource-load"
@@ -149,7 +149,7 @@ export function PortfolioListPage() {
 										href={`/portfolios/${portfolio.id}`}
 										className="flex-1"
 									>
-										<h2 className="text-lg font-semibold text-gray-900 hover:text-indigo-600">
+										<h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 hover:text-indigo-600">
 											{portfolio.name}
 										</h2>
 										{portfolio.description && (

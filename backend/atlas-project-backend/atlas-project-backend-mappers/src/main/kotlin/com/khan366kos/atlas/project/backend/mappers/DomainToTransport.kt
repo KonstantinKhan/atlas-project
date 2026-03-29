@@ -279,10 +279,15 @@ fun CrossProjectOverloadReport.toDto() = CrossProjectOverloadReportDto(
 fun ProjectPriority.toDto() =
     ProjectPriorityDto.valueOf(this.name)
 
-
 fun Project.toDto() = ProjectDto(
     id = id.asString(),
     name = name.asString(),
-    portfolioId = portfolioId.asString(),
-    priority = ProjectPriorityDto.valueOf(priority.name),
 )
+
+fun com.khan366kos.atlas.project.backend.common.project.PortfolioProject.toDto() =
+    com.khan366kos.atlas.project.backend.transport.portfolio.PortfolioProjectDto(
+        id = id.asString(),
+        portfolioId = portfolioId.asString(),
+        projectId = projectId.asString(),
+        priority = priority.toDto(),
+    )

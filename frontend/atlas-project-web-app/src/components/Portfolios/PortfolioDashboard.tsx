@@ -42,7 +42,7 @@ export function PortfolioDashboard({ portfolioId }: { portfolioId: string }) {
 						<ArrowLeft size={20} />
 					</Link>
 					<div>
-						<h1 className="text-2xl font-bold text-gray-900">{portfolio?.name}</h1>
+						<h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{portfolio?.name}</h1>
 						{portfolio?.description && (
 							<p className="text-sm text-gray-500">{portfolio.description}</p>
 						)}
@@ -119,7 +119,7 @@ export function PortfolioDashboard({ portfolioId }: { portfolioId: string }) {
 									<LayoutDashboard size={16} />
 								</div>
 								<div>
-									<h3 className="font-medium text-gray-900 group-hover:text-indigo-600">
+									<h3 className="font-medium text-gray-900 dark:text-gray-100 group-hover:text-indigo-600">
 										{project.name}
 									</h3>
 									<p className="text-xs text-gray-400">
@@ -128,9 +128,9 @@ export function PortfolioDashboard({ portfolioId }: { portfolioId: string }) {
 								</div>
 							</div>
 							<div className="flex items-center gap-2">
-								{project.priority > 0 && (
+								{project.priority !== 'MEDIUM' && (
 									<span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500">
-										Приоритет: {project.priority}
+										Приоритет: {project.priority === 'HIGH' ? 'Высокий' : 'Низкий'}
 									</span>
 								)}
 							</div>

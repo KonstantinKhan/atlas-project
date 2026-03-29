@@ -15,6 +15,7 @@ kxs-ts-gen = "0.2.4"
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinx-datetime" }
 kotlinx-coroutines = { module="org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
+kotlinx-coroutines-test = { module="org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
 kxs-ts-gen-core = { module = "dev.adamko.kxstsgen:kxs-ts-gen-core", version.ref = "kxs-ts-gen" }
 
 ktor-server-core = { module = "io.ktor:ktor-server-core", version.ref = "ktor" }

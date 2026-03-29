@@ -5,6 +5,7 @@ import {
 	ProjectSummaryListSchema,
 	type Portfolio,
 	type ProjectSummary,
+	type ProjectPriority,
 } from '@/types/schemas/portfolio.schema'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
@@ -68,7 +69,7 @@ export async function getProjects(portfolioId: string): Promise<ProjectSummary[]
 export async function createProject(
 	portfolioId: string,
 	name: string,
-	priority: number = 0,
+	priority: ProjectPriority = 'MEDIUM',
 ): Promise<ProjectSummary> {
 	const response = await fetch(`${API_BASE_URL}/portfolios/${portfolioId}/projects`, {
 		method: 'POST',
@@ -81,12 +82,12 @@ export async function createProject(
 
 export async function reorderProjects(
 	portfolioId: string,
-	projectPriorities: Array<{ projectId: string; priority: number }>,
+	projectSortOrders: Array<{ projectId: string; sortOrder: number }>,
 ): Promise<void> {
 	const response = await fetch(`${API_BASE_URL}/portfolios/${portfolioId}/projects/reorder`, {
 		method: 'PATCH',
 		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ projectPriorities }),
+		body: JSON.stringify({ projectSortOrders }),
 	})
 	if (!response.ok) throw new Error('Failed to reorder projects')
 }

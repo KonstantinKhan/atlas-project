@@ -1,6 +1,5 @@
 package com.khan366kos.atlas.project.backend.common.models.resource
 
-import com.khan366kos.atlas.project.backend.common.models.portfolio.PortfolioId
 import com.khan366kos.atlas.project.backend.common.models.projectPlan.ProjectPlan
 import com.khan366kos.atlas.project.backend.common.models.timelineCalendar.TimelineCalendar
 import com.khan366kos.atlas.project.backend.common.project.Project
@@ -129,8 +128,6 @@ class CrossProjectLoadAggregator(
             Project(
                 id = ProjectId(input.projectId),
                 name = ProjectName(input.projectName),
-                priority = input.priority,
-                portfolioId = PortfolioId(input.portfolioId),
             )
         }
 

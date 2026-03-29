@@ -3,13 +3,13 @@ package com.khan366kos.atlas.project.backend.common.project
 import java.util.UUID
 
 @JvmInline
-value class ProjectId (private val value: String) {
+value class PortfolioProjectId(private val value: String) {
 
     constructor(id: UUID) : this(id.toString())
 
     fun asString() = value
 
     companion object {
-        val NONE = ProjectId("")
+        val NONE = PortfolioProjectId("")
     }
 }

@@ -9,7 +9,7 @@ import {
 	createProject,
 	reorderProjects,
 } from '@/services/portfoliosApi'
-import type { Portfolio, ProjectSummary } from '@/types/schemas/portfolio.schema'
+import type { Portfolio, ProjectSummary, ProjectPriority } from '@/types/schemas/portfolio.schema'
 
 export function usePortfolios() {
 	return useQuery<Portfolio[]>({
@@ -70,7 +70,7 @@ export function useProjects(portfolioId: string | null) {
 export function useCreateProject() {
 	const queryClient = useQueryClient()
 	return useMutation({
-		mutationFn: ({ portfolioId, name, priority }: { portfolioId: string; name: string; priority?: number }) =>
+		mutationFn: ({ portfolioId, name, priority }: { portfolioId: string; name: string; priority?: ProjectPriority }) =>
 			createProject(portfolioId, name, priority),
 		onSuccess: (_, { portfolioId }) => {
 			queryClient.invalidateQueries({ queryKey: ['projects', portfolioId] })
@@ -83,11 +83,11 @@ export function useReorderProjects() {
 	return useMutation({
 		mutationFn: ({
 			portfolioId,
-			projectPriorities,
+			projectSortOrders,
 		}: {
 			portfolioId: string
-			projectPriorities: Array<{ projectId: string; priority: number }>
-		}) => reorderProjects(portfolioId, projectPriorities),
+			projectSortOrders: Array<{ projectId: string; sortOrder: number }>
+		}) => reorderProjects(portfolioId, projectSortOrders),
 		onSuccess: (_, { portfolioId }) => {
 			queryClient.invalidateQueries({ queryKey: ['projects', portfolioId] })
 		},

@@ -13,6 +13,7 @@ dependencies {
     implementation(libs.kotlinx.datetime)
     implementation(libs.h2)
     testImplementation(kotlin("test"))
+    testImplementation(libs.kotlinx.coroutines.test)
 }
 
 tasks.test {

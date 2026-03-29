@@ -9,8 +9,13 @@ import com.khan366kos.atlas.project.backend.common.project.ProjectPriority
 import com.khan366kos.atlas.project.backend.common.repo.IAtlasProjectTaskRepo
 import com.khan366kos.atlas.project.backend.common.repo.IPortfolioRepo
 import com.khan366kos.atlas.project.backend.common.repo.IResourceRepo
+import com.khan366kos.atlas.project.backend.mappers.toDomain
 import com.khan366kos.atlas.project.backend.mappers.toDto
 import com.khan366kos.atlas.project.backend.transport.enums.ProjectPriorityDto
+import com.khan366kos.atlas.project.backend.transport.portfolio.AddProjectToPortfolioRequest
+import com.khan366kos.atlas.project.backend.transport.portfolio.PortfolioProjectListDto
+import com.khan366kos.atlas.project.backend.transport.portfolio.ReorderPortfolioProjectsRequest
+import com.khan366kos.atlas.project.backend.transport.portfolio.UpdateProjectPriorityRequest
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
@@ -62,18 +67,6 @@ data class ProjectSummaryListDto(
 @Serializable
 data class CreateProjectRequest(
     val name: String,
-    val priority: ProjectPriorityDto = ProjectPriorityDto.MEDIUM,
-)
-
-@Serializable
-data class ReorderProjectsRequest(
-    val projectSortOrders: List<ProjectSortOrderEntry>,
-)
-
-@Serializable
-data class ProjectSortOrderEntry(
-    val projectId: String,
-    val sortOrder: Int,
 )
 
 fun Routing.portfolios(
@@ -123,34 +116,69 @@ fun Routing.portfolios(
         call.respond(HttpStatusCode.NoContent)
     }
 
+    // Portfolio-Project relationship endpoints
     get("/{id}/projects") {
         val id = call.parameters["id"]!!
         portfolioRepo.getPortfolio(id)
             ?: return@get call.respond(HttpStatusCode.NotFound)
-        val projects = portfolioRepo.listProjects(id)
-        val summaries = projects.map { project ->
-            val taskCount = taskRepo.countTasks(project.id.asString())
-            project.toSummaryDto(taskCount)
+        val portfolioProjects = portfolioRepo.listPortfolioProjects(id)
+        
+        // Load project details and task counts for each portfolio project
+        val projectSummaries = portfolioProjects.map { portfolioProject ->
+            val projectId = portfolioProject.projectId.asString()
+            val project = portfolioRepo.getProject(projectId)
+            val plan = taskRepo.projectPlan(projectId)
+            val taskCount = taskRepo.countTasks(plan.id.asString())
+            
+            ProjectSummaryDto(
+                id = projectId,
+                name = project?.name?.asString() ?: "Unknown",
+                priority = portfolioProject.priority.toDto(),
+                taskCount = taskCount,
+            )
         }
-        call.respond(ProjectSummaryListDto(projects = summaries))
+        
+        call.respond(ProjectSummaryListDto(projects = projectSummaries))
     }
 
     post("/{id}/projects") {
         val id = call.parameters["id"]!!
         portfolioRepo.getPortfolio(id)
             ?: return@post call.respond(HttpStatusCode.NotFound)
-        val request = call.receive<CreateProjectRequest>()
-        val project = portfolioRepo.createProject(id, request.name, request.priority.toDomain())
-        call.respond(HttpStatusCode.Created, project.toSummaryDto(taskCount = 0))
+        val request = call.receive<AddProjectToPortfolioRequest>()
+        val portfolioProject = portfolioRepo.addProjectToPortfolio(
+            id,
+            request.projectId,
+            request.priority.toDomain()
+        )
+        call.respond(HttpStatusCode.Created, portfolioProject.toDto())
+    }
+
+    delete("/{id}/projects/{projectId}") {
+        val portfolioId = call.parameters["id"]!!
+        val projectId = call.parameters["projectId"]!!
+        portfolioRepo.getPortfolio(portfolioId)
+            ?: return@delete call.respond(HttpStatusCode.NotFound)
+        portfolioRepo.removeProjectFromPortfolio(portfolioId, projectId)
+        call.respond(HttpStatusCode.NoContent)
+    }
+
+    patch("/{id}/projects/{projectId}/priority") {
+        val portfolioId = call.parameters["id"]!!
+        val projectId = call.parameters["projectId"]!!
+        portfolioRepo.getPortfolio(portfolioId)
+            ?: return@patch call.respond(HttpStatusCode.NotFound)
+        val request = call.receive<UpdateProjectPriorityRequest>()
+        portfolioRepo.updateProjectPriority(portfolioId, projectId, request.priority.toDomain())
+        call.respond(HttpStatusCode.OK)
     }
 
     patch("/{id}/projects/reorder") {
         val id = call.parameters["id"]!!
         portfolioRepo.getPortfolio(id)
             ?: return@patch call.respond(HttpStatusCode.NotFound)
-        val request = call.receive<ReorderProjectsRequest>()
-        val orderedProjectIds = request.projectSortOrders.sortedBy { it.sortOrder }.map { it.projectId }
-        portfolioRepo.reorderProjects(id, orderedProjectIds)
+        val request = call.receive<ReorderPortfolioProjectsRequest>()
+        portfolioRepo.reorderPortfolioProjects(id, request.projectIds)
         call.respond(HttpStatusCode.OK)
     }
 
@@ -161,17 +189,24 @@ fun Routing.portfolios(
 
         // Load projects from this portfolio + all other projects (for external load)
         val allProjects = portfolioRepo.listAllProjects()
+        val portfolioProjects = portfolioRepo.listPortfolioProjects(id)
+        val portfolioProjectIds = portfolioProjects.map { it.projectId.asString() }.toSet()
 
         val projectInputs = allProjects.map { project ->
             val projectId = project.id.asString()
             val plan = taskRepo.projectPlan(projectId)
             val assignments = resourceRepo.listAssignments(projectId)
             val dayOverrides = resourceRepo.getAllDayOverridesForPlan(projectId).groupBy { it.assignmentId }
+            val isInPortfolio = projectId in portfolioProjectIds
             ProjectLoadInput(
                 projectId = projectId,
                 projectName = project.name.asString(),
-                portfolioId = project.portfolioId.asString(),
-                priority = project.priority,
+                portfolioId = if (isInPortfolio) id else "",
+                priority = if (isInPortfolio) {
+                    portfolioProjects.find { it.projectId.asString() == projectId }?.priority ?: ProjectPriority.MEDIUM
+                } else {
+                    ProjectPriority.MEDIUM
+                },
                 plan = plan,
                 assignments = assignments,
                 dayOverrides = dayOverrides,
@@ -201,9 +236,6 @@ private fun Portfolio.toDto() = PortfolioDto(
 private fun Project.toSummaryDto(taskCount: Int) = ProjectSummaryDto(
     id = id.asString(),
     name = name.asString(),
-    priority = priority.toDto(),
+    priority = ProjectPriorityDto.MEDIUM,
     taskCount = taskCount,
 )
-
-private fun ProjectPriorityDto.toDomain() = ProjectPriority.valueOf(this.name)
-private fun ProjectPriority.toDto() = ProjectPriorityDto.valueOf(this.name)
