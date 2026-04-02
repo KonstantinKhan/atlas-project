@@ -4,7 +4,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
 
-class PortfolioProjectIdTest {
+class ProjectPortfolioProjectIdTest {
 
     @Test
     fun `test PortfolioProjectId creation from String`() {
