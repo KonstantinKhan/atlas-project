@@ -1,9 +1,22 @@
+import { createPortfolio, updatePortfolio } from '@/services/portfoliosApi'
 import { z } from 'zod'
 
 export const PortfolioSchema = z.object({
-	id: z.string().nullish(),
-	name: z.string().nullish(),
-	description: z.string().nullish(),
+	id: z.string(),
+	name: z.string(),
+	description: z.string(),
+})
+
+export const ReadPortfolioResponseSchema = z.object({
+	readPortfolio: PortfolioSchema
+})
+
+export const CreatePortfolioSchema = z.object({
+	createdPortfolio: PortfolioSchema
+})
+
+export const UpdatePortfolioSchema = z.object({
+	updatedPortfolio: PortfolioSchema
 })
 
 export const PortfolioListSchema = z.object({

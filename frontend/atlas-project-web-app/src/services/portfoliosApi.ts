@@ -6,6 +6,9 @@ import {
 	type Portfolio,
 	type ProjectSummary,
 	type ProjectPriority,
+	ReadPortfolioResponseSchema,
+	CreatePortfolioSchema,
+	UpdatePortfolioSchema,
 } from '@/types/schemas/portfolio.schema'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
@@ -24,7 +27,8 @@ export async function getPortfolio(id: string): Promise<Portfolio> {
 		headers: { Accept: 'application/json' },
 	})
 	if (!response.ok) throw new Error('Failed to fetch portfolio')
-	return PortfolioSchema.parse(await response.json())
+	const data = ReadPortfolioResponseSchema.parse(response.json)
+	return data.readPortfolio
 }
 
 export async function createPortfolio(
@@ -46,7 +50,8 @@ export async function createPortfolio(
 
 	if (!response.ok) throw new Error('Failed to create portfolio')
 
-	return PortfolioSchema.parse(await response.json())
+	const data = CreatePortfolioSchema.parse(response.json)
+	return data.createdPortfolio
 }
 
 export async function updatePortfolio(
@@ -67,8 +72,10 @@ export async function updatePortfolio(
 	})
 
 	if (!response.ok) throw new Error('Failed to update portfolio')
-		
-	return PortfolioSchema.parse(await response.json())
+
+	const data = UpdatePortfolioSchema.parse(response.json)
+
+	return data.updatedPortfolio
 }
 
 export async function deletePortfolio(id: string): Promise<void> {
