@@ -45,7 +45,6 @@ import com.khan366kos.atlas.project.backend.transport.cpm.CpmTaskDto
 import com.khan366kos.atlas.project.backend.transport.cpm.CriticalPathDto
 import com.khan366kos.atlas.project.backend.transport.enums.ProjectPriorityDto
 import com.khan366kos.atlas.project.backend.transport.ganttProjectPlan.GanttProjectPlanDto
-import com.khan366kos.atlas.project.backend.transport.portfolio.UpdatablePortfolioDto
 import com.khan366kos.atlas.project.backend.transport.project.ProjectDto
 import com.khan366kos.atlas.project.backend.transport.resource.CrossProjectDayLoadDto
 import com.khan366kos.atlas.project.backend.transport.resource.CrossProjectOverloadReportDto
@@ -59,7 +58,7 @@ import com.khan366kos.atlas.project.backend.transport.resource.ResourceDto
 import com.khan366kos.atlas.project.backend.transport.resource.AssignmentDayOverrideDto
 import com.khan366kos.atlas.project.backend.transport.resource.ResourceLoadResultDto
 import com.khan366kos.atlas.project.backend.transport.resource.TaskAssignmentDto
-import com.khan366kos.atlas.project.backend.transport.responses.ResponsePortfolioDto
+import com.khan366kos.atlas.project.backend.transport.responses.PortfolioResponseDto
 import com.khan366kos.atlas.project.backend.transport.timelineCalendar.TimelineCalendarDto
 
 fun ScheduleDelta.toUpdatableProjectDto() = ScheduleDeltaDto(
@@ -287,7 +286,7 @@ fun Project.toUpdatableProjectDto() = ProjectDto(
     name = name.asString(),
 )
 
-fun Portfolio.toResponsePortfolioDto() = ResponsePortfolioDto(
+fun Portfolio.toResponsePortfolioDto() = PortfolioResponseDto(
     id = id.asString(),
     name = name,
     description = description

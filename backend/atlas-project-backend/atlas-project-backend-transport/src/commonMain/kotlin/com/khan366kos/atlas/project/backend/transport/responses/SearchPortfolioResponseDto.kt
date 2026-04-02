@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class SearchPortfolioResponseDto(
     @SerialName("foundPortfolios")
-    val foundPortfolios: List<ResponsePortfolioDto>? = null,
+    val foundPortfolios: List<PortfolioResponseDto>? = null,
 ) {
     companion object {
         val NONE = SearchPortfolioResponseDto(emptyList())

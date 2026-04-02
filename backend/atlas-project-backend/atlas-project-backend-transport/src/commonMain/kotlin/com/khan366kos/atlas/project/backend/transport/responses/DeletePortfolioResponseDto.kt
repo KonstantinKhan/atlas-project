@@ -6,5 +6,5 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class DeletePortfolioResponseDto(
     @SerialName("deletedPortfolio")
-    val deletedPortfolio: ResponsePortfolioDto
+    val deletedPortfolio: PortfolioResponseDto
 )

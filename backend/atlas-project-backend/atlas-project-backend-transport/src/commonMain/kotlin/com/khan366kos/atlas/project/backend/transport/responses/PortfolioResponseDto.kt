@@ -4,7 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class ResponsePortfolioDto(
+data class PortfolioResponseDto(
     @SerialName("id")
     val id: String? = null,
     @SerialName("name")

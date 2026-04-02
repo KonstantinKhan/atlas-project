@@ -6,5 +6,5 @@ import kotlinx.serialization.Serializable
 @Serializable
 class CreatePortfolioResponseDto(
     @SerialName("createdPortfolio")
-    val createdPortfolio: ResponsePortfolioDto,
+    val createdPortfolio: PortfolioResponseDto,
 )
