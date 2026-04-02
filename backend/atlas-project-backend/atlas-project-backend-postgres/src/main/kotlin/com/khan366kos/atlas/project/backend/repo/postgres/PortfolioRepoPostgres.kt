@@ -65,7 +65,7 @@ class PortfolioRepoPostgres(private val database: Database) : IPortfolioRepo {
                 .fold(
                     onSuccess = { portfolio ->
                         portfolio
-                            ?.let { PortfolioRepoResult.Single(portfolio) }
+                            ?.let { PortfolioRepoResult.Single(it) }
                             ?: PortfolioRepoResult.NotFound
                     },
                     onFailure = {
@@ -100,18 +100,22 @@ class PortfolioRepoPostgres(private val database: Database) : IPortfolioRepo {
     override suspend fun updatePortfolio(request: DbPortfolioRequest): PortfolioRepoResult =
         newSuspendedTransaction(db = database) {
             runCatching {
-                PortfoliosTable.update({ PortfoliosTable.id eq request.portfolio.id.asUUID() }) {
+                val updateCount = PortfoliosTable.update({ PortfoliosTable.id eq request.portfolio.id.asUUID() }) {
                     request.portfolio.name.takeIf { name -> name.isNotBlank() }
                         ?.let { portfolioName -> it[name] = portfolioName }
                     request.portfolio.description.takeIf { description -> description.isNotBlank() }
                         ?.let { portfolioDescription -> it[description] = portfolioDescription }
                 }
+
+                if (updateCount == 0) return@runCatching null
                 request.portfolio
             }
                 .onFailure { if (it is CancellationException) throw it }
                 .fold(
-                    onSuccess = {
-                        PortfolioRepoResult.Single(it)
+                    onSuccess = { portfolio ->
+                        portfolio
+                            ?.let { PortfolioRepoResult.Single(it) }
+                            ?: PortfolioRepoResult.NotFound
                     },
                     onFailure = {
                         PortfolioRepoResult.DbError(it)
@@ -124,15 +128,17 @@ class PortfolioRepoPostgres(private val database: Database) : IPortfolioRepo {
             runCatching {
                 val response = PortfoliosTable.selectAll()
                     .where { PortfoliosTable.id eq request.id.asUUID() }
-                    .single()
-                    .toPortfolio()
+                    .singleOrNull()
+                    ?.toPortfolio()
                 PortfoliosTable.deleteWhere { PortfoliosTable.id eq request.id.asUUID() }
                 response
             }
                 .onFailure { if (it is CancellationException) throw it }
                 .fold(
-                    onSuccess = {
-                        PortfolioRepoResult.Single(it)
+                    onSuccess = { portfolio ->
+                        portfolio
+                            ?.let { PortfolioRepoResult.Single(it) }
+                            ?: PortfolioRepoResult.NotFound
                     },
                     onFailure = {
                         PortfolioRepoResult.DbError(it)
