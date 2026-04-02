@@ -16,7 +16,7 @@ export async function getPortfolios(): Promise<Portfolio[]> {
 	})
 	if (!response.ok) throw new Error('Failed to fetch portfolios')
 	const data = PortfolioListSchema.parse(await response.json())
-	return data.portfolios
+	return data.foundPortfolios
 }
 
 export async function getPortfolio(id: string): Promise<Portfolio> {
@@ -27,13 +27,25 @@ export async function getPortfolio(id: string): Promise<Portfolio> {
 	return PortfolioSchema.parse(await response.json())
 }
 
-export async function createPortfolio(name: string, description: string = ''): Promise<Portfolio> {
+export async function createPortfolio(
+	name: string,
+	description: string = '',
+): Promise<Portfolio> {
+	const requestBody = {
+		createPortfolio: {
+			name,
+			description,
+		},
+	}
+
 	const response = await fetch(`${API_BASE_URL}/portfolios`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ name, description }),
+		body: JSON.stringify(requestBody),
 	})
+
 	if (!response.ok) throw new Error('Failed to create portfolio')
+
 	return PortfolioSchema.parse(await response.json())
 }
 
@@ -41,12 +53,21 @@ export async function updatePortfolio(
 	id: string,
 	updates: { name?: string; description?: string },
 ): Promise<Portfolio> {
+	const requestBody = {
+		updatePortfolio: {
+			id,
+			...updates,
+		},
+	}
+
 	const response = await fetch(`${API_BASE_URL}/portfolios/${id}`, {
 		method: 'PATCH',
 		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify(updates),
+		body: JSON.stringify(requestBody),
 	})
+
 	if (!response.ok) throw new Error('Failed to update portfolio')
+		
 	return PortfolioSchema.parse(await response.json())
 }
 
@@ -57,10 +78,15 @@ export async function deletePortfolio(id: string): Promise<void> {
 	if (!response.ok) throw new Error('Failed to delete portfolio')
 }
 
-export async function getProjects(portfolioId: string): Promise<ProjectSummary[]> {
-	const response = await fetch(`${API_BASE_URL}/portfolios/${portfolioId}/projects`, {
-		headers: { Accept: 'application/json' },
-	})
+export async function getProjects(
+	portfolioId: string,
+): Promise<ProjectSummary[]> {
+	const response = await fetch(
+		`${API_BASE_URL}/portfolios/${portfolioId}/projects`,
+		{
+			headers: { Accept: 'application/json' },
+		},
+	)
 	if (!response.ok) throw new Error('Failed to fetch projects')
 	const data = ProjectSummaryListSchema.parse(await response.json())
 	return data.projects
@@ -71,11 +97,14 @@ export async function createProject(
 	name: string,
 	priority: ProjectPriority = 'MEDIUM',
 ): Promise<ProjectSummary> {
-	const response = await fetch(`${API_BASE_URL}/portfolios/${portfolioId}/projects`, {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ name, priority }),
-	})
+	const response = await fetch(
+		`${API_BASE_URL}/portfolios/${portfolioId}/projects`,
+		{
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ name, priority }),
+		},
+	)
 	if (!response.ok) throw new Error('Failed to create project')
 	return ProjectSummarySchema.parse(await response.json())
 }
@@ -84,10 +113,13 @@ export async function reorderProjects(
 	portfolioId: string,
 	projectSortOrders: Array<{ projectId: string; sortOrder: number }>,
 ): Promise<void> {
-	const response = await fetch(`${API_BASE_URL}/portfolios/${portfolioId}/projects/reorder`, {
-		method: 'PATCH',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ projectSortOrders }),
-	})
+	const response = await fetch(
+		`${API_BASE_URL}/portfolios/${portfolioId}/projects/reorder`,
+		{
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ projectSortOrders }),
+		},
+	)
 	if (!response.ok) throw new Error('Failed to reorder projects')
 }

@@ -7,13 +7,14 @@ import com.khan366kos.atlas.project.backend.common.repo.portfolio.DbPortfolioIdR
 import com.khan366kos.atlas.project.backend.common.repo.portfolio.DbPortfolioRequest
 import com.khan366kos.atlas.project.backend.common.repo.portfolio.DbPortfolioResponse
 import com.khan366kos.atlas.project.backend.common.repo.portfolio.DbPortfoliosResponse
+import com.khan366kos.atlas.project.backend.common.repo.portfolio.PortfolioRepoResult
 
 interface IPortfolioRepo {
-    suspend fun createPortfolio(request: DbPortfolioRequest): DbPortfolioResponse
-    suspend fun readPortfolio(request: DbPortfolioIdRequest): DbPortfolioResponse
-    suspend fun updatePortfolio(request: DbPortfolioRequest): DbPortfolioResponse
-    suspend fun deletePortfolio(request: DbPortfolioIdRequest): DbPortfolioResponse
-    suspend fun searchPortfolio(): DbPortfoliosResponse
+    suspend fun createPortfolio(request: DbPortfolioRequest): PortfolioRepoResult
+    suspend fun readPortfolio(request: DbPortfolioIdRequest): PortfolioRepoResult
+    suspend fun updatePortfolio(request: DbPortfolioRequest): PortfolioRepoResult
+    suspend fun deletePortfolio(request: DbPortfolioIdRequest): PortfolioRepoResult
+    suspend fun searchPortfolio(): PortfolioRepoResult
 
     // Project operations (independent of portfolios)
     suspend fun listAllProjects(): List<Project>

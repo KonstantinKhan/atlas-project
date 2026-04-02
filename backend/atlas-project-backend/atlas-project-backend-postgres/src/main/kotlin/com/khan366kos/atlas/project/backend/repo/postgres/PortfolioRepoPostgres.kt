@@ -12,11 +12,13 @@ import com.khan366kos.atlas.project.backend.common.repo.portfolio.DbPortfolioIdR
 import com.khan366kos.atlas.project.backend.common.repo.portfolio.DbPortfolioRequest
 import com.khan366kos.atlas.project.backend.common.repo.portfolio.DbPortfolioResponse
 import com.khan366kos.atlas.project.backend.common.repo.portfolio.DbPortfoliosResponse
+import com.khan366kos.atlas.project.backend.common.repo.portfolio.PortfolioRepoResult
 import com.khan366kos.atlas.project.backend.repo.postgres.mapper.toProject
 import com.khan366kos.atlas.project.backend.repo.postgres.table.PortfolioProjectsTable
 import com.khan366kos.atlas.project.backend.repo.postgres.table.PortfoliosTable
 import com.khan366kos.atlas.project.backend.repo.postgres.table.ProjectPlansTable
 import com.khan366kos.atlas.project.backend.repo.postgres.table.ProjectsTable
+import kotlinx.coroutines.CancellationException
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.and
@@ -33,53 +35,47 @@ import kotlin.uuid.toJavaUuid
 
 class PortfolioRepoPostgres(private val database: Database) : IPortfolioRepo {
 
-    override suspend fun searchPortfolio(): DbPortfoliosResponse =
+    override suspend fun searchPortfolio(): PortfolioRepoResult =
         newSuspendedTransaction(db = database) {
             runCatching {
                 PortfoliosTable.selectAll().map {
                     it.toPortfolio()
                 }
-            }.fold(
-                onSuccess = {
-                    DbPortfoliosResponse(
-                        isSuccess = true,
-                        result = it
-                    )
-                },
-                onFailure = {
-                    DbPortfoliosResponse(
-                        isSuccess = false,
-                        result = emptyList()
-                    )
-                }
-            )
+            }
+                .onFailure { if (it is CancellationException) throw it }
+                .fold(
+                    onSuccess = {
+                        PortfolioRepoResult.Multiple(it)
+                    },
+                    onFailure = {
+                        PortfolioRepoResult.DbError(it)
+                    }
+                )
         }
 
-    override suspend fun readPortfolio(request: DbPortfolioIdRequest): DbPortfolioResponse =
+    override suspend fun readPortfolio(request: DbPortfolioIdRequest): PortfolioRepoResult =
         newSuspendedTransaction(db = database) {
             runCatching {
                 PortfoliosTable.selectAll()
                     .where { PortfoliosTable.id eq request.id.asUUID() }
-                    .single()
-                    .toPortfolio()
-            }.fold(
-                onSuccess = {
-                    DbPortfolioResponse(
-                        success = true,
-                        result = it
-                    )
-                },
-                onFailure = {
-                    DbPortfolioResponse(
-                        success = false,
-                        result = Portfolio.NONE
-                    )
-                }
-            )
+                    .singleOrNull()
+                    ?.toPortfolio()
+            }
+                .onFailure { if (it is CancellationException) throw it }
+                .fold(
+                    onSuccess = { portfolio ->
+                        portfolio
+                            ?.let { PortfolioRepoResult.Single(portfolio) }
+                            ?: PortfolioRepoResult.NotFound
+                    },
+                    onFailure = {
+                        PortfolioRepoResult.DbError(it)
+                    }
+                )
         }
 
     @OptIn(ExperimentalUuidApi::class)
-    override suspend fun createPortfolio(request: DbPortfolioRequest): DbPortfolioResponse =
+    override suspend fun createPortfolio(request: DbPortfolioRequest): PortfolioRepoResult =
         newSuspendedTransaction(db = database) {
             runCatching {
                 val newId = Uuid.random().toJavaUuid()
@@ -90,23 +86,18 @@ class PortfolioRepoPostgres(private val database: Database) : IPortfolioRepo {
                 }
                 request.portfolio.copy(id = PortfolioId(newId))
             }
+                .onFailure { if (it is CancellationException) throw it }
                 .fold(
                     onSuccess = {
-                        DbPortfolioResponse(
-                            success = true,
-                            result = it
-                        )
+                        PortfolioRepoResult.Single(it)
                     },
                     onFailure = {
-                        DbPortfolioResponse(
-                            success = false,
-                            result = Portfolio.NONE
-                        )
+                        PortfolioRepoResult.DbError(it)
                     }
                 )
         }
 
-    override suspend fun updatePortfolio(request: DbPortfolioRequest): DbPortfolioResponse =
+    override suspend fun updatePortfolio(request: DbPortfolioRequest): PortfolioRepoResult =
         newSuspendedTransaction(db = database) {
             runCatching {
                 PortfoliosTable.update({ PortfoliosTable.id eq request.portfolio.id.asUUID() }) {
@@ -117,23 +108,18 @@ class PortfolioRepoPostgres(private val database: Database) : IPortfolioRepo {
                 }
                 request.portfolio
             }
+                .onFailure { if (it is CancellationException) throw it }
                 .fold(
                     onSuccess = {
-                        DbPortfolioResponse(
-                            success = true,
-                            result = it
-                        )
+                        PortfolioRepoResult.Single(it)
                     },
                     onFailure = {
-                        DbPortfolioResponse(
-                            success = false,
-                            Portfolio.NONE
-                        )
+                        PortfolioRepoResult.DbError(it)
                     }
                 )
         }
 
-    override suspend fun deletePortfolio(request: DbPortfolioIdRequest): DbPortfolioResponse =
+    override suspend fun deletePortfolio(request: DbPortfolioIdRequest): PortfolioRepoResult =
         newSuspendedTransaction(db = database) {
             runCatching {
                 val response = PortfoliosTable.selectAll()
@@ -142,20 +128,16 @@ class PortfolioRepoPostgres(private val database: Database) : IPortfolioRepo {
                     .toPortfolio()
                 PortfoliosTable.deleteWhere { PortfoliosTable.id eq request.id.asUUID() }
                 response
-            }.fold(
-                onSuccess = {
-                    DbPortfolioResponse(
-                        success = true,
-                        result = it
-                    )
-                },
-                onFailure = {
-                    DbPortfolioResponse(
-                        success = false,
-                        result = Portfolio.NONE
-                    )
-                }
-            )
+            }
+                .onFailure { if (it is CancellationException) throw it }
+                .fold(
+                    onSuccess = {
+                        PortfolioRepoResult.Single(it)
+                    },
+                    onFailure = {
+                        PortfolioRepoResult.DbError(it)
+                    }
+                )
         }
 
     // Project operations (independent of portfolios)

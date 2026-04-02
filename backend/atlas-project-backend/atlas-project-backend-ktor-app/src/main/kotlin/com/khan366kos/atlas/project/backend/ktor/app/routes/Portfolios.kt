@@ -23,6 +23,11 @@ import com.khan366kos.atlas.project.backend.transport.enums.ProjectPriorityDto
 import com.khan366kos.atlas.project.backend.transport.portfolio.AddProjectToPortfolioRequest
 import com.khan366kos.atlas.project.backend.transport.portfolio.ReorderPortfolioProjectsRequest
 import com.khan366kos.atlas.project.backend.transport.portfolio.UpdateProjectPriorityRequest
+import com.khan366kos.atlas.project.backend.transport.responses.CreatePortfolioResponseDto
+import com.khan366kos.atlas.project.backend.transport.responses.DeletePortfolioResponseDto
+import com.khan366kos.atlas.project.backend.transport.responses.ReadPortfolioResponseDto
+import com.khan366kos.atlas.project.backend.transport.responses.SearchPortfolioResponseDto
+import com.khan366kos.atlas.project.backend.transport.responses.UpdatePortfolioResponseDto
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
@@ -75,37 +80,40 @@ fun Routing.portfolios(
 
     get {
         val portfolios = portfolioService.list()
-        call.respond(portfolios)
+        call.respond(
+            SearchPortfolioResponseDto(
+                foundPortfolios = portfolios.map { it.toResponsePortfolioDto() },
+            )
+        )
     }
 
     post {
-        try {
-            val request = call.receive<CreatePortfolioCommandDto>()
-            val response = portfolioService.create(request)
-            call.respond(HttpStatusCode.Created, response)
-        } catch (e: Exception) {
-            println("Error: ${e.message}")
-            call.respond(HttpStatusCode.BadRequest)
-        }
+        val command = call.receive<CreatePortfolioCommandDto>()
+        val portfolio = portfolioService.create(command.createPortfolio.toDomain())
+        call.respond(
+            HttpStatusCode.Created, CreatePortfolioResponseDto(
+                createdPortfolio = portfolio.toResponsePortfolioDto()
+            )
+        )
     }
 
     get("/{id}") {
         val id = call.parameters["id"]!!
-        val response =
-            portfolioService.find(readPortfolioCommandDto = ReadPortfolioCommandDto(readPortfolioId = id))
-        call.respond(response)
+        val portfolio =
+            portfolioService.find(PortfolioId(id))
+        call.respond(ReadPortfolioResponseDto(portfolio.toResponsePortfolioDto()))
     }
 
     patch("/{id}") {
-        val request = call.receive<UpdatePortfolioCommandDto>()
-        val response = portfolioService.modify(updatePortfolioCommandDto = request)
-        call.respond(HttpStatusCode.OK, response)
+        val command = call.receive<UpdatePortfolioCommandDto>()
+        val portfolio = portfolioService.modify(command.updatePortfolio.toDomain())
+        call.respond(HttpStatusCode.OK, UpdatePortfolioResponseDto(portfolio.toResponsePortfolioDto()))
     }
 
     delete("/{id}") {
         val id = call.parameters["id"]!!
-        val response = portfolioService.delete(DeletePortfolioCommandDto(deletePortfolioId = id))
-        call.respond(response)
+        val portfolio = portfolioService.delete(PortfolioId(id))
+        call.respond(DeletePortfolioResponseDto(portfolio.toResponsePortfolioDto()))
     }
 
     // Portfolio-Project relationship endpoints

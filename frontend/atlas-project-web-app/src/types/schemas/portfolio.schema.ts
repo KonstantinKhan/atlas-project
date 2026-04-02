@@ -1,13 +1,13 @@
 import { z } from 'zod'
 
 export const PortfolioSchema = z.object({
-	id: z.string(),
-	name: z.string(),
-	description: z.string(),
+	id: z.string().nullish(),
+	name: z.string().nullish(),
+	description: z.string().nullish(),
 })
 
 export const PortfolioListSchema = z.object({
-	portfolios: z.array(PortfolioSchema),
+	foundPortfolios: z.array(PortfolioSchema),
 })
 
 export const ProjectPrioritySchema = z.enum(['HIGH', 'MEDIUM', 'LOW'])
