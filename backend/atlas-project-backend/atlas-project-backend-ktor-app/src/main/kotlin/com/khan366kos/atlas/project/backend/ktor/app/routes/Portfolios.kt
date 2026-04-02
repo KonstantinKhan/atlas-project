@@ -2,6 +2,7 @@ package com.khan366kos.atlas.project.backend.ktor.app.routes
 
 import com.khan366kos.atlas.project.backend.calendar.service.CacheCalendarProvider
 import com.khan366kos.atlas.project.backend.common.models.portfolio.Portfolio
+import com.khan366kos.atlas.project.backend.common.models.portfolio.PortfolioId
 import com.khan366kos.atlas.project.backend.common.models.resource.CrossProjectLoadAggregator
 import com.khan366kos.atlas.project.backend.common.models.resource.ProjectLoadInput
 import com.khan366kos.atlas.project.backend.common.project.Project
@@ -9,11 +10,17 @@ import com.khan366kos.atlas.project.backend.common.project.ProjectPriority
 import com.khan366kos.atlas.project.backend.common.repo.IAtlasProjectTaskRepo
 import com.khan366kos.atlas.project.backend.common.repo.IPortfolioRepo
 import com.khan366kos.atlas.project.backend.common.repo.IResourceRepo
+import com.khan366kos.atlas.project.backend.common.repo.portfolio.DbPortfolioIdRequest
 import com.khan366kos.atlas.project.backend.mappers.toDomain
-import com.khan366kos.atlas.project.backend.mappers.toDto
+import com.khan366kos.atlas.project.backend.mappers.toResponsePortfolioDto
+import com.khan366kos.atlas.project.backend.mappers.toUpdatableProjectDto
+import com.khan366kos.atlas.project.backend.portfolio.service.PortfolioService
+import com.khan366kos.atlas.project.backend.transport.commands.CreatePortfolioCommandDto
+import com.khan366kos.atlas.project.backend.transport.commands.DeletePortfolioCommandDto
+import com.khan366kos.atlas.project.backend.transport.commands.ReadPortfolioCommandDto
+import com.khan366kos.atlas.project.backend.transport.commands.UpdatePortfolioCommandDto
 import com.khan366kos.atlas.project.backend.transport.enums.ProjectPriorityDto
 import com.khan366kos.atlas.project.backend.transport.portfolio.AddProjectToPortfolioRequest
-import com.khan366kos.atlas.project.backend.transport.portfolio.PortfolioProjectListDto
 import com.khan366kos.atlas.project.backend.transport.portfolio.ReorderPortfolioProjectsRequest
 import com.khan366kos.atlas.project.backend.transport.portfolio.UpdateProjectPriorityRequest
 import io.ktor.http.HttpStatusCode
@@ -32,17 +39,6 @@ data class PortfolioDto(
     val id: String,
     val name: String,
     val description: String,
-)
-
-@Serializable
-data class PortfolioListDto(
-    val portfolios: List<PortfolioDto>,
-)
-
-@Serializable
-data class CreatePortfolioRequest(
-    val name: String,
-    val description: String = "",
 )
 
 @Serializable
@@ -74,76 +70,72 @@ fun Routing.portfolios(
     taskRepo: IAtlasProjectTaskRepo,
     resourceRepo: IResourceRepo,
     calendarService: CacheCalendarProvider,
+    portfolioService: PortfolioService
 ) = route("/portfolios") {
 
     get {
-        val portfolios = portfolioRepo.listPortfolios()
-        call.respond(PortfolioListDto(portfolios = portfolios.map { it.toDto() }))
+        val portfolios = portfolioService.list()
+        call.respond(portfolios)
     }
 
     post {
-        val request = call.receive<CreatePortfolioRequest>()
-        val created = portfolioRepo.createPortfolio(
-            Portfolio(name = request.name, description = request.description)
-        )
-        call.respond(HttpStatusCode.Created, created.toDto())
+        try {
+            val request = call.receive<CreatePortfolioCommandDto>()
+            val response = portfolioService.create(request)
+            call.respond(HttpStatusCode.Created, response)
+        } catch (e: Exception) {
+            println("Error: ${e.message}")
+            call.respond(HttpStatusCode.BadRequest)
+        }
     }
 
     get("/{id}") {
         val id = call.parameters["id"]!!
-        val portfolio = portfolioRepo.getPortfolio(id)
-            ?: return@get call.respond(HttpStatusCode.NotFound)
-        call.respond(portfolio.toDto())
+        val response =
+            portfolioService.find(readPortfolioCommandDto = ReadPortfolioCommandDto(readPortfolioId = id))
+        call.respond(response)
     }
 
     patch("/{id}") {
-        val id = call.parameters["id"]!!
-        val existing = portfolioRepo.getPortfolio(id)
-            ?: return@patch call.respond(HttpStatusCode.NotFound)
-        val request = call.receive<UpdatePortfolioRequest>()
-        val updated = existing.copy(
-            name = request.name ?: existing.name,
-            description = request.description ?: existing.description,
-        )
-        call.respond(portfolioRepo.updatePortfolio(updated).toDto())
+        val request = call.receive<UpdatePortfolioCommandDto>()
+        val response = portfolioService.modify(updatePortfolioCommandDto = request)
+        call.respond(HttpStatusCode.OK, response)
     }
 
     delete("/{id}") {
         val id = call.parameters["id"]!!
-        portfolioRepo.getPortfolio(id)
-            ?: return@delete call.respond(HttpStatusCode.NotFound)
-        portfolioRepo.deletePortfolio(id)
-        call.respond(HttpStatusCode.NoContent)
+        val response = portfolioService.delete(DeletePortfolioCommandDto(deletePortfolioId = id))
+        call.respond(response)
     }
 
     // Portfolio-Project relationship endpoints
     get("/{id}/projects") {
         val id = call.parameters["id"]!!
-        portfolioRepo.getPortfolio(id)
+        portfolioRepo.readPortfolio(DbPortfolioIdRequest(PortfolioId(id)))
             ?: return@get call.respond(HttpStatusCode.NotFound)
         val portfolioProjects = portfolioRepo.listPortfolioProjects(id)
-        
+
         // Load project details and task counts for each portfolio project
         val projectSummaries = portfolioProjects.map { portfolioProject ->
-            val projectId = portfolioProject.projectId.asString()
+            val projectId = portfolioProject.id.asString()
             val project = portfolioRepo.getProject(projectId)
             val plan = taskRepo.projectPlan(projectId)
             val taskCount = taskRepo.countTasks(plan.id.asString())
-            
+
             ProjectSummaryDto(
                 id = projectId,
                 name = project?.name?.asString() ?: "Unknown",
-                priority = portfolioProject.priority.toDto(),
+                priority = ProjectPriorityDto.MEDIUM,
                 taskCount = taskCount,
             )
         }
-        
+
         call.respond(ProjectSummaryListDto(projects = projectSummaries))
     }
 
     post("/{id}/projects") {
         val id = call.parameters["id"]!!
-        portfolioRepo.getPortfolio(id)
+        portfolioRepo.readPortfolio(DbPortfolioIdRequest(PortfolioId(id)))
             ?: return@post call.respond(HttpStatusCode.NotFound)
         val request = call.receive<AddProjectToPortfolioRequest>()
         val portfolioProject = portfolioRepo.addProjectToPortfolio(
@@ -151,13 +143,13 @@ fun Routing.portfolios(
             request.projectId,
             request.priority.toDomain()
         )
-        call.respond(HttpStatusCode.Created, portfolioProject.toDto())
+        call.respond(HttpStatusCode.Created, portfolioProject.toResponsePortfolioDto())
     }
 
     delete("/{id}/projects/{projectId}") {
         val portfolioId = call.parameters["id"]!!
         val projectId = call.parameters["projectId"]!!
-        portfolioRepo.getPortfolio(portfolioId)
+        portfolioRepo.readPortfolio(DbPortfolioIdRequest(PortfolioId(projectId)))
             ?: return@delete call.respond(HttpStatusCode.NotFound)
         portfolioRepo.removeProjectFromPortfolio(portfolioId, projectId)
         call.respond(HttpStatusCode.NoContent)
@@ -166,7 +158,7 @@ fun Routing.portfolios(
     patch("/{id}/projects/{projectId}/priority") {
         val portfolioId = call.parameters["id"]!!
         val projectId = call.parameters["projectId"]!!
-        portfolioRepo.getPortfolio(portfolioId)
+        portfolioRepo.readPortfolio(DbPortfolioIdRequest(PortfolioId(projectId)))
             ?: return@patch call.respond(HttpStatusCode.NotFound)
         val request = call.receive<UpdateProjectPriorityRequest>()
         portfolioRepo.updateProjectPriority(portfolioId, projectId, request.priority.toDomain())
@@ -175,7 +167,7 @@ fun Routing.portfolios(
 
     patch("/{id}/projects/reorder") {
         val id = call.parameters["id"]!!
-        portfolioRepo.getPortfolio(id)
+        portfolioRepo.readPortfolio(DbPortfolioIdRequest(PortfolioId(id)))
             ?: return@patch call.respond(HttpStatusCode.NotFound)
         val request = call.receive<ReorderPortfolioProjectsRequest>()
         portfolioRepo.reorderPortfolioProjects(id, request.projectIds)
@@ -184,13 +176,13 @@ fun Routing.portfolios(
 
     get("/{id}/resource-load") {
         val id = call.parameters["id"]!!
-        portfolioRepo.getPortfolio(id)
+        portfolioRepo.readPortfolio(DbPortfolioIdRequest(PortfolioId(id)))
             ?: return@get call.respond(HttpStatusCode.NotFound)
 
         // Load projects from this portfolio + all other projects (for external load)
         val allProjects = portfolioRepo.listAllProjects()
         val portfolioProjects = portfolioRepo.listPortfolioProjects(id)
-        val portfolioProjectIds = portfolioProjects.map { it.projectId.asString() }.toSet()
+        val portfolioProjectIds = portfolioProjects.map { it.id.asString() }.toSet()
 
         val projectInputs = allProjects.map { project ->
             val projectId = project.id.asString()
@@ -202,11 +194,7 @@ fun Routing.portfolios(
                 projectId = projectId,
                 projectName = project.name.asString(),
                 portfolioId = if (isInPortfolio) id else "",
-                priority = if (isInPortfolio) {
-                    portfolioProjects.find { it.projectId.asString() == projectId }?.priority ?: ProjectPriority.MEDIUM
-                } else {
-                    ProjectPriority.MEDIUM
-                },
+                priority = ProjectPriority.MEDIUM,
                 plan = plan,
                 assignments = assignments,
                 dayOverrides = dayOverrides,
@@ -223,12 +211,12 @@ fun Routing.portfolios(
 
         val aggregator = CrossProjectLoadAggregator(projectInputs, resources, calendar, calendarOverrides)
         val report = aggregator.computeLoad(from, to)
-        call.respond(report.toDto())
+        call.respond(report.toUpdatableProjectDto())
     }
 }
 
 private fun Portfolio.toDto() = PortfolioDto(
-    id = id.value,
+    id = id.asString(),
     name = name,
     description = description,
 )

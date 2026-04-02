@@ -6,7 +6,7 @@ import com.khan366kos.atlas.project.backend.common.models.resource.ResourceId
 import com.khan366kos.atlas.project.backend.common.models.resource.ResourceName
 import com.khan366kos.atlas.project.backend.common.models.resource.ResourceType
 import com.khan366kos.atlas.project.backend.common.repo.IResourceRepo
-import com.khan366kos.atlas.project.backend.mappers.toDto
+import com.khan366kos.atlas.project.backend.mappers.toUpdatableProjectDto
 import com.khan366kos.atlas.project.backend.transport.resource.CreateResourceCommandDto
 import com.khan366kos.atlas.project.backend.transport.resource.ResourceCalendarOverrideDto
 import com.khan366kos.atlas.project.backend.transport.resource.ResourceCalendarOverrideListDto
@@ -29,7 +29,7 @@ fun Routing.resources(
 
     get {
         val resources = resourceRepo.listResources()
-        call.respond(ResourceListDto(resources = resources.map { it.toDto() }))
+        call.respond(ResourceListDto(resources = resources.map { it.toUpdatableProjectDto() }))
     }
 
     post {
@@ -41,7 +41,7 @@ fun Routing.resources(
                 capacityHoursPerDay = request.capacityHoursPerDay,
             )
             val created = resourceRepo.createResource(resource)
-            call.respond(HttpStatusCode.Created, created.toDto())
+            call.respond(HttpStatusCode.Created, created.toUpdatableProjectDto())
         } catch (e: IllegalArgumentException) {
             call.respond(HttpStatusCode.BadRequest, mapOf("error" to e.message))
         }
@@ -61,7 +61,7 @@ fun Routing.resources(
                 type = request.type?.let { ResourceType.valueOf(it) } ?: existing.type,
                 capacityHoursPerDay = request.capacityHoursPerDay ?: existing.capacityHoursPerDay,
             )
-            call.respond(resourceRepo.updateResource(updated).toDto())
+            call.respond(resourceRepo.updateResource(updated).toUpdatableProjectDto())
         } catch (e: IllegalArgumentException) {
             call.respond(HttpStatusCode.BadRequest, mapOf("error" to e.message))
         }
@@ -86,7 +86,7 @@ fun Routing.resources(
             ?: return@get call.respond(HttpStatusCode.NotFound)
 
         val overrides = resourceRepo.getCalendarOverrides(id)
-        call.respond(ResourceCalendarOverrideListDto(overrides = overrides.map { it.toDto() }))
+        call.respond(ResourceCalendarOverrideListDto(overrides = overrides.map { it.toUpdatableProjectDto() }))
     }
 
     post("/{id}/calendar-overrides") {
@@ -103,7 +103,7 @@ fun Routing.resources(
             availableHours = request.availableHours,
         )
         resourceRepo.setCalendarOverride(override)
-        call.respond(HttpStatusCode.Created, override.toDto())
+        call.respond(HttpStatusCode.Created, override.toUpdatableProjectDto())
     }
 
     delete("/{id}/calendar-overrides/{date}") {

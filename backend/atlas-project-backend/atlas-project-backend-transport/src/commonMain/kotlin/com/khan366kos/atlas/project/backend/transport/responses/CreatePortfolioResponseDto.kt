@@ -1,8 +1,10 @@
 package com.khan366kos.atlas.project.backend.transport.responses
 
-import com.khan366kos.atlas.project.backend.transport.portfolio.UpdatablePortfolioDto
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
-class CreatePortfolioResponse(
-    val portfolio: UpdatablePortfolioDto,
-) {
-}
+@Serializable
+class CreatePortfolioResponseDto(
+    @SerialName("createdPortfolio")
+    val createdPortfolio: ResponsePortfolioDto,
+)

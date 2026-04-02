@@ -30,8 +30,8 @@ dependencies {
     implementation(projects.atlasProjectBackendMappers)
     implementation(projects.atlasProjectBackendPostgres)
     implementation(projects.atlasProjectBackendCalendarService)
-    implementation(projects.atlasProjectBackendRepoInMemory)
     implementation(projects.atlasProjectBackendProjectService)
+    implementation(projects.atlasProjectBackendPortfolioService)
 
     testImplementation(libs.ktor.server.test.host)
     testImplementation(libs.kotlin.test.junit)

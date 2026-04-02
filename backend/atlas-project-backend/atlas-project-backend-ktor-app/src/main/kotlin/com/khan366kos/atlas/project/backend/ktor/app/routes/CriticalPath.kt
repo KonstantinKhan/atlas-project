@@ -3,7 +3,7 @@ package com.khan366kos.atlas.project.backend.ktor.app.routes
 import com.khan366kos.atlas.project.backend.calendar.service.CacheCalendarProvider
 import com.khan366kos.atlas.project.backend.common.models.projectPlan.CriticalPathAnalysis
 import com.khan366kos.atlas.project.backend.common.repo.IAtlasProjectTaskRepo
-import com.khan366kos.atlas.project.backend.mappers.toDto
+import com.khan366kos.atlas.project.backend.mappers.toUpdatableProjectDto
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
@@ -18,6 +18,6 @@ fun Route.criticalPath(
         val plan = repo.projectPlan(projectId)
         val calendar = calendarService.current()
         val result = CriticalPathAnalysis(plan, calendar).compute()
-        call.respond(result.toDto())
+        call.respond(result.toUpdatableProjectDto())
     }
 }

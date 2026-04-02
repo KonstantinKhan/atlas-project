@@ -6,7 +6,7 @@ import com.khan366kos.atlas.project.backend.common.models.taskSchedule.TaskSched
 import com.khan366kos.atlas.project.backend.common.models.taskSchedule.TaskScheduleId
 import com.khan366kos.atlas.project.backend.common.models.task.simple.TaskId
 import com.khan366kos.atlas.project.backend.ktor.app.helpers.handleProjectId
-import com.khan366kos.atlas.project.backend.mappers.toDto
+import com.khan366kos.atlas.project.backend.mappers.toUpdatableProjectDto
 import com.khan366kos.atlas.project.backend.mappers.toGanttDto
 import com.khan366kos.atlas.project.backend.mappers.toTransport
 import com.khan366kos.atlas.project.backend.mappers.toDomain
@@ -56,7 +56,7 @@ fun Application.configureRoutingOld(config: AppConfig) {
                         plan.schedules()[taskSchedule.id] = taskSchedule
                         config.repo.updateSchedule(taskSchedule)
                     }
-                    call.respond(delta.toDto())
+                    call.respond(delta.toUpdatableProjectDto())
                 }
             }
 
@@ -75,7 +75,7 @@ fun Application.configureRoutingOld(config: AppConfig) {
                 }
                 plan.tasks().find { it.id == TaskId(request.taskId) }
                     ?.let { config.repo.updateTask(it) }
-                call.respond(delta.toDto())
+                call.respond(delta.toUpdatableProjectDto())
             }
 
             post("/change-end") {
@@ -93,7 +93,7 @@ fun Application.configureRoutingOld(config: AppConfig) {
                 }
                 plan.tasks().find { it.id == TaskId(request.taskId) }
                     ?.let { config.repo.updateTask(it) }
-                call.respond(delta.toDto())
+                call.respond(delta.toUpdatableProjectDto())
             }
 
             post("/dependencies") {

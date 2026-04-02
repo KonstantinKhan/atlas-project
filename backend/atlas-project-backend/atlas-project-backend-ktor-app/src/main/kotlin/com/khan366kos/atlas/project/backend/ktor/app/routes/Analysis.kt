@@ -7,7 +7,7 @@ import com.khan366kos.atlas.project.backend.common.models.projectPlan.whatIf
 import com.khan366kos.atlas.project.backend.common.models.projectPlan.whatIfEnd
 import com.khan366kos.atlas.project.backend.common.models.task.simple.TaskId
 import com.khan366kos.atlas.project.backend.common.repo.IAtlasProjectTaskRepo
-import com.khan366kos.atlas.project.backend.mappers.toDto
+import com.khan366kos.atlas.project.backend.mappers.toUpdatableProjectDto
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
@@ -23,14 +23,14 @@ fun Route.analysis(
         val projectId = call.parameters["projectId"]!!
         val taskId = TaskId(call.parameters["taskId"]!!)
         val plan = repo.projectPlan(projectId)
-        call.respond(plan.blockerChain(taskId).toDto())
+        call.respond(plan.blockerChain(taskId).toUpdatableProjectDto())
     }
 
     get("/available-tasks") {
         val projectId = call.parameters["projectId"]!!
         val today = LocalDate.parse(call.request.queryParameters["today"]!!)
         val plan = repo.projectPlan(projectId)
-        call.respond(plan.availableTasks(today).toDto())
+        call.respond(plan.availableTasks(today).toUpdatableProjectDto())
     }
 
     get("/what-if") {
@@ -39,7 +39,7 @@ fun Route.analysis(
         val newStart = LocalDate.parse(call.request.queryParameters["newStart"]!!)
         val plan = repo.projectPlan(projectId)
         val calendar = calendarService.current()
-        call.respond(plan.whatIf(taskId, newStart, calendar).toDto())
+        call.respond(plan.whatIf(taskId, newStart, calendar).toUpdatableProjectDto())
     }
 
     get("/what-if-end") {
@@ -48,6 +48,6 @@ fun Route.analysis(
         val newEnd = LocalDate.parse(call.request.queryParameters["newEnd"]!!)
         val plan = repo.projectPlan(projectId)
         val calendar = calendarService.current()
-        call.respond(plan.whatIfEnd(taskId, newEnd, calendar).toDto())
+        call.respond(plan.whatIfEnd(taskId, newEnd, calendar).toUpdatableProjectDto())
     }
 }

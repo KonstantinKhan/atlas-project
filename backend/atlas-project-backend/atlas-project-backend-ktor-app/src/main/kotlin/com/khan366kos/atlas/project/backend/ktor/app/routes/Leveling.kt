@@ -4,7 +4,7 @@ import com.khan366kos.atlas.project.backend.common.models.resource.ResourceLevel
 import com.khan366kos.atlas.project.backend.common.repo.IAtlasProjectTaskRepo
 import com.khan366kos.atlas.project.backend.common.repo.IResourceRepo
 import com.khan366kos.atlas.project.backend.calendar.service.CacheCalendarProvider
-import com.khan366kos.atlas.project.backend.mappers.toDto
+import com.khan366kos.atlas.project.backend.mappers.toUpdatableProjectDto
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
@@ -33,7 +33,7 @@ fun Route.leveling(
 
             val engine = ResourceLevelingEngine(plan, assignments, resources, calendar, calendarOverrides, dayOverridesByAssignment)
             val result = engine.level()
-            call.respond(HttpStatusCode.OK, result.toDto())
+            call.respond(HttpStatusCode.OK, result.toUpdatableProjectDto())
         }
 
         post("/apply") {
@@ -56,7 +56,7 @@ fun Route.leveling(
                 taskRepo.updateSchedule(schedule)
             }
 
-            call.respond(HttpStatusCode.OK, result.toDto())
+            call.respond(HttpStatusCode.OK, result.toUpdatableProjectDto())
         }
     }
 }

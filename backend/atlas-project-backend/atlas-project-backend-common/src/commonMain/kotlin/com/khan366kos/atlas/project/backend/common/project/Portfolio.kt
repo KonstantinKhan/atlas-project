@@ -1,14 +1,14 @@
 package com.khan366kos.atlas.project.backend.common.project
 
-import com.khan366kos.atlas.project.backend.common.models.portfolio.ProjectPortfolioId
+import com.khan366kos.atlas.project.backend.common.models.portfolio.PortfolioId
 
-data class PortfolioProject(
+data class Portfolio(
     val id: PortfolioProjectId = PortfolioProjectId.NONE,
-    val projectPortfolioId: ProjectPortfolioId = ProjectPortfolioId.NONE,
+    val portfolioId: PortfolioId = PortfolioId.NONE,
     val projectId: ProjectId = ProjectId.NONE,
     val priority: ProjectPriority = ProjectPriority.MEDIUM,
 ) {
     companion object {
-        val NONE = PortfolioProject()
+        val NONE = Portfolio()
     }
 }

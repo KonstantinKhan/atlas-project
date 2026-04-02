@@ -5,6 +5,7 @@ import com.khan366kos.atlas.project.backend.calendar.service.CacheCalendarProvid
 import com.khan366kos.atlas.project.backend.common.repo.IAtlasProjectTaskRepo
 import com.khan366kos.atlas.project.backend.common.repo.IPortfolioRepo
 import com.khan366kos.atlas.project.backend.common.repo.IResourceRepo
+import com.khan366kos.atlas.project.backend.portfolio.service.PortfolioService
 import com.khan366kos.atlas.project.backend.project.service.ProjectService
 import com.khan366kos.configureDatabases
 import io.ktor.server.application.ApplicationEnvironment
@@ -14,7 +15,8 @@ class AppConfig(
     val resourceRepo: IResourceRepo,
     val portfolioRepo: IPortfolioRepo,
     val calendarService: CacheCalendarProvider,
-    val projectService: ProjectService = ProjectService(repo)
+    val projectService: ProjectService = ProjectService(repo),
+    val portfolioService: PortfolioService = PortfolioService(portfolioRepo),
 ) {
     constructor(environment: ApplicationEnvironment) : this(
         repos = configureDatabases(environment),

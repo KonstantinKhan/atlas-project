@@ -21,7 +21,13 @@ fun Application.configureRouting(
     projectService: ProjectService
 ) {
     routing {
-        portfolios(appConfig.portfolioRepo, appConfig.repo, appConfig.resourceRepo, appConfig.calendarService)
+        portfolios(
+            appConfig.portfolioRepo,
+            appConfig.repo,
+            appConfig.resourceRepo,
+            appConfig.calendarService,
+            appConfig.portfolioService
+        )
         resourceLoad(appConfig.portfolioRepo, appConfig.repo, appConfig.resourceRepo, appConfig.calendarService)
         resources(appConfig.resourceRepo)
 

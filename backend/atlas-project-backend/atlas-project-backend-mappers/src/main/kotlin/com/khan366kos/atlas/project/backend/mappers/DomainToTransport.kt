@@ -1,6 +1,7 @@
 package com.khan366kos.atlas.project.backend.mappers
 
 import com.khan366kos.atlas.project.backend.common.models.ProjectDate
+import com.khan366kos.atlas.project.backend.common.models.portfolio.Portfolio
 import com.khan366kos.atlas.project.backend.common.models.resource.AssignmentDayOverride
 import com.khan366kos.atlas.project.backend.common.models.resource.CrossProjectDayLoad
 import com.khan366kos.atlas.project.backend.common.models.resource.CrossProjectOverloadReport
@@ -44,6 +45,7 @@ import com.khan366kos.atlas.project.backend.transport.cpm.CpmTaskDto
 import com.khan366kos.atlas.project.backend.transport.cpm.CriticalPathDto
 import com.khan366kos.atlas.project.backend.transport.enums.ProjectPriorityDto
 import com.khan366kos.atlas.project.backend.transport.ganttProjectPlan.GanttProjectPlanDto
+import com.khan366kos.atlas.project.backend.transport.portfolio.UpdatablePortfolioDto
 import com.khan366kos.atlas.project.backend.transport.project.ProjectDto
 import com.khan366kos.atlas.project.backend.transport.resource.CrossProjectDayLoadDto
 import com.khan366kos.atlas.project.backend.transport.resource.CrossProjectOverloadReportDto
@@ -57,9 +59,10 @@ import com.khan366kos.atlas.project.backend.transport.resource.ResourceDto
 import com.khan366kos.atlas.project.backend.transport.resource.AssignmentDayOverrideDto
 import com.khan366kos.atlas.project.backend.transport.resource.ResourceLoadResultDto
 import com.khan366kos.atlas.project.backend.transport.resource.TaskAssignmentDto
+import com.khan366kos.atlas.project.backend.transport.responses.ResponsePortfolioDto
 import com.khan366kos.atlas.project.backend.transport.timelineCalendar.TimelineCalendarDto
 
-fun ScheduleDelta.toDto() = ScheduleDeltaDto(
+fun ScheduleDelta.toUpdatableProjectDto() = ScheduleDeltaDto(
     updatedSchedules = updatedSchedule.map { schedule ->
         ScheduleUpdateDto(
             taskId = schedule.id.value,
@@ -129,13 +132,13 @@ fun ProjectPlan.toGanttDto(
     }
 )
 
-fun CriticalPathResult.toDto() = CriticalPathDto(
-    tasks = tasks.values.map { it.toDto() },
+fun CriticalPathResult.toUpdatableProjectDto() = CriticalPathDto(
+    tasks = tasks.values.map { it.toUpdatableProjectDto() },
     criticalTaskIds = criticalTaskIds.map { it.value },
     projectEnd = projectEnd,
 )
 
-fun CpmTaskResult.toDto() = CpmTaskDto(
+fun CpmTaskResult.toUpdatableProjectDto() = CpmTaskDto(
     taskId = taskId.value,
     es = es,
     ef = ef,
@@ -145,12 +148,12 @@ fun CpmTaskResult.toDto() = CpmTaskDto(
     isCritical = isCritical,
 )
 
-fun BlockerChainResult.toDto() = BlockerChainDto(
+fun BlockerChainResult.toUpdatableProjectDto() = BlockerChainDto(
     targetTaskId = targetTaskId.value,
-    blockers = blockers.map { it.toDto() },
+    blockers = blockers.map { it.toUpdatableProjectDto() },
 )
 
-fun BlockerInfo.toDto() = BlockerInfoDto(
+fun BlockerInfo.toUpdatableProjectDto() = BlockerInfoDto(
     taskId = taskId.value,
     title = title,
     status = status.value,
@@ -159,12 +162,12 @@ fun BlockerInfo.toDto() = BlockerInfoDto(
     depth = depth,
 )
 
-fun AvailableTasksResult.toDto() = AvailableTasksDto(
-    tasks = tasks.map { it.toDto() },
+fun AvailableTasksResult.toUpdatableProjectDto() = AvailableTasksDto(
+    tasks = tasks.map { it.toUpdatableProjectDto() },
     asOfDate = asOfDate,
 )
 
-fun AvailableTaskInfo.toDto() = AvailableTaskInfoDto(
+fun AvailableTaskInfo.toUpdatableProjectDto() = AvailableTaskInfoDto(
     taskId = taskId.value,
     title = title,
     status = status.value,
@@ -172,12 +175,12 @@ fun AvailableTaskInfo.toDto() = AvailableTaskInfoDto(
     end = end,
 )
 
-fun WhatIfResult.toDto() = WhatIfDto(
+fun WhatIfResult.toUpdatableProjectDto() = WhatIfDto(
     movedTaskId = movedTaskId.value,
-    impacts = impacts.map { it.toDto() },
+    impacts = impacts.map { it.toUpdatableProjectDto() },
 )
 
-fun TaskImpact.toDto() = TaskImpactDto(
+fun TaskImpact.toUpdatableProjectDto() = TaskImpactDto(
     taskId = taskId.value,
     title = title,
     oldStart = oldStart,
@@ -188,7 +191,7 @@ fun TaskImpact.toDto() = TaskImpactDto(
     deltaEndDays = deltaEndDays,
 )
 
-fun Resource.toDto() = ResourceDto(
+fun Resource.toUpdatableProjectDto() = ResourceDto(
     id = id.value,
     name = name.value,
     type = type.name,
@@ -196,12 +199,12 @@ fun Resource.toDto() = ResourceDto(
     sortOrder = sortOrder,
 )
 
-fun ResourceCalendarOverride.toDto() = ResourceCalendarOverrideDto(
+fun ResourceCalendarOverride.toUpdatableProjectDto() = ResourceCalendarOverrideDto(
     date = date.toString(),
     availableHours = availableHours,
 )
 
-fun TaskAssignment.toDto() = TaskAssignmentDto(
+fun TaskAssignment.toUpdatableProjectDto() = TaskAssignmentDto(
     id = id.value,
     taskId = taskId.value,
     resourceId = resourceId.value,
@@ -209,28 +212,28 @@ fun TaskAssignment.toDto() = TaskAssignmentDto(
     plannedEffortHours = plannedEffortHours,
 )
 
-fun AssignmentDayOverride.toDto() = AssignmentDayOverrideDto(
+fun AssignmentDayOverride.toUpdatableProjectDto() = AssignmentDayOverrideDto(
     date = date.toString(),
     hours = hours,
 )
 
-fun ResourceDayLoad.toDto() = ResourceDayLoadDto(
+fun ResourceDayLoad.toUpdatableProjectDto() = ResourceDayLoadDto(
     date = date.toString(),
     assignedHours = assignedHours,
     capacityHours = capacityHours,
     isOverloaded = isOverloaded,
 )
 
-fun ResourceLoadResult.toDto() = ResourceLoadResultDto(
+fun ResourceLoadResult.toUpdatableProjectDto() = ResourceLoadResultDto(
     resourceId = resourceId.value,
     resourceName = resourceName,
-    days = days.map { it.toDto() },
+    days = days.map { it.toUpdatableProjectDto() },
     overloadedDaysCount = overloadedDays.size,
     allocatedHours = allocatedHours,
     effortDeficit = effortDeficit,
 )
 
-fun LevelingResult.toDto() = LevelingResultDto(
+fun LevelingResult.toUpdatableProjectDto() = LevelingResultDto(
     updatedSchedules = scheduleDelta.updatedSchedule.map { schedule ->
         ScheduleUpdateDto(
             taskId = schedule.id.value,
@@ -242,52 +245,50 @@ fun LevelingResult.toDto() = LevelingResultDto(
     remainingOverloads = remainingOverloads,
 )
 
-fun OverloadReport.toDto() = OverloadReportDto(
-    resources = resources.map { it.toDto() },
+fun OverloadReport.toUpdatableProjectDto() = OverloadReportDto(
+    resources = resources.map { it.toUpdatableProjectDto() },
     totalOverloadedDays = totalOverloadedDays,
     totalEffortDeficit = totalEffortDeficit,
 )
 
-fun ProjectContribution.toDto() = ProjectContributionDto(
+fun ProjectContribution.toUpdatableProjectDto() = ProjectContributionDto(
     projectId = projectId,
     projectName = projectName,
     hours = hours,
 )
 
-fun CrossProjectDayLoad.toDto() = CrossProjectDayLoadDto(
+fun CrossProjectDayLoad.toUpdatableProjectDto() = CrossProjectDayLoadDto(
     date = date.toString(),
     totalAssignedHours = totalAssignedHours,
     capacityHours = capacityHours,
     isOverloaded = isOverloaded,
-    projectBreakdown = projectBreakdown.map { it.toDto() },
+    projectBreakdown = projectBreakdown.map { it.toUpdatableProjectDto() },
 )
 
-fun CrossProjectResourceLoad.toDto() = CrossProjectResourceLoadDto(
+fun CrossProjectResourceLoad.toUpdatableProjectDto() = CrossProjectResourceLoadDto(
     resourceId = resourceId.value,
     resourceName = resourceName,
-    days = days.map { it.toDto() },
+    days = days.map { it.toUpdatableProjectDto() },
     overloadedDaysCount = overloadedDays.size,
     totalAllocatedHours = totalAllocatedHours,
 )
 
-fun CrossProjectOverloadReport.toDto() = CrossProjectOverloadReportDto(
-    resources = resources.map { it.toDto() },
-    projects = projects.map { it.toDto() },
+fun CrossProjectOverloadReport.toUpdatableProjectDto() = CrossProjectOverloadReportDto(
+    resources = resources.map { it.toUpdatableProjectDto() },
+    projects = projects.map { it.toUpdatableProjectDto() },
     totalOverloadedDays = totalOverloadedDays,
 )
 
-fun ProjectPriority.toDto() =
+fun ProjectPriority.toUpdatableProjectDto() =
     ProjectPriorityDto.valueOf(this.name)
 
-fun Project.toDto() = ProjectDto(
+fun Project.toUpdatableProjectDto() = ProjectDto(
     id = id.asString(),
     name = name.asString(),
 )
 
-fun com.khan366kos.atlas.project.backend.common.project.PortfolioProject.toDto() =
-    com.khan366kos.atlas.project.backend.transport.portfolio.PortfolioProjectDto(
-        id = id.asString(),
-        portfolioId = portfolioId.asString(),
-        projectId = projectId.asString(),
-        priority = priority.toDto(),
-    )
+fun Portfolio.toResponsePortfolioDto() = ResponsePortfolioDto(
+    id = id.asString(),
+    name = name,
+    description = description
+)

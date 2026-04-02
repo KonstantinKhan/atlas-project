@@ -2,6 +2,8 @@ package com.khan366kos.atlas.project.backend.mappers
 
 import com.khan366kos.atlas.project.backend.common.enums.DependencyType
 import com.khan366kos.atlas.project.backend.common.models.ProjectDate
+import com.khan366kos.atlas.project.backend.common.models.portfolio.PortfolioId
+import com.khan366kos.atlas.project.backend.common.models.portfolio.Portfolio
 import com.khan366kos.atlas.project.backend.common.models.taskSchedule.TaskSchedule
 import com.khan366kos.atlas.project.backend.common.models.taskSchedule.TaskScheduleId
 import com.khan366kos.atlas.project.backend.common.project.ProjectPriority
@@ -9,6 +11,8 @@ import com.khan366kos.atlas.project.backend.transport.commands.ChangeTaskEndDate
 import com.khan366kos.atlas.project.backend.transport.commands.ChangeTaskStartDateCommandDto
 import com.khan366kos.atlas.project.backend.transport.enums.DependencyTypeDto
 import com.khan366kos.atlas.project.backend.transport.enums.ProjectPriorityDto
+import com.khan366kos.atlas.project.backend.transport.portfolio.CreatablePortfolioDto
+import com.khan366kos.atlas.project.backend.transport.portfolio.UpdatablePortfolioDto
 
 fun ChangeTaskStartDateCommandDto.toDomain() = TaskSchedule(
     id = TaskScheduleId(taskId),
@@ -23,3 +27,15 @@ fun ChangeTaskEndDateCommandDto.toDomain() = TaskSchedule(
 fun DependencyTypeDto.toDomain() = DependencyType.valueOf(this.name)
 
 fun ProjectPriorityDto.toDomain() = ProjectPriority.valueOf(this.name)
+
+fun CreatablePortfolioDto.toDomain() = Portfolio(
+    id = PortfolioId.NONE,
+    name = name ?: "",
+    description = description ?: ""
+)
+
+fun UpdatablePortfolioDto.toDomain() = Portfolio(
+    id = id?.let { PortfolioId(it) } ?: PortfolioId.NONE,
+    name = name ?: "",
+    description = description ?: ""
+)

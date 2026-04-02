@@ -9,7 +9,7 @@ import com.khan366kos.atlas.project.backend.common.models.task.simple.TaskId
 import com.khan366kos.atlas.project.backend.common.repo.IAtlasProjectTaskRepo
 import com.khan366kos.atlas.project.backend.common.repo.IResourceRepo
 import com.khan366kos.atlas.project.backend.calendar.service.CacheCalendarProvider
-import com.khan366kos.atlas.project.backend.mappers.toDto
+import com.khan366kos.atlas.project.backend.mappers.toUpdatableProjectDto
 import com.khan366kos.atlas.project.backend.transport.resource.AssignmentDayOverrideListDto
 import com.khan366kos.atlas.project.backend.transport.resource.CreateAssignmentCommandDto
 import com.khan366kos.atlas.project.backend.transport.resource.SetDayOverrideCommandDto
@@ -37,7 +37,7 @@ fun Route.assignments(
             val projectId = call.parameters["projectId"]!!
             val plan = taskRepo.projectPlan(projectId)
             val assignments = resourceRepo.listAssignments(plan.id.asString())
-            call.respond(TaskAssignmentListDto(assignments = assignments.map { it.toDto() }))
+            call.respond(TaskAssignmentListDto(assignments = assignments.map { it.toUpdatableProjectDto() }))
         }
 
         post {
@@ -52,7 +52,7 @@ fun Route.assignments(
                     plannedEffortHours = request.plannedEffortHours,
                 )
                 val created = resourceRepo.createAssignment(plan.id.asString(), assignment)
-                call.respond(HttpStatusCode.Created, created.toDto())
+                call.respond(HttpStatusCode.Created, created.toUpdatableProjectDto())
             } catch (e: IllegalArgumentException) {
                 call.respond(HttpStatusCode.BadRequest, mapOf("error" to e.message))
             }
@@ -74,7 +74,7 @@ fun Route.assignments(
                     request.hoursPerDay ?: existing.hoursPerDay,
                     request.plannedEffortHours ?: existing.plannedEffortHours,
                 )
-                call.respond(updated.toDto())
+                call.respond(updated.toUpdatableProjectDto())
             } catch (e: NoSuchElementException) {
                 call.respond(HttpStatusCode.NotFound)
             } catch (e: IllegalArgumentException) {
@@ -95,7 +95,7 @@ fun Route.assignments(
                 ?: return@get call.respond(HttpStatusCode.BadRequest, "Assignment ID parameter is missing")
 
             val overrides = resourceRepo.getAssignmentDayOverrides(id)
-            call.respond(AssignmentDayOverrideListDto(overrides = overrides.map { it.toDto() }))
+            call.respond(AssignmentDayOverrideListDto(overrides = overrides.map { it.toUpdatableProjectDto() }))
         }
 
         post("/{id}/day-overrides") {
@@ -110,7 +110,7 @@ fun Route.assignments(
                     hours = request.hours,
                 )
                 resourceRepo.setAssignmentDayOverride(override)
-                call.respond(HttpStatusCode.OK, override.toDto())
+                call.respond(HttpStatusCode.OK, override.toUpdatableProjectDto())
             } catch (e: IllegalArgumentException) {
                 call.respond(HttpStatusCode.BadRequest, mapOf("error" to e.message))
             }
@@ -153,7 +153,7 @@ fun Route.assignments(
 
             val calculator = ResourceLoadCalculator(plan, assignments, resources, calendar, calendarOverrides, dayOverridesByAssignment)
             val report = calculator.computeLoad(from, to)
-            call.respond(report.toDto())
+            call.respond(report.toUpdatableProjectDto())
         }
 
         get("/{resourceId}") {
@@ -181,7 +181,7 @@ fun Route.assignments(
 
             val calculator = ResourceLoadCalculator(plan, assignments, resources, calendar, calendarOverrides, dayOverridesByAssignment)
             val result = calculator.computeResourceLoad(ResourceId(resourceId), from, to)
-            call.respond(result.toDto())
+            call.respond(result.toUpdatableProjectDto())
         }
     }
 }

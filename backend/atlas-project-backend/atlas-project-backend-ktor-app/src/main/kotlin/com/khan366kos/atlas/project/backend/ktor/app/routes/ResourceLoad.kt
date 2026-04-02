@@ -5,11 +5,10 @@ import com.khan366kos.atlas.project.backend.common.models.ProjectDate
 import com.khan366kos.atlas.project.backend.common.models.resource.CrossProjectLoadAggregator
 import com.khan366kos.atlas.project.backend.common.models.resource.ProjectLoadInput
 import com.khan366kos.atlas.project.backend.common.models.projectPlan.ProjectPlan
-import com.khan366kos.atlas.project.backend.common.models.taskSchedule.TaskScheduleId
 import com.khan366kos.atlas.project.backend.common.repo.IAtlasProjectTaskRepo
 import com.khan366kos.atlas.project.backend.common.repo.IPortfolioRepo
 import com.khan366kos.atlas.project.backend.common.repo.IResourceRepo
-import com.khan366kos.atlas.project.backend.mappers.toDto
+import com.khan366kos.atlas.project.backend.mappers.toUpdatableProjectDto
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Routing
 import io.ktor.server.routing.get
@@ -55,7 +54,7 @@ fun Routing.resourceLoad(
 
         val aggregator = CrossProjectLoadAggregator(projectInputs, resources, calendar, calendarOverrides)
         val report = aggregator.computeLoad(from, to)
-        call.respond(report.toDto())
+        call.respond(report.toUpdatableProjectDto())
     }
 }
 

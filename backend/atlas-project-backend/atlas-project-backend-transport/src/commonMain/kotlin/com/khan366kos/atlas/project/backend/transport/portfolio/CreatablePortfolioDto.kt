@@ -4,7 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class CreatableProjectPortfolioDto(
+data class CreatablePortfolioDto(
     @SerialName("name")
     val name: String? = null,
     @SerialName("description")

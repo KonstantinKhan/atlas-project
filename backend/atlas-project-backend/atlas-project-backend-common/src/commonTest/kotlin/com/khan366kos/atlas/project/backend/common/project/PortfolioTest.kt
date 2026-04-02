@@ -1,55 +1,55 @@
 package com.khan366kos.atlas.project.backend.common.project
 
-import com.khan366kos.atlas.project.backend.common.models.portfolio.ProjectPortfolioId
+import com.khan366kos.atlas.project.backend.common.models.portfolio.PortfolioId
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-class ProjectPortfolioProjectTest {
+class PortfolioTest {
 
     @Test
     fun `test PortfolioProject creation with default values`() {
-        val portfolioProject = PortfolioProject()
-        assertEquals(PortfolioProjectId.NONE, portfolioProject.id)
-        assertEquals(ProjectPortfolioId.NONE, portfolioProject.projectPortfolioId)
-        assertEquals(ProjectId.NONE, portfolioProject.projectId)
-        assertEquals(ProjectPriority.MEDIUM, portfolioProject.priority)
+        val portfolio = Portfolio()
+        assertEquals(PortfolioProjectId.NONE, portfolio.id)
+        assertEquals(PortfolioId.NONE, portfolio.portfolioId)
+        assertEquals(ProjectId.NONE, portfolio.projectId)
+        assertEquals(ProjectPriority.MEDIUM, portfolio.priority)
     }
 
     @Test
     fun `test PortfolioProject creation with custom values`() {
-        val portfolioProject = PortfolioProject(
+        val portfolio = Portfolio(
             id = PortfolioProjectId("pp-id-1"),
-            projectPortfolioId = ProjectPortfolioId("portfolio-1"),
+            portfolioId = PortfolioId("portfolio-1"),
             projectId = ProjectId("project-1"),
             priority = ProjectPriority.HIGH,
         )
-        assertEquals("pp-id-1", portfolioProject.id.asString())
-        assertEquals("portfolio-1", portfolioProject.projectPortfolioId.asString())
-        assertEquals("project-1", portfolioProject.projectId.asString())
-        assertEquals(ProjectPriority.HIGH, portfolioProject.priority)
+        assertEquals("pp-id-1", portfolio.id.asString())
+        assertEquals("portfolio-1", portfolio.portfolioId.asString())
+        assertEquals("project-1", portfolio.projectId.asString())
+        assertEquals(ProjectPriority.HIGH, portfolio.priority)
     }
 
     @Test
     fun `test PortfolioProject NONE value`() {
-        val none = PortfolioProject.NONE
+        val none = Portfolio.NONE
         assertEquals(PortfolioProjectId.NONE, none.id)
-        assertEquals(ProjectPortfolioId.NONE, none.projectPortfolioId)
+        assertEquals(PortfolioId.NONE, none.portfolioId)
         assertEquals(ProjectId.NONE, none.projectId)
         assertEquals(ProjectPriority.MEDIUM, none.priority)
     }
 
     @Test
     fun `test PortfolioProject copy`() {
-        val original = PortfolioProject(
+        val original = Portfolio(
             id = PortfolioProjectId("pp-id-1"),
-            projectPortfolioId = ProjectPortfolioId("portfolio-1"),
+            portfolioId = PortfolioId("portfolio-1"),
             projectId = ProjectId("project-1"),
             priority = ProjectPriority.MEDIUM,
         )
         val updated = original.copy(priority = ProjectPriority.HIGH)
         assertEquals(ProjectPriority.HIGH, updated.priority)
         assertEquals(original.id, updated.id)
-        assertEquals(original.projectPortfolioId, updated.projectPortfolioId)
+        assertEquals(original.portfolioId, updated.portfolioId)
         assertEquals(original.projectId, updated.projectId)
     }
 }
