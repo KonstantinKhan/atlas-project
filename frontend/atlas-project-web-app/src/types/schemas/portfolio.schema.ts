@@ -1,4 +1,3 @@
-import { createPortfolio, updatePortfolio } from '@/services/portfoliosApi'
 import { z } from 'zod'
 
 export const PortfolioSchema = z.object({

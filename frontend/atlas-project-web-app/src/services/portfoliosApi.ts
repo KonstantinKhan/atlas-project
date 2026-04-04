@@ -1,5 +1,4 @@
 import {
-	PortfolioSchema,
 	PortfolioListSchema,
 	ProjectSummarySchema,
 	ProjectSummaryListSchema,
@@ -27,7 +26,7 @@ export async function getPortfolio(id: string): Promise<Portfolio> {
 		headers: { Accept: 'application/json' },
 	})
 	if (!response.ok) throw new Error('Failed to fetch portfolio')
-	const data = ReadPortfolioResponseSchema.parse(response.json)
+	const data = ReadPortfolioResponseSchema.parse(await response.json())
 	return data.readPortfolio
 }
 
@@ -50,7 +49,7 @@ export async function createPortfolio(
 
 	if (!response.ok) throw new Error('Failed to create portfolio')
 
-	const data = CreatePortfolioSchema.parse(response.json)
+	const data = CreatePortfolioSchema.parse(await response.json())
 	return data.createdPortfolio
 }
 
@@ -73,7 +72,7 @@ export async function updatePortfolio(
 
 	if (!response.ok) throw new Error('Failed to update portfolio')
 
-	const data = UpdatePortfolioSchema.parse(response.json)
+	const data = UpdatePortfolioSchema.parse(await response.json())
 
 	return data.updatedPortfolio
 }
