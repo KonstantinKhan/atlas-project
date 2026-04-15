@@ -29,7 +29,6 @@ export const ProjectSummarySchema = z.object({
 	id: z.string(),
 	name: z.string(),
 	priority: ProjectPrioritySchema,
-	taskCount: z.number(),
 })
 
 export const ProjectSummaryListSchema = z.object({
