@@ -62,7 +62,7 @@ class PortfolioRepoPostgres(private val database: Database) : IPortfolioRepo {
                 .fold(
                     onSuccess = { portfolio ->
                         portfolio
-                            ?.let { PortfolioRepoResult.Multiple(listOf(it)) }
+                            ?.let { PortfolioRepoResult.Single(it) }
                             ?: PortfolioRepoResult.NotFound
                     },
                     onFailure = {
