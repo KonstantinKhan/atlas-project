@@ -2,18 +2,15 @@ package com.khan366kos.atlas.project.backend.repo.postgres
 
 import com.khan366kos.atlas.project.backend.common.models.portfolio.Portfolio
 import com.khan366kos.atlas.project.backend.common.models.portfolio.PortfolioId
-import com.khan366kos.atlas.project.backend.common.project.PortfolioProjectId
-import com.khan366kos.atlas.project.backend.common.project.Project
-import com.khan366kos.atlas.project.backend.common.project.ProjectId
-import com.khan366kos.atlas.project.backend.common.project.ProjectName
+import com.khan366kos.atlas.project.backend.common.models.project.Project
+import com.khan366kos.atlas.project.backend.common.models.project.ProjectId
+import com.khan366kos.atlas.project.backend.common.models.project.ProjectName
 import com.khan366kos.atlas.project.backend.common.project.ProjectPriority
-import com.khan366kos.atlas.project.backend.common.repo.IPortfolioRepo
+import com.khan366kos.atlas.project.backend.common.repo.portfolio.IPortfolioRepo
 import com.khan366kos.atlas.project.backend.common.repo.portfolio.DbPortfolioIdRequest
 import com.khan366kos.atlas.project.backend.common.repo.portfolio.DbPortfolioRequest
-import com.khan366kos.atlas.project.backend.common.repo.portfolio.DbPortfolioResponse
-import com.khan366kos.atlas.project.backend.common.repo.portfolio.DbPortfoliosResponse
 import com.khan366kos.atlas.project.backend.common.repo.portfolio.PortfolioRepoResult
-import com.khan366kos.atlas.project.backend.repo.postgres.mapper.toProject
+import com.khan366kos.atlas.project.backend.repo.postgres.mapper.toPortfolioProject
 import com.khan366kos.atlas.project.backend.repo.postgres.table.PortfolioProjectsTable
 import com.khan366kos.atlas.project.backend.repo.postgres.table.PortfoliosTable
 import com.khan366kos.atlas.project.backend.repo.postgres.table.ProjectPlansTable
@@ -257,5 +254,10 @@ class PortfolioRepoPostgres(private val database: Database) : IPortfolioRepo {
         id = PortfolioId(this[PortfoliosTable.id].toString()),
         name = this[PortfoliosTable.name],
         description = this[PortfoliosTable.description],
+    )
+
+    private fun ResultRow.toProject() = Project(
+        id = ProjectId(this[ProjectsTable.id]),
+        name = ProjectName(this[ProjectsTable.name]),
     )
 }

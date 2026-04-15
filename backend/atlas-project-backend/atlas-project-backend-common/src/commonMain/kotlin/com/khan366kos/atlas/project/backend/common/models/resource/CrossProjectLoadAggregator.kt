@@ -2,9 +2,9 @@ package com.khan366kos.atlas.project.backend.common.models.resource
 
 import com.khan366kos.atlas.project.backend.common.models.projectPlan.ProjectPlan
 import com.khan366kos.atlas.project.backend.common.models.timelineCalendar.TimelineCalendar
-import com.khan366kos.atlas.project.backend.common.project.Project
-import com.khan366kos.atlas.project.backend.common.project.ProjectId
-import com.khan366kos.atlas.project.backend.common.project.ProjectName
+import com.khan366kos.atlas.project.backend.common.models.project.Project
+import com.khan366kos.atlas.project.backend.common.models.project.ProjectId
+import com.khan366kos.atlas.project.backend.common.models.project.ProjectName
 import com.khan366kos.atlas.project.backend.common.project.ProjectPriority
 import kotlinx.datetime.LocalDate
 

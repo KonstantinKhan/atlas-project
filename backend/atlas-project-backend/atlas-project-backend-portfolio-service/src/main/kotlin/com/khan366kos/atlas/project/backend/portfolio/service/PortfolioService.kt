@@ -4,7 +4,7 @@ import com.khan366kos.atlas.project.backend.common.exceptions.PortfolioNotFoundE
 import com.khan366kos.atlas.project.backend.common.exceptions.PortfolioOperationFailedException
 import com.khan366kos.atlas.project.backend.common.models.portfolio.Portfolio
 import com.khan366kos.atlas.project.backend.common.models.portfolio.PortfolioId
-import com.khan366kos.atlas.project.backend.common.repo.IPortfolioRepo
+import com.khan366kos.atlas.project.backend.common.repo.portfolio.IPortfolioRepo
 import com.khan366kos.atlas.project.backend.common.repo.portfolio.DbPortfolioIdRequest
 import com.khan366kos.atlas.project.backend.common.repo.portfolio.DbPortfolioRequest
 import com.khan366kos.atlas.project.backend.common.repo.portfolio.PortfolioRepoResult

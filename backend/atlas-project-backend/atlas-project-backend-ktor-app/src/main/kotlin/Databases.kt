@@ -1,10 +1,12 @@
 package com.khan366kos
 
 import com.khan366kos.atlas.project.backend.common.repo.IAtlasProjectTaskRepo
-import com.khan366kos.atlas.project.backend.common.repo.IPortfolioRepo
+import com.khan366kos.atlas.project.backend.common.repo.portfolio.IPortfolioRepo
 import com.khan366kos.atlas.project.backend.common.repo.IResourceRepo
+import com.khan366kos.atlas.project.backend.common.repo.project.IProjectRepo
 import com.khan366kos.atlas.project.backend.repo.postgres.AtlasProjectTaskRepoPostgres
 import com.khan366kos.atlas.project.backend.repo.postgres.PortfolioRepoPostgres
+import com.khan366kos.atlas.project.backend.repo.postgres.ProjectRepoPostgres
 import com.khan366kos.atlas.project.backend.repo.postgres.ResourceRepoPostgres
 import io.ktor.server.application.*
 import org.flywaydb.core.Flyway
@@ -14,6 +16,7 @@ data class DatabaseRepos(
     val taskRepo: IAtlasProjectTaskRepo,
     val resourceRepo: IResourceRepo,
     val portfolioRepo: IPortfolioRepo,
+    val projectRepo: IProjectRepo,
 )
 
 fun configureDatabases(environment: ApplicationEnvironment): DatabaseRepos {
@@ -31,5 +34,6 @@ fun configureDatabases(environment: ApplicationEnvironment): DatabaseRepos {
         taskRepo = AtlasProjectTaskRepoPostgres(database),
         resourceRepo = ResourceRepoPostgres(database),
         portfolioRepo = PortfolioRepoPostgres(database),
+        projectRepo = ProjectRepoPostgres(database)
     )
 }

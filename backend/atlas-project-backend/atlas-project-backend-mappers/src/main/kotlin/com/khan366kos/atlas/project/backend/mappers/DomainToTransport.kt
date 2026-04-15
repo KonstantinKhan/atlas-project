@@ -2,6 +2,7 @@ package com.khan366kos.atlas.project.backend.mappers
 
 import com.khan366kos.atlas.project.backend.common.models.ProjectDate
 import com.khan366kos.atlas.project.backend.common.models.portfolio.Portfolio
+import com.khan366kos.atlas.project.backend.common.models.project.PortfolioProject
 import com.khan366kos.atlas.project.backend.common.models.resource.AssignmentDayOverride
 import com.khan366kos.atlas.project.backend.common.models.resource.CrossProjectDayLoad
 import com.khan366kos.atlas.project.backend.common.models.resource.CrossProjectOverloadReport
@@ -27,7 +28,7 @@ import com.khan366kos.atlas.project.backend.common.models.taskSchedule.ScheduleD
 import com.khan366kos.atlas.project.backend.common.models.taskSchedule.TaskSchedule
 import com.khan366kos.atlas.project.backend.common.models.taskSchedule.TaskScheduleId
 import com.khan366kos.atlas.project.backend.common.models.timelineCalendar.TimelineCalendar
-import com.khan366kos.atlas.project.backend.common.project.Project
+import com.khan366kos.atlas.project.backend.common.models.project.Project
 import com.khan366kos.atlas.project.backend.common.project.ProjectPriority
 import com.khan366kos.atlas.project.backend.transport.GanttDependencyDto
 import com.khan366kos.atlas.project.backend.transport.GanttTaskDto
@@ -59,6 +60,7 @@ import com.khan366kos.atlas.project.backend.transport.resource.AssignmentDayOver
 import com.khan366kos.atlas.project.backend.transport.resource.ResourceLoadResultDto
 import com.khan366kos.atlas.project.backend.transport.resource.TaskAssignmentDto
 import com.khan366kos.atlas.project.backend.transport.responses.PortfolioResponseDto
+import com.khan366kos.atlas.project.backend.transport.responses.project.ProjectResponseDto
 import com.khan366kos.atlas.project.backend.transport.timelineCalendar.TimelineCalendarDto
 
 fun ScheduleDelta.toUpdatableProjectDto() = ScheduleDeltaDto(
@@ -290,4 +292,10 @@ fun Portfolio.toResponsePortfolioDto() = PortfolioResponseDto(
     id = id.asString(),
     name = name,
     description = description
+)
+
+fun PortfolioProject.toResponseProjectDto() = ProjectResponseDto(
+    id = id.asString(),
+    name = name.asString(),
+    priority = ProjectPriorityDto.valueOf(priority.name),
 )

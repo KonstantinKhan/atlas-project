@@ -6,7 +6,7 @@ import com.khan366kos.atlas.project.backend.common.models.resource.CrossProjectL
 import com.khan366kos.atlas.project.backend.common.models.resource.ProjectLoadInput
 import com.khan366kos.atlas.project.backend.common.models.projectPlan.ProjectPlan
 import com.khan366kos.atlas.project.backend.common.repo.IAtlasProjectTaskRepo
-import com.khan366kos.atlas.project.backend.common.repo.IPortfolioRepo
+import com.khan366kos.atlas.project.backend.common.repo.portfolio.IPortfolioRepo
 import com.khan366kos.atlas.project.backend.common.repo.IResourceRepo
 import com.khan366kos.atlas.project.backend.mappers.toUpdatableProjectDto
 import io.ktor.server.response.respond

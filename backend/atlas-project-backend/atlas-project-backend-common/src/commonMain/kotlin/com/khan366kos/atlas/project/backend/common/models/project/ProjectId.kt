@@ -1,4 +1,4 @@
-package com.khan366kos.atlas.project.backend.common.project
+package com.khan366kos.atlas.project.backend.common.models.project
 
 import java.util.UUID
 

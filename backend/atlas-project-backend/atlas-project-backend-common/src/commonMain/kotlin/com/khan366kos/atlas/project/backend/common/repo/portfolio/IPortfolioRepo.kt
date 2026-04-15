@@ -1,13 +1,8 @@
-package com.khan366kos.atlas.project.backend.common.repo
+package com.khan366kos.atlas.project.backend.common.repo.portfolio
 
 import com.khan366kos.atlas.project.backend.common.models.portfolio.Portfolio
-import com.khan366kos.atlas.project.backend.common.project.Project
+import com.khan366kos.atlas.project.backend.common.models.project.Project
 import com.khan366kos.atlas.project.backend.common.project.ProjectPriority
-import com.khan366kos.atlas.project.backend.common.repo.portfolio.DbPortfolioIdRequest
-import com.khan366kos.atlas.project.backend.common.repo.portfolio.DbPortfolioRequest
-import com.khan366kos.atlas.project.backend.common.repo.portfolio.DbPortfolioResponse
-import com.khan366kos.atlas.project.backend.common.repo.portfolio.DbPortfoliosResponse
-import com.khan366kos.atlas.project.backend.common.repo.portfolio.PortfolioRepoResult
 
 interface IPortfolioRepo {
     suspend fun createPortfolio(request: DbPortfolioRequest): PortfolioRepoResult

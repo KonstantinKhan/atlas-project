@@ -6,6 +6,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.*
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.response.respond
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.SerializationException
 
 fun Application.configureStatusPages() {
@@ -31,6 +32,12 @@ fun Application.configureStatusPages() {
         }
         exception<PortfolioOperationFailedException> { call, cause ->
             call.respond(HttpStatusCode.InternalServerError, mapOf("error" to "Database error"))
+        }
+        exception<CancellationException> { call, cause ->
+            // Log the cancellation for debugging purposes
+            // TODO: Replace with proper logging framework (e.g., SLF4J)
+            println("Request cancelled: ${cause.message}")
+            call.respond(HttpStatusCode(499, "Client Closed Request"), mapOf("message" to cause.message))
         }
     }
 }

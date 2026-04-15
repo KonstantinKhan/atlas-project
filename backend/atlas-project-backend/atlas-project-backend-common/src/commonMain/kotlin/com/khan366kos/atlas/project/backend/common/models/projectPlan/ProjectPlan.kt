@@ -4,7 +4,7 @@ import com.khan366kos.atlas.project.backend.common.enums.DependencyType
 import com.khan366kos.atlas.project.backend.common.models.ProjectDate
 import com.khan366kos.atlas.project.backend.common.models.TaskDependency
 import com.khan366kos.atlas.project.backend.common.models.simple.Duration
-import com.khan366kos.atlas.project.backend.common.project.ProjectId
+import com.khan366kos.atlas.project.backend.common.models.project.ProjectId
 import com.khan366kos.atlas.project.backend.common.models.task.ProjectTask
 import com.khan366kos.atlas.project.backend.common.models.task.simple.TaskId
 import com.khan366kos.atlas.project.backend.common.models.taskSchedule.ScheduleDelta

@@ -20,5 +20,5 @@ fun Application.module(
     configureHTTP()
     configureStatusPages()
     configureRoutingOld(config)
-    configureRouting(config, config.projectService)
+    configureRouting(config)
 }

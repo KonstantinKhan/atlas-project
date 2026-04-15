@@ -1,5 +1,6 @@
 package com.khan366kos.atlas.project.backend.common.project
 
+import com.khan366kos.atlas.project.backend.common.models.project.ProjectName
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
