@@ -12,20 +12,14 @@ dependencies {
     implementation(libs.exposed.kotlin.datetime)
     implementation(libs.kotlinx.datetime)
     implementation(libs.postgresql)
+    implementation(libs.h2)
+
     testImplementation(kotlin("test"))
     testImplementation(libs.kotest.runner.junit5)
     testImplementation(libs.kotest.assertions.core)
-    testImplementation(libs.testcontainers.postgresql)
     testImplementation(libs.kotlinx.coroutines.test)
 }
 
-tasks.test {
+tasks.withType<Test> {
     useJUnitPlatform()
-    val colimaSocket = "${System.getProperty("user.home")}/.colima/default/docker.sock"
-    if (File(colimaSocket).exists()) {
-        environment("DOCKER_HOST", "unix://$colimaSocket")
-        environment("TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE", "/var/run/docker.sock")
-        systemProperty("DOCKER_HOST", "unix://$colimaSocket")
-        jvmArgs("-DDOCKER_HOST=unix://$colimaSocket")
-    }
 }
