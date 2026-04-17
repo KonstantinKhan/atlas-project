@@ -1,0 +1,35 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - heading "Портфели проектов" [level=1] [ref=e14]
+      - generic [ref=e15]:
+        - link "Глобальная нагрузка" [ref=e16] [cursor=pointer]:
+          - /url: /resource-load
+          - img [ref=e17]
+          - text: Глобальная нагрузка
+        - button "Создать портфель" [ref=e19]:
+          - img [ref=e20]
+          - text: Создать портфель
+    - generic [ref=e21]:
+      - generic [ref=e23]:
+        - link "Портфель Проектного офиса" [ref=e24] [cursor=pointer]:
+          - /url: /portfolios/00000000-0000-0000-0000-000000000100
+          - heading "Портфель Проектного офиса" [level=2] [ref=e25]
+        - generic [ref=e26]:
+          - button [ref=e27]:
+            - img [ref=e28]
+          - button [ref=e31]:
+            - img [ref=e32]
+      - generic [ref=e46]:
+        - link "Test Portfolio Smoke Smoke test description" [ref=e47] [cursor=pointer]:
+          - /url: /portfolios/171da304-97ff-43aa-9171-dce29ce83624
+          - heading "Test Portfolio Smoke" [level=2] [ref=e48]
+          - paragraph [ref=e49]: Smoke test description
+        - generic [ref=e50]:
+          - button [ref=e51]:
+            - img [ref=e52]
+          - button [ref=e55]:
+            - img [ref=e56]
+  - button "Open Next.js Dev Tools" [ref=e9] [cursor=pointer]:
+    - img [ref=e10]
+  - alert [ref=e13]
