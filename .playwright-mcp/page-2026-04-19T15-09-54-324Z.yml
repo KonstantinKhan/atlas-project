@@ -1,0 +1,22 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - heading "Портфели проектов" [level=1] [ref=e4]
+      - generic [ref=e5]:
+        - link "Глобальная нагрузка" [ref=e6] [cursor=pointer]:
+          - /url: /resource-load
+          - img [ref=e7]
+          - text: Глобальная нагрузка
+        - button "Создать портфель" [ref=e9]:
+          - img [ref=e10]
+          - text: Создать портфель
+    - generic [ref=e13]:
+      - link "Портфель Проектного офиса" [ref=e14] [cursor=pointer]:
+        - /url: /portfolios/00000000-0000-0000-0000-000000000100
+        - heading "Портфель Проектного офиса" [level=2] [ref=e15]
+      - generic [ref=e16]:
+        - button [ref=e17]:
+          - img [ref=e18]
+        - button [ref=e21]:
+          - img [ref=e22]
+  - alert [ref=e25]

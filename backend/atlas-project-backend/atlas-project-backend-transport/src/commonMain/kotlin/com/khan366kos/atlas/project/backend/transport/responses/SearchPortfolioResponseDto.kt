@@ -5,11 +5,12 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class SearchPortfolioResponseDto(
+    @SerialName("messageType")
+    val messageType: String,
     @SerialName("foundPortfolios")
-    val foundPortfolios: List<PortfolioResponseDto>? = null,
+    val foundPortfolios: List<PortfolioResponseDto>,
 ) {
     companion object {
-        val NONE = SearchPortfolioResponseDto(emptyList())
+        val NONE = SearchPortfolioResponseDto(messageType = "searchPortfolio", foundPortfolios = emptyList())
     }
 }
-

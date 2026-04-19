@@ -59,7 +59,9 @@ import com.khan366kos.atlas.project.backend.transport.resource.ResourceDto
 import com.khan366kos.atlas.project.backend.transport.resource.AssignmentDayOverrideDto
 import com.khan366kos.atlas.project.backend.transport.resource.ResourceLoadResultDto
 import com.khan366kos.atlas.project.backend.transport.resource.TaskAssignmentDto
+import com.khan366kos.atlas.project.backend.common.models.user.User
 import com.khan366kos.atlas.project.backend.transport.responses.PortfolioResponseDto
+import com.khan366kos.atlas.project.backend.transport.user.UserResponseDto
 import com.khan366kos.atlas.project.backend.transport.responses.project.ProjectResponseDto
 import com.khan366kos.atlas.project.backend.transport.timelineCalendar.TimelineCalendarDto
 
@@ -290,12 +292,19 @@ fun Project.toUpdatableProjectDto() = ProjectDto(
 
 fun Portfolio.toResponsePortfolioDto() = PortfolioResponseDto(
     id = id.asString(),
-    name = name,
-    description = description
+    name = name.value,
+    description = description.value,
 )
 
 fun PortfolioProject.toResponseProjectDto() = ProjectResponseDto(
     id = id.asString(),
     name = name.asString(),
     priority = ProjectPriorityDto.valueOf(priority.name),
+)
+
+fun User.toDto(): UserResponseDto = UserResponseDto(
+    id = this.id.asString(),
+    name = this.name.value,
+    age = this.age.value,
+    role = this.role.name,
 )

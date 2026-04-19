@@ -1,7 +1,9 @@
 package com.khan366kos.atlas.project.backend.repo.postgres
 
 import com.khan366kos.atlas.project.backend.common.models.portfolio.Portfolio
+import com.khan366kos.atlas.project.backend.common.models.portfolio.PortfolioDescription
 import com.khan366kos.atlas.project.backend.common.models.portfolio.PortfolioId
+import com.khan366kos.atlas.project.backend.common.models.portfolio.PortfolioName
 import com.khan366kos.atlas.project.backend.common.models.project.Project
 import com.khan366kos.atlas.project.backend.common.models.project.ProjectId
 import com.khan366kos.atlas.project.backend.common.models.project.ProjectName
@@ -78,8 +80,8 @@ class PortfolioRepoPostgres(private val database: Database) : IPortfolioRepo {
                 val newId = Uuid.random().toJavaUuid()
                 PortfoliosTable.insert {
                     it[id] = newId
-                    it[name] = request.portfolio.name
-                    it[description] = request.portfolio.description
+                    it[name] = request.portfolio.name.value
+                    it[description] = request.portfolio.description.value
                 }
                 request.portfolio.copy(id = PortfolioId(newId))
             }
@@ -98,9 +100,9 @@ class PortfolioRepoPostgres(private val database: Database) : IPortfolioRepo {
         newSuspendedTransaction(db = database) {
             runCatching {
                 val updateCount = PortfoliosTable.update({ PortfoliosTable.id eq request.portfolio.id.asUUID() }) {
-                    request.portfolio.name.takeIf { name -> name.isNotBlank() }
+                    request.portfolio.name.value.takeIf { name -> name.isNotBlank() }
                         ?.let { portfolioName -> it[name] = portfolioName }
-                    request.portfolio.description.takeIf { description -> description.isNotBlank() }
+                    request.portfolio.description.value.takeIf { description -> description.isNotBlank() }
                         ?.let { portfolioDescription -> it[description] = portfolioDescription }
                 }
 
@@ -214,8 +216,8 @@ class PortfolioRepoPostgres(private val database: Database) : IPortfolioRepo {
         }
         Portfolio(
             id = PortfolioId(newId.toString()),
-            name = "new Project",
-            description = "",
+            name = PortfolioName("new Project"),
+            description = PortfolioDescription(""),
         )
     }
 
@@ -252,8 +254,8 @@ class PortfolioRepoPostgres(private val database: Database) : IPortfolioRepo {
 
     private fun ResultRow.toPortfolio() = Portfolio(
         id = PortfolioId(this[PortfoliosTable.id].toString()),
-        name = this[PortfoliosTable.name],
-        description = this[PortfoliosTable.description],
+        name = PortfolioName(this[PortfoliosTable.name]),
+        description = PortfolioDescription(this[PortfoliosTable.description]),
     )
 
     private fun ResultRow.toProject() = Project(

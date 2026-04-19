@@ -9,6 +9,8 @@ dependencies {
     implementation(projects.atlasProjectBackendTransport)
 
     testImplementation(kotlin("test"))
+    testImplementation(libs.kotest.runner.junit5)
+    testImplementation(libs.kotest.assertions.core)
 }
 
 tasks.test {

@@ -13,6 +13,9 @@ dependencies {
     implementation(libs.kotlinx.datetime)
     implementation(libs.postgresql)
     testImplementation(kotlin("test"))
+    testImplementation(libs.kotest.runner.junit5)
+    testImplementation(libs.kotest.assertions.core)
+    testImplementation(libs.h2)
 }
 
 tasks.test {

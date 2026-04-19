@@ -2,6 +2,7 @@
 exposed = "0.61.0"
 flyway = "10.20.1"
 h2 = "2.3.232"
+kotest = "5.9.1"
 kotlin = "2.3.10"
 ktor = "3.4.0"
 logback = "1.5.32"
@@ -34,6 +35,8 @@ ktor-server-netty = { module = "io.ktor:ktor-server-netty", version.ref = "ktor"
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 ktor-server-test-host = { module = "io.ktor:ktor-server-test-host", version.ref = "ktor" }
 kotlin-test-junit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
+kotest-runner-junit5   = { module = "io.kotest:kotest-runner-junit5",   version.ref = "kotest" }
+kotest-assertions-core = { module = "io.kotest:kotest-assertions-core", version.ref = "kotest" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }

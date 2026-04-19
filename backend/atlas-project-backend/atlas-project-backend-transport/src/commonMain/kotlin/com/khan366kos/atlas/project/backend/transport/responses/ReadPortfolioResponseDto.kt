@@ -4,8 +4,9 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-class ReadPortfolioResponseDto(
+data class ReadPortfolioResponseDto(
+    @SerialName("messageType")
+    val messageType: String,
     @SerialName("readPortfolio")
-    val readPortfolio: PortfolioResponseDto
-) {
-}
+    val readPortfolio: PortfolioResponseDto,
+)

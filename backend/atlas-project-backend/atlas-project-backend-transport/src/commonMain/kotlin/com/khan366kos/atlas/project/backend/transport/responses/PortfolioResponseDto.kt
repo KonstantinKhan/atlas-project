@@ -6,9 +6,9 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class PortfolioResponseDto(
     @SerialName("id")
-    val id: String? = null,
+    val id: String,
     @SerialName("name")
-    val name: String? = null,
+    val name: String,
     @SerialName("description")
-    val description: String? = null,
+    val description: String,
 )

@@ -4,7 +4,9 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-class CreatePortfolioResponseDto(
+data class CreatePortfolioResponseDto(
+    @SerialName("messageType")
+    val messageType: String,
     @SerialName("createdPortfolio")
     val createdPortfolio: PortfolioResponseDto,
 )

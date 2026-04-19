@@ -74,6 +74,7 @@ fun Routing.portfolios(
         val portfolios = portfolioService.list()
         call.respond(
             SearchPortfolioResponseDto(
+                messageType = "searchPortfolio",
                 foundPortfolios = portfolios.map { it.toResponsePortfolioDto() },
             )
         )
@@ -84,7 +85,8 @@ fun Routing.portfolios(
         val portfolio = portfolioService.create(command.createPortfolio.toDomain())
         call.respond(
             HttpStatusCode.Created, CreatePortfolioResponseDto(
-                createdPortfolio = portfolio.toResponsePortfolioDto()
+                messageType = "createPortfolio",
+                createdPortfolio = portfolio.toResponsePortfolioDto(),
             )
         )
     }
@@ -93,19 +95,19 @@ fun Routing.portfolios(
         val id = call.parameters["id"]!!
         val portfolio =
             portfolioService.find(PortfolioId(id))
-        call.respond(ReadPortfolioResponseDto(portfolio.toResponsePortfolioDto()))
+        call.respond(ReadPortfolioResponseDto(messageType = "readPortfolio", readPortfolio = portfolio.toResponsePortfolioDto()))
     }
 
     patch("/{id}") {
         val command = call.receive<UpdatePortfolioCommandDto>()
         val portfolio = portfolioService.modify(command.updatePortfolio.toDomain())
-        call.respond(HttpStatusCode.OK, UpdatePortfolioResponseDto(portfolio.toResponsePortfolioDto()))
+        call.respond(HttpStatusCode.OK, UpdatePortfolioResponseDto(messageType = "updatePortfolio", updatedPortfolio = portfolio.toResponsePortfolioDto()))
     }
 
     delete("/{id}") {
         val id = call.parameters["id"]!!
         val portfolio = portfolioService.delete(PortfolioId(id))
-        call.respond(DeletePortfolioResponseDto(portfolio.toResponsePortfolioDto()))
+        call.respond(DeletePortfolioResponseDto(messageType = "deletePortfolio", deletedPortfolio = portfolio.toResponsePortfolioDto()))
     }
 
     // Portfolio-Project relationship endpoints
@@ -217,8 +219,8 @@ fun Routing.portfolios(
 
 private fun Portfolio.toDto() = PortfolioDto(
     id = id.asString(),
-    name = name,
-    description = description,
+    name = name.value,
+    description = description.value,
 )
 
 private fun Project.toSummaryDto(taskCount: Int) = ProjectSummaryDto(

@@ -6,5 +6,5 @@ import kotlinx.serialization.Serializable
 @Serializable
 class DeletePortfolioCommandDto(
     @SerialName("deletePortfolioId")
-    val deletePortfolioId: String? = null,
+    val deletePortfolioId: String,
 )
